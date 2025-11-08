@@ -98,5 +98,5 @@ def query_codebase_context(question: str) -> str:
 
 
 # === Example usage ===
-question = "how do we sync minimart orders ??"
+question = "will decimal delivery fee fail for this api order/cancellation/panel??"
 query_codebase_context(question)
