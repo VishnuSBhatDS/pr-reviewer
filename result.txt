@@ -783,6 +783,70 @@ Context for question:
         }
         return etaWidgetModel;
 
+--- V1UserPhoneCartIdTest.java | V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 1/2 ---
+    @Test
+    public void testFetchEtaForOrders_IndividualOrderParseException() throws Exception {
+        // Arrange
+        List<Long> orderIds = Arrays.asList(101L, 102L);
+        
+        // Create warehouse delivery ETAs
+        List<WarehouseDeliveryEtaEntity> etaEntities = new ArrayList<>();
+        
+        // Create ETA for order 101 (with valid date)
+        WarehouseDeliveryEtaEntity eta1 = new WarehouseDeliveryEtaEntity();
+        eta1.setId(1L);
+        eta1.setOrderId(101L);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Date deliveryDate1 = sdf.parse("2025-01-01");
+        eta1.setDeliveryDate(deliveryDate1);
+        
+        // Create ETA for order 102 
+        WarehouseDeliveryEtaEntity eta2 = new WarehouseDeliveryEtaEntity();
+        eta2.setId(2L);
+        eta2.setOrderId(102L);
+        Date deliveryDate2 = sdf.parse("2025-01-02"); // Use a valid date, we'll mock the exception
+        eta2.setDeliveryDate(deliveryDate2);
+        
+        etaEntities.add(eta1);
+        etaEntities.add(eta2);
+        
+        // Mock repository response
+        when(warehouseEtaDeliveryRepository.findAllByOrderIdInOrderByDeliveryDateDesc(orderIds))
+            .thenReturn(Optional.of(etaEntities));
+        
+        // Create a partial mock of EtaServiceImpl to capture and validate the calls
+        EtaServiceImpl spyEtaService = spy(new EtaServiceImpl());
+        ReflectionTestUtils.setField(spyEtaService, "warehouseEtaDeliveryRepository", warehouseEtaDeliveryRepository);
+        
+        // Make order 101 format successfully
+        doReturn("01 January, 2025").when(spyEtaService).fetchEtaForOrder(101L);
+        
+        // Make order 102 format throw exception - return empty string instead of null
+        doReturn("").when(spyEtaService).fetchEtaForOrder(102L);
+        
+        // Make cart level ETA format successfully
+        doReturn("01 January, 2025").when(spyEtaService).fetchEtaForOrder(CART_LEVEL_ETA);
+        
+        // Act
+        Map<Long, String> result = spyEtaService.fetchEtaForOrders(orderIds);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals(3, result.size());  // All entries are included in the result map
+        assertTrue(result.containsKey(101L));  // Order 101 has a valid date
+
+--- V1UserPhoneCartIdTest.java | V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 2/2 ---
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals(3, result.size());  // All entries are included in the result map
+        assertTrue(result.containsKey(101L));  // Order 101 has a valid date
+        assertTrue(result.containsKey(102L));  // Order 102 is included but with empty string
+        assertTrue(result.containsKey(CART_LEVEL_ETA));  // Cart level ETA included
+        
+        // Verify method was called with expected parameters
+        verify(spyEtaService).fetchEtaForOrders(orderIds);
+
 --- KafkaProducerTest.java | KafkaProducerTest | testPushOrderCancelToSellerSync | TEST | 1/1 ---
     @Test
     public void testPushOrderCancelToSellerSync() {
@@ -914,43 +978,3 @@ Context for question:
                 eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PaymentStatus.REFUND_DONE.name()));
                 
         assertTrue(result, "Should return true when user has MINIMART orders and this is their first online purchase");
-
---- ExpressDeliveryServiceImplTest.java | ExpressDeliveryServiceImplTest | testOrderSyncException | TEST | 1/1 ---
-    @Test
-    public void testOrderSyncException() throws Exception {
-        // We need to access the private syncOrdersToIms method
-        Method syncOrdersToImsMethod = ExpressDeliveryServiceImpl.class.getDeclaredMethod(
-            "syncOrdersToIms", List.class, long.class);
-        syncOrdersToImsMethod.setAccessible(true);
-        
-        // Create test data
-        List<DealLevelPromotion> cartItems = new ArrayList<>();
-        DealLevelPromotion item1 = new DealLevelPromotion();
-        item1.setDeliveryType(DeliveryType.EXPRESS.name());
-        item1.setOrderPKId(101L);
-        
-        DealLevelPromotion item2 = new DealLevelPromotion();
-        item2.setDeliveryType(DeliveryType.EXPRESS.name());
-        item2.setOrderPKId(102L);
-        
-        cartItems.add(item1);
-        cartItems.add(item2);
-        
-        // Mock the orderServiceClient to throw an exception
-        when(orderServiceClient.syncOrderService(any()))
-            .thenThrow(new RuntimeException("Sync Failed"));
-        
-        // Invoke the private method
-        syncOrdersToImsMethod.invoke(expressDeliveryService, cartItems, 1001L);
-        
-        // Verify that orderServiceClient was called with an OrderPushToImsRequest 
-        // containing the correct order IDs and warehouse ID
-        ArgumentCaptor<OrderPushToImsRequest> requestCaptor = ArgumentCaptor.forClass(OrderPushToImsRequest.class);
-        verify(orderServiceClient).syncOrderService(requestCaptor.capture());
-        
-        OrderPushToImsRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(Long.valueOf(1001L), capturedRequest.getWarehouseId());
-        assertEquals(DeliveryType.EXPRESS.name(), capturedRequest.getDeliveryType());
-        assertEquals(2, capturedRequest.getOrderIds().size());
-        assertTrue(capturedRequest.getOrderIds().contains(101L));
-        assertTrue(capturedRequest.getOrderIds().contains(102L));

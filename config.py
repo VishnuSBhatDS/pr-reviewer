@@ -1,7 +1,7 @@
 import os
 from langchain_huggingface import HuggingFaceEmbeddings
 
-CHROMA_PATH = "../chroma_repo_codellama"
+CHROMA_PATH = "./chroma_dbs/cart_master"
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 LLM_MODEL = "codellama"
 HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")

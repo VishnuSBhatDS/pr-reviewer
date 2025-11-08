@@ -4,7 +4,7 @@ from git import Repo
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 import javalang
-from config import CHROMA_PATH, embeddings
+from config import embeddings
 
 
 def split_java_file(file_path, max_lines_per_chunk=50, overlap_lines=5):
@@ -26,31 +26,24 @@ def split_java_file(file_path, max_lines_per_chunk=50, overlap_lines=5):
 
         for method in node.methods:
             method_name = method.name
-
-            # === 1️⃣ Determine start line ===
             start = method.position.line - 1 if method.position else 0
 
-            # Go upward to include all contiguous @annotation lines
+            # include annotations above method
             annotation_start = start
             while annotation_start > 0 and lines[annotation_start - 1].strip().startswith("@"):
                 annotation_start -= 1
 
-            # === 2️⃣ Determine end line ===
             if method.body and len(method.body) > 0:
                 last_stmt = method.body[-1]
                 end = getattr(last_stmt.position, "line", None)
                 if not end:
-                    end = start + len(lines)  # fallback
+                    end = start + len(lines)
             else:
                 end = start + len(lines)
-            
-            # Cap at total lines
-            end = min(end, len(lines))
 
-            # === 3️⃣ Extract the annotated block ===
+            end = min(end, len(lines))
             method_lines = lines[annotation_start:end]
 
-            # === 4️⃣ Split long methods ===
             for i in range(0, len(method_lines), max_lines_per_chunk - overlap_lines):
                 sub_chunk_lines = method_lines[i:i + max_lines_per_chunk]
                 chunk_text = "\n".join(sub_chunk_lines)
@@ -69,12 +62,16 @@ def split_java_file(file_path, max_lines_per_chunk=50, overlap_lines=5):
     return documents
 
 
-def index_repo(repo_url: str, branch: str = "main") -> int:
-    """Clone and index a Java repo into Chroma vector DB."""
+def index_repo(repo_url: str, branch: str, db_name: str, base_chroma_path: str) -> int:
+    """
+    Clone a specific branch of a repo and index into a Chroma DB named after db_name.
+    Each branch will get its own separate vector DB folder.
+    """
     temp_dir = tempfile.mkdtemp()
-    Repo.clone_from(repo_url, temp_dir, branch=branch)
-    docs = []
+    repo = Repo.clone_from(repo_url, temp_dir)
+    repo.git.checkout(branch)
 
+    docs = []
     for root, _, files in os.walk(temp_dir):
         for file in files:
             if file.endswith(".java"):
@@ -85,13 +82,49 @@ def index_repo(repo_url: str, branch: str = "main") -> int:
                 except Exception as e:
                     print(f"⚠️ Skipped {path}: {e}")
 
-    vectordb = Chroma.from_documents(docs, embeddings, persist_directory=CHROMA_PATH)
+    db_path = os.path.join(base_chroma_path, db_name)
+    os.makedirs(db_path, exist_ok=True)
+
+    vectordb = Chroma.from_documents(docs, embeddings, persist_directory=db_path)
     vectordb.persist()
+    print(f"✅ Indexed {len(docs)} documents into {db_path}")
     return len(docs)
 
 
+def index_multiple_repos(repo_configs, base_chroma_path="./chroma_dbs"):
+    """
+    Index multiple repos and branches into separate Chroma DBs.
+    repo_configs = [
+        {
+            "repo_url": "https://github.com/VishnuSBhatDS/cart-service.git",
+            "branch": "master",
+            "db_name": "cart_master"
+        },
+        {
+            "repo_url": "https://github.com/VishnuSBhatDS/inventory-service.git",
+            "branch": "develop",
+            "db_name": "inventory_dev"
+        }
+    ]
+    """
+    total_docs = 0
+    for config in repo_configs:
+        total_docs += index_repo(
+            repo_url=config["repo_url"],
+            branch=config["branch"],
+            db_name=config["db_name"],
+            base_chroma_path=base_chroma_path
+        )
+    print(f"🔥 Total indexed across all repos: {total_docs}")
+    return total_docs
+
+
 if __name__ == "__main__":
-    repo_url = "https://github.com/VishnuSBhatDS/cart-service.git"
-    branch = "master"
-    indexed_docs = index_repo(repo_url, branch)
-    print(f"Total chunks created: {indexed_docs}")
+    repo_configs = [
+        {
+            "repo_url": "https://github.com/VishnuSBhatDS/cart-service.git",
+            "branch": "master",
+            "db_name": "cart_master"
+        }
+    ]
+    index_multiple_repos(repo_configs)

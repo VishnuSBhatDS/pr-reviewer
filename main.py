@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from repo_indexer import index_repo
-from query import query_codebase
+from scripts.query import query_codebase
 
 app = FastAPI(title="CodeLlama Repo Chatbot")
 
