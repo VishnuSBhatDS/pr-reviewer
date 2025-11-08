@@ -1,1256 +1,956 @@
 Context for question:
-will decimal delivery fee fail for this api order/cancellation/panel??
+/v1/minimart-order-sync
 
---- WarehouseResponseDto.java | WarehouseResponseDto | buildMetaData | 1/2 ---
-    private CartConfigMetaData buildMetaData() {
-        ObjectMapper objectMapper = new ObjectMapper();
+--- MyOrderController.java | MyOrderController | triggerOrderStatusNotificationBulk | CODE | 1/1 ---
+    @Async
+    @PostMapping(value = "/v1/order/status-change-noti-bulk")
+    public ResponseEntity<?> triggerOrderStatusNotificationBulk(@RequestBody BulkOrderStatusChangeCommModel orderStatusChangeCommModel) {
+        log.error("Request received in /v1/order/status-change-noti-bulk, orderStatusChangeCommModel {}", orderStatusChangeCommModel);
+        myOrderService.triggerOrderStatusNotificationBulk(orderStatusChangeCommModel);
+        return new ResponseEntity<>("Success", HttpStatus.OK);
 
-        Map<String, String> titleMap = new HashMap<>();
-        titleMap.put("en", "Order more & Get Free shipping");
-        titleMap.put("hi", "ऑर्डर करें और मुफ्त डिलीवरी पाएं");
-        titleMap.put("ben", "আরও অর্ডার করুন এবং বিনামূল্যে শিপিং পান");
+--- CartOrderPrivateController.java | CartOrderPrivateController | minimartOrderSync | CODE | 1/1 ---
+    @PostMapping(value = "/v1/minimart-order-sync")
+    public ResponseEntity<?> minimartOrderSync(@RequestBody OrderSyncRequestModel orderSyncRequestModel){
+        return new ResponseEntity<>(myOrderService.minimartOrderSync(orderSyncRequestModel), HttpStatus.OK);
 
-        String titleJson = "";
+--- ExpressDeliveryServiceImpl.java | ExpressDeliveryServiceImpl | syncOrdersToIms | CODE | 1/1 ---
+    private void syncOrdersToIms(List<DealLevelPromotion> cartItems, long warehouseId) {
+        List<Long> orderIds = cartItems.stream().filter(cartItem ->
+                cartItem.getDeliveryType().equalsIgnoreCase(DeliveryType.EXPRESS.name()))
+                .map(DealLevelPromotion::getOrderPKId).collect(Collectors.toList());
+        OrderPushToImsRequest orderPushToImsRequest = new OrderPushToImsRequest();
+        orderPushToImsRequest.setWarehouseId(warehouseId);
+        orderPushToImsRequest.setOrderIds(orderIds);
+        orderPushToImsRequest.setDeliveryType(DeliveryType.EXPRESS.name());
         try {
-            titleJson = objectMapper.writeValueAsString(titleMap);
-        } catch (Exception e) {
-            log.error(e.getMessage());
-        }
 
-        Map<String, String> messageMap = new HashMap<>();
-        messageMap.put("en", "Add items worth ₹${ORDER_VALUE} more to get free delivery");
-        messageMap.put("hi", "फ्री डिलीवरी प्राप्त करने के लिए ₹${ORDER_VALUE} के और आइटम जोड़ें");
-        messageMap.put("ben", "ফ্ফ্রি ডেলিভারির জন্য আরও ₹${ORDER_VALUE} মূল্যের আইটেম যোগ করুন");
+--- TransactionServiceHelper.java | TransactionServiceHelper | addToOrderAndOrderHistoryModels | CODE | 1/1 ---
+    private void addToOrderAndOrderHistoryModels(OrderPromotion orderPromotion, Integer discountAmount,
+                                                 List<Order> orderList, List<OrderHistory> orderHistoryList, Long cancelledOrderId) {
+        Optional<Order> orderOptional = orderRepository.findById(orderPromotion.getOrderId());
+        if (orderOptional.isPresent()) {
 
-        JsonNode messageNode = objectMapper.valueToTree(messageMap);
-
-        Map<String, String> configMetaMap = new HashMap<>();
-        configMetaMap.put("delivery_fee", "19");
-        configMetaMap.put("minimum_order_value", "399");
-
-        JsonNode configMetaNode = objectMapper.valueToTree(configMetaMap);
-
-        CartConfigModel deliveryFeeTemplate = new CartConfigModel();
-        deliveryFeeTemplate.setId(100319L);
-        deliveryFeeTemplate.setAmount(399L);
-        deliveryFeeTemplate.setConsumerType("B2C");
-        deliveryFeeTemplate.setLocationType("WAREHOUSE");
-        deliveryFeeTemplate.setLocationId(519);
-        deliveryFeeTemplate.setUserSegment("normal");
-        deliveryFeeTemplate.setLocale("en");
-        deliveryFeeTemplate.setTitle(titleJson);
-        deliveryFeeTemplate.setMessage(messageNode);
-        deliveryFeeTemplate.setIsActive(true);
-        deliveryFeeTemplate.setConfigName("DELIVERY_FEES");
-        deliveryFeeTemplate.setConfigMeta(configMetaNode);
-        deliveryFeeTemplate.setStartDate(new Date(2025-1900, 6, 7, 12, 46, 47));
-        deliveryFeeTemplate.setEndDate(new Date(2031-1900, 3, 30, 7, 40, 23));
-        deliveryFeeTemplate.setCreateDate(null);
-        deliveryFeeTemplate.setModifiedDate(null);
-
-        CartConfigFilter cartConfigFilterTemplate = CartConfigFilter.builder()
-                .amount(399L)
-                .consumerType("B2C")
-                .locationType("WAREHOUSE")
-
---- WarehouseResponseDto.java | WarehouseResponseDto | buildMetaData | 2/2 ---
-
-        CartConfigFilter cartConfigFilterTemplate = CartConfigFilter.builder()
-                .amount(399L)
-                .consumerType("B2C")
-                .locationType("WAREHOUSE")
-                .locationId(0)
-                .userSegment("ALL")
-                .locale("en")
-                .isActive(1)
-                .configName("DELIVERY_FEES")
-                .startDate(null)
-                .endDate(null)
-                .build();
-
-        Map<String, CartConfigModel> cartConfigModelMap = new HashMap<>();
-        cartConfigModelMap.put("DELIVERY_FEES", deliveryFeeTemplate);
-
-        return CartConfigMetaData.builder()
-
---- FeesController.java | FeesController | computeShipmentFees | 1/1 ---
-    public ResponseEntity<?> computeShipmentFees(@Valid @RequestBody ComputeShipmentFeesRequest computeShipmentFeesRequest) {
-//        log.error("Centralisation Compute Shipment Fees Request : {}", computeShipmentFeesRequest);
-        return new ResponseEntity<>(feesService.computeShipmentFees(computeShipmentFeesRequest), HttpStatus.OK);
-
---- FeesController.java | FeesController | updateShipmentFees | 1/1 ---
-    public ResponseEntity<?> updateShipmentFees(@Valid @RequestBody UpdateShipmentFeesRequest request) {
-//        log.error("Centralisation Update Shipment Fees Request : {}", request);
-        return new ResponseEntity<>(feesService.updateShipmentFees(request), HttpStatus.OK);
-
---- FeesController.java | FeesController | revertFees | 1/1 ---
-    public ResponseEntity<?> revertFees(@Valid @RequestBody RevertFeesRequest revertFeesRequest) {
-        log.error("Centralisation Revert Fees Request : {}", revertFeesRequest);
-        return new ResponseEntity<>(feesService.revertFees(revertFeesRequest), HttpStatus.OK);
-
---- CommonUtils.java | CommonUtils | getFreeDeliveryWithSavingsMessage | 1/1 ---
-    private String getFreeDeliveryWithSavingsMessage(BigDecimal savings, BigDecimal deliveryFeeSaved, BigDecimal actualDeliveryFee, Locale locale) {
-        // Check if delivery is free and has delivery fee savings
-        if (BigDecimal.ZERO.compareTo(actualDeliveryFee) == 0 && BigDecimal.ZERO.compareTo(deliveryFeeSaved) < 0) {
-            if (savings.compareTo(deliveryFeeSaved) == 0) {
-                // Only delivery fee saved
-                return messageSource.getMessage(CHECKOUT_SAVED_ON_DELIVERY_FEES, new Object[]{deliveryFeeSaved.intValue()}, locale);
-            } else {
-                // Savings including delivery fee
-                return messageSource.getMessage(CHECKOUT_SAVED_INCLUDING_DELIVERY_FEES, new Object[]{savings.intValue(), deliveryFeeSaved.intValue()}, locale);
-            }
-        }
-        return null;
-
---- CommonUtils.java | CommonUtils | getNoSavingsNotEligibleForFreeDeliveryMessage | 1/1 ---
-    private String getNoSavingsNotEligibleForFreeDeliveryMessage(BigDecimal savings, BigDecimal cartValue, BigDecimal mov, Locale locale) {
-        if (cartValue == null) cartValue = BigDecimal.ZERO;
-        if (mov == null) mov = BigDecimal.ZERO;
-
-        // Check if no savings and not eligible for free delivery
-        if (BigDecimal.ZERO.compareTo(savings) == 0 && cartValue.compareTo(mov) < 0) {
-            BigDecimal amountNeeded = mov.subtract(cartValue);
-            return messageSource.getMessage(CHECKOUT_ADD_FOR_FREE_DELIVERY, new Object[]{amountNeeded.intValue()}, locale);
-        }
-        return null;
-
---- AppExceptionHandler.java | AppExceptionHandler | PricingService | 1/1 ---
-    public ResponseEntity<?> PricingService(final PricingServiceException exception, final WebRequest request){
-        ExceptionResponse exceptionResponse = new ExceptionResponse(new Date(), exception.getMessage(), request.getDescription(false));
-        return new ResponseEntity<>(exceptionResponse, HttpStatus.BAD_REQUEST);
-
---- CartTPDataMappingService.java | CartTPDataMappingService | calculateOrderMargins | 1/1 ---
-    private void calculateOrderMargins(CartOrderDataDetails.OrderData orderData, OrderEntity order) {
-        BigDecimal orderAmount = order.getAmount();
-        BigDecimal buyingPrice = getBuyingPrice(order);
-        
-        BigDecimal rupeeNetMargin = orderAmount.subtract(buyingPrice);
-        BigDecimal netMargin = calculatePercentageMargin(rupeeNetMargin, orderAmount);
-        
-        orderData.setOrderRupeeNetMargin(rupeeNetMargin.setScale(2, RoundingMode.HALF_UP).doubleValue());
-        orderData.setOrderNetMargin(netMargin.doubleValue());
-
---- CartServiceV4Impl.java | CartServiceV4Impl | populateDeliveryFeeNudgeItems | 1/2 ---
-    private void populateDeliveryFeeNudgeItems(
-            LocationV3Model locationV3Model,
-            UserCacheModel userCacheModel,
-            CartDetailsCacheModel cartDetailsCacheModel,
-            Float cartAmount,
-            NudgeDetails nudgeDetails,
-            ConfettiDetails confettiDetails
-    ) throws IOException {
-        Integer clusterId = getFirstClusterId(locationV3Model);
-        boolean isCentralisedFlow = cartLevelDeliveryFeeService.centralisationDeliveryFeeConfig(locationV3Model, userCacheModel.getId());
-        if (!isCentralisedFlow) return;
-        Map<String, Object> feesMap = cartLevelDeliveryFeeService.appendCentralisationDeliveryFeeTitleAndDesc(
-                cartAmount.doubleValue(),
-                clusterId,
-                locationV3Model.getPincode(),
-                Objects.nonNull(cartDetailsCacheModel) ? cartDetailsCacheModel.getCartId() : 0,
-                Collections.emptyList(),
-                locationV3Model.getSpokeWarehouse(),
-                userCacheModel.getUserRank(),
-                userCacheModel.getId()
-        );
-        DeliveryFeeDataModel deliveryFeeData = (DeliveryFeeDataModel) feesMap.get(FeesType.DELIVERY_FEES.name());
-        if (deliveryFeeData == null) return;
-        DeliveryFeeNudgeItem feeNudgeItem = new DeliveryFeeNudgeItem();
-        feeNudgeItem.setTncList(Arrays.asList(
-                messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_TNC_ITEM_ONE, new Object[]{deliveryFeeData.getMov()}, LocaleContextHolder.getLocale()),
-                messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_TNC_ITEM_TWO, null, LocaleContextHolder.getLocale())
-        ));
-        NudgeItemPopUp popUp = createNudgePopUp(
-                messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_POPUP_NAME, null, LocaleContextHolder.getLocale()),
-                feeNudgeItem,
-                null,"en"
-        );
-        // Handle fee locked/unlocked case
-        if (deliveryFeeData.getDeliveryFee() != null && deliveryFeeData.getDeliveryFee() > 0) {
-            feeNudgeItem.setIcon(DELIVERY_FEE_NUDGE_PREE_APPLY_ICON);
-            feeNudgeItem.setTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_LOCKED_TITLE, null, LocaleContextHolder.getLocale()));
-            long remaining = (long) (deliveryFeeData.getMov() - cartAmount);
-            feeNudgeItem.setSubTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_LOCKED_SUBTITLE, new Object[]{remaining}, LocaleContextHolder.getLocale()));
-            if(cartAmount > 0) {
-                feeNudgeItem.setProgress((cartAmount * 100) / deliveryFeeData.getMov() + "%");
-            }else{
-                feeNudgeItem.setSubTitle(messageSource.getMessage(HOME_NUDGE_NO_ITEM_DELIVERY_FEE_SUBTITLE,new Object[]{Math.toIntExact(deliveryFeeData.getMov())},LocaleContextHolder.getLocale()));
-            }
-        } else {
-            feeNudgeItem.setIcon(DELIVERY_FEE_NUDGE_POST_APPLY_ICON);
-            feeNudgeItem.setTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_UNLOCKED_TITLE, null, LocaleContextHolder.getLocale()));
-            feeNudgeItem.setSubTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_UNLOCKED_SUBTITLE, new Object[]{deliveryFeeData.getConfigSnapshot().getFees()}, LocaleContextHolder.getLocale()));
-            DeliveryFeeConfetti confetti = new DeliveryFeeConfetti();
-            confetti.setMessage(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_CONFETTI_TITLE, null, LocaleContextHolder.getLocale()));
-
---- CartServiceV4Impl.java | CartServiceV4Impl | populateDeliveryFeeNudgeItems | 2/2 ---
-            feeNudgeItem.setIcon(DELIVERY_FEE_NUDGE_POST_APPLY_ICON);
-            feeNudgeItem.setTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_UNLOCKED_TITLE, null, LocaleContextHolder.getLocale()));
-            feeNudgeItem.setSubTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_UNLOCKED_SUBTITLE, new Object[]{deliveryFeeData.getConfigSnapshot().getFees()}, LocaleContextHolder.getLocale()));
-            DeliveryFeeConfetti confetti = new DeliveryFeeConfetti();
-            confetti.setMessage(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_CONFETTI_TITLE, null, LocaleContextHolder.getLocale()));
-            confetti.setKey("DELIVERY_FEE_" + clusterId);
-            confetti.setImage(DELIVERY_FEE_NUDGE_PREE_APPLY_ICON);
-            confetti.setAnimationUrl(ANIMATION_BOX_URL);
-            confettiDetails.getConfettiDetails().put("DELIVERY_FEE_" + clusterId, confetti);
-        }
-        popUp.setTitle(messageSource.getMessage(HOME_NUDGE_DELIVERY_FEE_LOCKED_TITLE, null, LocaleContextHolder.getLocale()));
-        feeNudgeItem.setMov(Math.toIntExact(deliveryFeeData.getMov()));
-        popUp.setSubTitle("on shopping of items worth ₹" + deliveryFeeData.getMov() + " or more");
-        feeNudgeItem.setNudgeItemPopUp(popUp);
-        feeNudgeItem.setImage(DELIVERY_FEE_NUDGE_PREE_APPLY_ICON);
-        feeNudgeItem.setKey("DELIVERY_FEE_" + clusterId);
-        nudgeDetails.getNudgeItemList().add(feeNudgeItem);
-
---- CartServiceV4Impl.java | CartServiceV4Impl | calculateDeliveryFeeSaved | 1/1 ---
-    private BigDecimal calculateDeliveryFeeSaved(DeliveryFeeDataModel delFeeModel, BigDecimal actualDeliveryFee) {
-        BigDecimal deliveryFeeSaved = BigDecimal.ZERO;
-        if (delFeeModel.getConfigSnapshot() != null && delFeeModel.getConfigSnapshot().getFees() != null) {
-            BigDecimal originalFee = BigDecimal.valueOf(delFeeModel.getConfigSnapshot().getFees());
-            if (actualDeliveryFee.compareTo(BigDecimal.ZERO) == 0) {
-                deliveryFeeSaved = originalFee;
-            }
-        }
-        return deliveryFeeSaved;
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelOrder | 1/6 ---
-    public Object cancelOrder(OrderCancelModel orderCancelModel, Long userId, Integer palId, Boolean isInternalServiceCall) {
-
-        log.error("Cancel Order request {} and userId : {}, internalServiceCall : {}", orderCancelModel, userId,isInternalServiceCall);
-
-        allowCancellation(orderCancelModel.getOrderId());
-        Optional<User> user = userService.getUserFromId(userId,orderCancelModel.getSource());
-        if ( ! user.isPresent()) {
-            throw new ValidationException("Auth key not exists");
-        }
-
-        Optional<Order> order = orderRepository.findByIdAndUserId(orderCancelModel.getOrderId(), user.get().getId());
-        if (!order.isPresent()) {
-            throw new ValidationException("Order and user id not matching");
-        }
-
-        if (this.setCartOrderCancellationKey(orderCancelModel.getOrderId()) == Boolean.FALSE) {
-            log.error("Order cancellation is failed due to unable to acquire lock {}, user Id {}", orderCancelModel.getOrderId(), userId);
-            throw new ValidationException("Something went wrong, Please try again.");
-        }
-
-        ValidationExceptionV2 message = new ValidationExceptionV2();
-        List<OrderMovBreach> movBreaches = new ArrayList<>();
-        MovBreachMessage movBreachMessage = new MovBreachMessage();
-        if (order.isPresent()) {
-            if (UserOrderStatus.NONCANCEBLESTATUS.getValues().stream().anyMatch(s -> s.equalsIgnoreCase(order.get().getOrderStatus()))) {
-                message.setMessage(messageSource.getMessage("non.cancellable.status", null, LocaleContextHolder.getLocale()));
-                return message;
-            }
-            if (!orderCancelModel.getDiscard()) {
-                if ((order.get().getPaymentType().equalsIgnoreCase(OrderPaymentMode.PAYTM.name()) && order.get().getOrderStatus().equalsIgnoreCase("pending"))) {
-                    message.setMessage(messageSource.getMessage("cancel.message", null, LocaleContextHolder.getLocale()));
-                    return message;
-                }
-            }
-            if(CANCELLED.getValues().stream().anyMatch(s -> s.equalsIgnoreCase(order.get().getOrderStatus()))) {
-                message.setMessage(messageSource.getMessage("already.cancelled", null, LocaleContextHolder.getLocale()));
-                return message;
-            }
-
-            ValidationExceptionV2 validationExceptionV2;
-            try{
-                Order orderData = order.get();
-                Long cartId = null;
-                List<CartOrderMapping> cartOrderMappingList = cartOrderMappingRepository.findCartOrderMappings(orderData.getId());
-                if (cartOrderMappingList != null && !cartOrderMappingList.isEmpty()) cartId = cartOrderMappingList.get(0).getCartId();
-
-                Optional<UserAddress> userAddress = userAddressesRepository.findById(orderData.getUserAddressId());
-                if(!userAddress.isPresent()) throw new ValidationException("User Address not found for this order");
-
-//                LocationV3Model locationV3Model = locationService.getLocationDataFromPinCodeV3(userAddress.get().getPinCode(),
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelOrder | 2/6 ---
-
-                Optional<UserAddress> userAddress = userAddressesRepository.findById(orderData.getUserAddressId());
-                if(!userAddress.isPresent()) throw new ValidationException("User Address not found for this order");
-
-//                LocationV3Model locationV3Model = locationService.getLocationDataFromPinCodeV3(userAddress.get().getPinCode(),
-//                                                null, orderCancelModel.getSource(), null);
-
-                Boolean canCancelCentralizedOrder = this.cancelCentralizedOrder(orderData,cartId,cartOrderMappingList);
-                Boolean cartLevelDeliveryFee = false;
-                if (checkIfCancellationDisabledSingleOrder(user.get().getId(), orderData, isInternalServiceCall,canCancelCentralizedOrder)) {
-                    log.error("Cancellation is disabled for this order : {}", orderData.getId());
-                    throw new ValidationException(messageSource.getMessage(CANCELLATION_DISABLED_MESSAGE,null, LocaleContextHolder.getLocale()));
-                }
-
-                Map<String, Object> cartItemsInfo = this.checkIfCartContainsOrdOrder(orderData, user.get(),
-                        orderCancelModel.getOrdSchemeKey(), cartId,orderCancelModel.getDiscard());
-                if (cartId == null) {
-                    throw new ValidationException("Valid user cart id is missing");
-                }
-                Boolean cancelOrderBool = (Boolean) cartItemsInfo.get(CART_CONTAINS_ORD);
-                /**
-                 * First order condition not to put check delivery fee. not handled pop up cancel
-                 * from order success screen
-                 */
-                //scratch card cancellation msg.
-                if(!orderCancelModel.getScratchCardKey()) {
-                    Map<String, Object> scratchCardRedeemedCheck =
-                        this.checkIfScratchCardRedeemed(orderData, cartId);
-                    if (scratchCardRedeemedCheck.containsKey(POPUP_MESSAGE_OBJECT)) {
-                        return scratchCardRedeemedCheck.get(POPUP_MESSAGE_OBJECT);
-                    }
-                }
-                boolean revertAB = true;
-                if(!orderCancelModel.getOrdSchemeKey() && !orderCancelModel.getDeliveryFeeKey()
-                    && revertAB) {
-                    // Cart Discount Mov breach check
-                    OrderMovBreach discountMovBreach =
-                        this.getCartDiscountMovBreach(orderData, cartId, orderCancelModel.getLang());
-                    log.error("Cancel Order request Cart Discount MovBreach Response  : {}, userId : {},cartId : {}", discountMovBreach,userId,cartId);
-                    if (Objects.nonNull(discountMovBreach)) {
-                        movBreaches.add(discountMovBreach);
-                    }
-                }
-                Map<String, Object> checkDeliveryFeeInfo = this.checkDeliveryFee(orderData, user.get(), orderCancelModel, cartId);
-
-                log.error("Cancel Order request CheckDeliveryFee Response  : {}, userId : {},cartId : {}", checkDeliveryFeeInfo,userId,cartId);
-
-                cartLevelDeliveryFee = (Boolean) checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") && checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") != null;
-                Boolean deliveryFeeCentralisationFlow = (Boolean) checkDeliveryFeeInfo.get("DELIVERY_FEE_CENTRALISATION_FLOW") && checkDeliveryFeeInfo.get("DELIVERY_FEE_CENTRALISATION_FLOW") != null;
-                cancelOrderBool = (Boolean) checkDeliveryFeeInfo.get(DELIVERY_FEES_APPLICABLE_CHECK);
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelOrder | 3/6 ---
-                log.error("Cancel Order request CheckDeliveryFee Response  : {}, userId : {},cartId : {}", checkDeliveryFeeInfo,userId,cartId);
-
-                cartLevelDeliveryFee = (Boolean) checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") && checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") != null;
-                Boolean deliveryFeeCentralisationFlow = (Boolean) checkDeliveryFeeInfo.get("DELIVERY_FEE_CENTRALISATION_FLOW") && checkDeliveryFeeInfo.get("DELIVERY_FEE_CENTRALISATION_FLOW") != null;
-                cancelOrderBool = (Boolean) checkDeliveryFeeInfo.get(DELIVERY_FEES_APPLICABLE_CHECK);
-                Boolean lastOrder = checkDeliveryFeeInfo.get("LAST_ORDER") != null && (Boolean) checkDeliveryFeeInfo.get("LAST_ORDER");
-                if (!orderCancelModel.getOrdSchemeKey() && !orderCancelModel.getDeliveryFeeKey()
-                    && checkDeliveryFeeInfo.containsKey(POPUP_MESSAGE_OBJECT)) {
-                    List<StaticPropertiesEntity> staticProperties =
-                        staticPropertiesRepository.findAllByPropertyKey(DELIVERY_PROP_KEY);
-                    if (Objects.isNull(movBreachMessage.getMessage())) {
-                        validationExceptionV2 = objectMapper.convertValue(
-                            checkDeliveryFeeInfo.get(POPUP_MESSAGE_OBJECT),
-                            ValidationExceptionV2.class);
-                        addToMovBreachMessage(movBreachMessage, validationExceptionV2);
-                    }
-                    movBreaches.add(OrderMovBreach.builder()
-                        .icon(
-                            !CollectionUtils.isEmpty(staticProperties) ? staticProperties.get(0)
-                                .getPropertyValue() : null)
-                        .message(messageSource.getMessage(DELIVERY_MSG_KEY,
-                            new Object[] {checkDeliveryFeeInfo.get("delivery_fee")},
-                            LocaleContextHolder.getLocale()))
-                        .type("delivery")
-                        .build());
-                }
-
-                if(!CollectionUtils.isEmpty(movBreaches)) {
-                    Collections.reverse(movBreaches);
-                    movBreachMessage.setOrderMovBreach(movBreaches);
-                    if (Objects.isNull(movBreachMessage.getMessage())) {
-                        OrderMovBreach movBreach = movBreaches.get(0);
-                        movBreachMessage.setMessageFooter(messageSource
-                            .getMessage(MOV_CHECKBOX_MSG, null, LocaleContextHolder.getLocale()));
-                        movBreachMessage.setTitle(messageSource
-                            .getMessage(MOV_TITLE_MSG, null, LocaleContextHolder.getLocale()));
-                        movBreachMessage.setMessage(movBreach.getMessage().replaceAll("<[/]?font>", ""));
-                        movBreachMessage.setInternalId(String.valueOf(orderData.getId()));
-                        movBreachMessage.setOrdSchemeKey(true);
-                    }
-                    return movBreachMessage;
-                }
-
-                KafkaCancellationRequestModel kafkaPayload = new KafkaCancellationRequestModel();
-                kafkaPayload.setCancelOrderBool(cancelOrderBool);
-                kafkaPayload.setCartId(cartId);
-                kafkaPayload.setCartConfig((CartConfig) cartItemsInfo.get("cartConfig"));
-                kafkaPayload.setOrderData(orderData);
-                kafkaPayload.setOrderCancelModel(orderCancelModel);
-                kafkaPayload.setCancelOrdOrderBool(orderCancelModel.getOrdSchemeKey());
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelOrder | 4/6 ---
-                kafkaPayload.setCartId(cartId);
-                kafkaPayload.setCartConfig((CartConfig) cartItemsInfo.get("cartConfig"));
-                kafkaPayload.setOrderData(orderData);
-                kafkaPayload.setOrderCancelModel(orderCancelModel);
-                kafkaPayload.setCancelOrdOrderBool(orderCancelModel.getOrdSchemeKey());
-                kafkaPayload.setUserRank(user.get().getUserRank());
-                kafkaPayload.setSource(orderCancelModel.getSource());
-                kafkaPayload.setPinCode(user.get().getPincode().toString());
-                if(!cancelOrderBool) {
-                    if(KafkaConstants.KAFKA_ALLOWED) {
-                        queueProducer.produceOrderCancellationSyncEvent(kafkaPayload);
-                    } else {
-                        log.error("Cancel Order request, payload :{}, cartLevelDeliveryFee : {}, internalCall : {}, userId : {}",
-                            kafkaPayload, cartLevelDeliveryFee,isInternalServiceCall, userId);
-                        orderCancellation(kafkaPayload, cartLevelDeliveryFee, isInternalServiceCall);
-
-                    }
-                }
-
-                if (deliveryFeeCentralisationFlow && (Boolean.TRUE.equals(orderCancelModel.getDeliveryFeeKey()) || lastOrder)){
-
-                        List<UpdateFeesModel> updateModels = new ArrayList<>();
-                        UpdateFeesModel updateFeesModel = new UpdateFeesModel();
-                        updateFeesModel.setFeeType(FeesType.DELIVERY_FEES.name());
-
-                        if(lastOrder){
-                            updateFeesModel.setAppliedFees(0.0);
-                            updateFeesModel.setFinalFees(0.0);
-
-                            List<FeeConfiguration> feeConfigurations = feeConfigRepository.findAll();
-                            if(!feeConfigurations.isEmpty()) {
-                                for(FeeConfiguration feeConfiguration : feeConfigurations){
-                                    UpdateFeesModel updateGenericFeeModel = new UpdateFeesModel();
-                                    updateGenericFeeModel.setFeeType(feeConfiguration.getCode());
-                                    updateGenericFeeModel.setAppliedFees(0.0);
-                                    updateGenericFeeModel.setFinalFees(0.0);
-                                    updateModels.add(updateGenericFeeModel);
-                                }
-                            }
-                        } else {
-                            long deliveryFees = checkDeliveryFeeInfo.get("delivery_fee") != null
-                                    ? (Long) checkDeliveryFeeInfo.get("delivery_fee")
-                                    : 0L;
-                            updateFeesModel.setAppliedFees((double) deliveryFees);
-                            updateFeesModel.setFinalFees((double) deliveryFees);
-                        }
-                        updateModels.add(updateFeesModel);
-
-
-                        UpdateCartFeesDetails updateCartFeesDetails = new UpdateCartFeesDetails();
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelOrder | 5/6 ---
-                        }
-                        updateModels.add(updateFeesModel);
-
-
-                        UpdateCartFeesDetails updateCartFeesDetails = new UpdateCartFeesDetails();
-                        updateCartFeesDetails.setCartId(cartId);
-                        updateCartFeesDetails.setUserId(userId);
-                        updateCartFeesDetails.setAllOrderCancelled(lastOrder);
-                        updateCartFeesDetails.setCartUpdateData(updateModels);
-
-                        UpdateCartFeesRequest updateCartFeesRequest = new UpdateCartFeesRequest();
-                        updateCartFeesRequest.setFlow(FlowType.CANCEL_ORDER);
-                        updateCartFeesRequest.setUpdateData(Collections.singletonList(updateCartFeesDetails));
-
-                        try {
-                            feesService.updateCartFees(updateCartFeesRequest);
-                        } catch (Exception ex){
-                            log.error("error in updating cart fees during cancel order,updateCartFeesRequest:{}", updateCartFeesRequest);
-                        }
-
-                        if (lastOrder) {
-                            try {
-                                log.error("Request received for creditCartConfigBenefits cartId {} and userId {} orderId {}", cartId, userId, orderCancelModel.getOrderId());
-                                feesService.creditCartConfigBenefits(cartId, userId);
-                            } catch (Exception ex){
-                                log.error("error in cancel-discarded-orders-creditCartConfigBenefits during cancel order cartId : {}", cartId);
-                            }
-                        }
-                }
-
-                try {
-                    schemeServiceClient.updateHomePageDiscountUsed(order.get().getUserId());
-                } catch (Exception e) {
-                    log.error("Something went wrong while updating home page strip discount amount");
-                }
-                try {
-                    int quantity = order.get().getQuantity() == null ? 1 : order.get().getQuantity().intValue();
-                    DealInfo dealInfo = DealInfo.builder().offerId(order.get().getOfferId())
-                            .quantity(quantity)
-                            .build();
-                    FrdSoldUpdateModel frdSoldUpdateModel = FrdSoldUpdateModel
-                            .builder().dealDetails(Arrays.asList(dealInfo))
-                            .userType(user.get().getUserRank())
-                            .pincode(userAddress.get().getPalPincode())
-                            .palId(userAddress.get().getPalId())
-                            .cancelRequest(true).build();
-                    dealServiceClient.updateFrdSoldQuantity(frdSoldUpdateModel, userName, password);
-                } catch (Exception e) {
-                    log.error("Something went wrong while update frd sold quantity for order cancel {}", e.getMessage());
-                }
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelOrder | 6/6 ---
-                            .cancelRequest(true).build();
-                    dealServiceClient.updateFrdSoldQuantity(frdSoldUpdateModel, userName, password);
-                } catch (Exception e) {
-                    log.error("Something went wrong while update frd sold quantity for order cancel {}", e.getMessage());
-                }
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | getOrdersBasedOnPhone | CODE | 1/4 ---
+    @Override
+    public MyOrderResponseModel getOrdersBasedOnPhone(Integer pageNo, Integer pageSize, String phone, String lang, String pinCode, String source) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize);
+        MyOrderResponseModel myOrderResponseModel = new MyOrderResponseModel();
+        JsonNode shareData = null;
+        if (pageNo == 0) {
+            try {
+                shareData = schemeServiceClient.getShareData(userName, password, lang, pinCode, "B2C", phone, "ORDER");
             } catch (Exception e) {
-                log.error("cancelOrder Method Exception: {} , userId : {}", e.getMessage(),userId,e);
-                throw new ValidationException("Something went wrong , please try again!!");
+                log.error(e.getMessage());
             }
         }
-        //updating the cache when order is cancelled.
-        etaService.updateOrderStatusWidgetCacheAsync(etaService.updateCacheForCancelledOrders(order.get()));
-        return true;
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | getComputeCartFeesRequest | 1/2 ---
-    private ComputeCartFeesResponse getComputeCartFeesRequest(Order cancelledOrder, OrderCancelModel orderCancelModel, Long cartId){
-
-        List<Order> orderList = orderRepository.findAllOrdersByCartId(cartId);
-        List<ComputeFeesOrderDetails> computeFeesOrderDetailsList = new ArrayList<>();
-        orderList.forEach(order -> {
-            ComputeFeesOrderDetails computeFeesOrderDetails = new ComputeFeesOrderDetails();
-            computeFeesOrderDetails.setOrderId(order.getId());
-            computeFeesOrderDetails.setQuantity(order.getQuantity());
-            computeFeesOrderDetails.setDealPrice(order.getAmount());
-            computeFeesOrderDetails.setStatus(order.getOrderStatus());
-            computeFeesOrderDetailsList.add(computeFeesOrderDetails);
-        });
-
-        List<Long> orderIds = orderList.stream().map(Order::getId).collect(Collectors.toList());
-
-        List<OrderDiscountingHistory> orderDiscountingHistoryList = orderDiscountingHistoryRepository.findAllByOrderIdIn(orderIds);
-        List<OrderDiscountingDataModel> orderDiscountingDataModelList = new ArrayList<>();
-        orderDiscountingHistoryList.forEach(orderDiscountingHistory -> {
-            OrderDiscountingDataModel orderDiscountingDataModel = new OrderDiscountingDataModel();
-            orderDiscountingDataModel.setOrderId(orderDiscountingHistory.getOrderId());
-            orderDiscountingDataModel.setDiscountAmount(orderDiscountingHistory.getDiscountAmount());
-            orderDiscountingDataModel.setDiscountPlanId(orderDiscountingHistory.getDiscountPlanId());
-            orderDiscountingDataModel.setDiscountType(orderDiscountingHistory.getDiscountType());
-            orderDiscountingDataModelList.add(orderDiscountingDataModel);
-        });
-
-        ComputeFeesCancelOrderDetails computeFeesCancelOrderDetails = new ComputeFeesCancelOrderDetails();
-        computeFeesCancelOrderDetails.setOrderId(cancelledOrder.getId());
-        computeFeesCancelOrderDetails.setQuantity(cancelledOrder.getQuantity().intValue());
-        computeFeesCancelOrderDetails.setApplyDeliveryFeeFlag(orderCancelModel.getDeliveryFeeKey());
-
-        ComputeFeesCartDetails computeFeesCartDetails = new ComputeFeesCartDetails();
-        computeFeesCartDetails.setCartAmount(orderList.stream().mapToDouble(Order::getAmount).sum());
-        computeFeesCartDetails.setOrderDetails(computeFeesOrderDetailsList);
-        computeFeesCartDetails.setOrderDiscountDetails(orderDiscountingDataModelList);
-
-        ComputeFeesDetails computeFeesDetails = new ComputeFeesDetails();
-        computeFeesDetails.setCartId(cartId);
-        computeFeesDetails.setCartDetails(computeFeesCartDetails);
-        computeFeesDetails.setCancelOrderDetails(Collections.singletonList(computeFeesCancelOrderDetails));
-
-        ComputeCartFeesRequest computeCartFeesRequest = new ComputeCartFeesRequest();
-        computeCartFeesRequest.setFlow(FlowType.CANCEL_ORDER);
-        computeCartFeesRequest.setCartData(Collections.singletonList(computeFeesDetails));
-
-        return feesService.computeCartFees(computeCartFeesRequest);
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | getComputeCartFeesRequest | 2/2 ---
-        return feesService.computeCartFees(computeCartFeesRequest);
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelAllOrder | 1/3 ---
-    public Object cancelAllOrder(List<OrderCancelModel> orderCancelModelList, Long userId, Integer palId) throws Exception {
-        // todo : cart id not same
-        // todo : all orders present check
-        if (orderCancelModelList == null || orderCancelModelList.isEmpty()) {
-            throw new ValidationException("Order cancel list is empty");
-        }
-
-        String source = null;
-        List<KafkaCancellationRequestModel> kafkaCancellationRequestModelList = new ArrayList<>();
-
-        for (OrderCancelModel orderCancelModel : orderCancelModelList) {
-            if (orderCancelModel.getSource() != null) {
-                source = orderCancelModel.getSource();
-                break;
-            }
-        }
-        if (source == null) {
-            throw new ValidationException("Source is null");
-        }
-
-        Optional<User> userOptional = userService.getUserFromId(userId, source);
-        if (!userOptional.isPresent()) {
-            throw new ValidationException("Auth key does not exist");
-        }
-
-        User user = userOptional.get();
-        List<Long> orderIds = getOrderIds(orderCancelModelList);
-
-        List<Order> orderList = orderRepository.findAllByUserIdAndIdIn(user.getId(), orderIds);
-        if (orderList.isEmpty()) {
-            throw new ValidationException("No matching orders for this user");
-        }
-
-        Map<Long, Order> orderMap = orderList.stream().collect(Collectors.toMap(Order::getId, Function.identity()));
-
-        Map<Long,CartOrderMapping> cartOrderMappingMap = getCartIdsFromOrder(orderList);
-        List<Long> cartIds = getCartIds(cartOrderMappingMap);
-        if(cartIds.size() > 1){
-            log.error("More than 1 cart id present : {}", cartOrderMappingMap);
-            throw new ValidationException("More than 1 cart id present");
-        }
-
-        Boolean allOrdersPresent  = allOrdersPresent(cartIds.get(0),orderIds);
-        if(!allOrdersPresent){
-            log.error("Not all orders present for cart id : {} , orderIds : {}", cartIds.get(0),orderIds);
-            throw new ValidationException("Not all orders present cart id");
-        }
-
-        ValidationExceptionV2 message = new ValidationExceptionV2();
-        List<OrderMovBreach> movBreaches = new ArrayList<>();
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelAllOrder | 2/3 ---
-            throw new ValidationException("Not all orders present cart id");
-        }
-
-        ValidationExceptionV2 message = new ValidationExceptionV2();
-        List<OrderMovBreach> movBreaches = new ArrayList<>();
-
-        for (OrderCancelModel orderCancelModel : orderCancelModelList) {
-            ValidationExceptionV2 messageResponse = OrderStatusCheck(orderMap.get(orderCancelModel.getOrderId()), orderCancelModel, message);
-            if (messageResponse != null) {
-                return messageResponse;
-            }
-        }
-
-        try {
-            for (OrderCancelModel orderCancelModel : orderCancelModelList) {
-                Order orderData = orderMap.get(orderCancelModel.getOrderId());
-                Long cartId = getCartIdForOrder(orderData);
-                if (checkIfCancellationDisabled(user.getId(), orderData, true)) {
-                    log.error("Cancellation is disabled for order: {}", orderData.getId());
-                    throw new ValidationException(messageSource.getMessage(CANCELLATION_DISABLED_MESSAGE, null, LocaleContextHolder.getLocale()));
+        myOrderResponseModel.setShareData(shareData);
+        final List<String> sources = new ArrayList<>(
+                AppSource.B2C.getValues().contains(source)
+                        ? AppSource.B2C.getValues()
+                        : AppSource.B2B.getValues()
+        );
+        List<Order> orderList = orderRepository.findByPhoneAndSourceInOrderByOrderDateDesc(phone, sources, pageable);
+        List<OrderModel> resultList = new ArrayList<>();
+        orderList.forEach(orderEntity -> {
+            OrderModel orderModel = new OrderModel();
+            Optional<ProductOffer> productOffer = productOfferRepository.findByOfferId(orderEntity.getOfferId());
+            if (productOffer.isPresent()) {
+                List<ProductOfferTranslation> productTranslations = productTranslationsRepository.findAllByOfferId(productOffer.get().getDealId());
+                if (!CollectionUtils.isEmpty(productTranslations)) {
+                    Map<String, String> productTitles = new HashMap<>();
+                    productTranslations.forEach(productTranslation -> productTitles.put(productTranslation.getLang(), productTranslation.getName()));
+                    orderModel.setProductTitle(productTitles);
                 }
-                Map<String, Object> cartItemsInfo = checkIfCartContainsOrdOrder(orderData, user, orderCancelModel.getOrdSchemeKey(), cartId,false);
-
-                // todo : can remove
-                if (!orderCancelModel.getScratchCardKey()) {
-                    Map<String, Object> scratchCardRedeemedCheck = checkIfScratchCardRedeemed(orderData, cartId);
-                    if (scratchCardRedeemedCheck.containsKey(POPUP_MESSAGE_OBJECT)) {
-                        return scratchCardRedeemedCheck.get(POPUP_MESSAGE_OBJECT);
-                    }
+                orderModel.setProductImage(this.fetchDealImage(productOffer.get().getDealId()));
+                orderModel.setProductId(productOffer.get().getProductId());
+            }
+            Optional<List<BtocInvoiceDetails>> invoiceDetails = btocInvoiceDetailsRepository.findByOrderId(orderEntity.getId());
+            if (invoiceDetails.isPresent() && invoiceDetails.get().size() != 0) {
+                orderModel.setInvoiceUrl(invoiceUrl + orderEntity.getId());
+            }
+            orderModel.setIsCancelAllowed(MyOrderPinEncryption.getCancelAllowed(orderEntity.getOrderStatus()));
+            if(orderEntity.getOrderStatus().equalsIgnoreCase("pending") && !orderEntity.getPaymentType().equalsIgnoreCase(PAYMENT_TYPE_PAYTM)){
+                orderModel.setIsCancelAllowed(Boolean.TRUE);
+            }
+            if (orderEntity.getAmount() != 0.00) {
+                orderModel.setShareMessageAmount(orderEntity.getAmount().longValue());
+            } else {
+                if(orderEntity.getBilledAmount() == null) {
+                    log.error("MyOrderServiceImpl getOrdersBasedOnPhone-> orderEntity :{}", orderEntity);
+                    orderEntity.setBilledAmount(0.0);
                 }
+                orderModel.setShareMessageAmount(orderEntity.getBilledAmount().longValue());
+            }
 
-                if (!orderCancelModel.getOrdSchemeKey() && !orderCancelModel.getDeliveryFeeKey()) {
-                    OrderMovBreach discountMovBreach = getCartDiscountMovBreach(orderData, cartId, orderCancelModel.getLang());
-                    if (discountMovBreach != null) {
-                        movBreaches.add(discountMovBreach);
-                    }
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | getOrdersBasedOnPhone | CODE | 2/4 ---
+                    log.error("MyOrderServiceImpl getOrdersBasedOnPhone-> orderEntity :{}", orderEntity);
+                    orderEntity.setBilledAmount(0.0);
                 }
-                KafkaCancellationRequestModel kafkaPayload = createKafkaCancellationPayload(orderData, orderCancelModel, cartId, user, cartItemsInfo);
-                kafkaCancellationRequestModelList.add(kafkaPayload);
+                orderModel.setShareMessageAmount(orderEntity.getBilledAmount().longValue());
             }
-        } catch (Exception e) {
-            log.error("Exception in cancelOrder: {}", e.getMessage());
-            throw new ValidationException("Something went wrong, please try again!");
-        }
-
-        try {
-            // Process bulk order cancellations via Kafka
-            orderCancellationBulk(kafkaCancellationRequestModelList, false); // todo : check cart level delivery fee flag
-            kafkaCancellationRequestModelList.forEach(order -> {
-                try {
-
---- MyOrderServiceImpl.java | MyOrderServiceImpl | cancelAllOrder | 3/3 ---
-        try {
-            // Process bulk order cancellations via Kafka
-            orderCancellationBulk(kafkaCancellationRequestModelList, false); // todo : check cart level delivery fee flag
-            kafkaCancellationRequestModelList.forEach(order -> {
-                try {
-                    processPostCancellationActions(order.getOrderData(), user);
-                } catch (Exception e) {
-                    log.error("Error during post-cancellation actions for order {}: {}", order.getOrderData().getId(), e.getMessage());
-                }
-            });
-        } catch (Exception e) {
-            log.error("Error in cancelOrder method: {}", e.getMessage());
-            throw new ValidationException("Something went wrong, please try again!");
-        }
-
-        return true;
-
---- PointsServiceImpl.java | PointsServiceImpl | creditReturnOrderCustomerPoints | 1/2 ---
-    public Map<Long, Float> creditReturnOrderCustomerPoints(List<Order> ordersData) {
-        Map<Long, Float> refundMap = new HashMap<>();
-        List<CustomerPoints> customerPointsList = new ArrayList<>();
-
-        List<Long> orderIds = ordersData.stream()
-                .map(Order::getId)
-                .collect(Collectors.toList());
-
-        List<CustomerPoints> orderCreditedCustomerPoints = customerPointsRepository.findByOrderIdInAndTypeAndIncentivePlanId(orderIds, AppConstant.CREDITED, REFUND_PLAN_ID);
-        Map<Long, List<CustomerPoints>> alreadyCreditedCustomerPointsMap = new HashMap<>();
-        if ( ! orderCreditedCustomerPoints.isEmpty()) {
-            alreadyCreditedCustomerPointsMap = orderCreditedCustomerPoints.stream().collect(Collectors.groupingBy(CustomerPoints::getOrderId));
-        }
-
-        for (Order order : ordersData) {
-            float creditedCustomerPoints = 0f;
-            if ( ! ObjectUtils.isEmpty(alreadyCreditedCustomerPointsMap) && alreadyCreditedCustomerPointsMap.containsKey(order.getId())) {
-                List<CustomerPoints> existingCustomerPoints = alreadyCreditedCustomerPointsMap.get(order.getId());
-                creditedCustomerPoints = existingCustomerPoints.stream()
-                        .map(CustomerPoints::getPoints)
-                        .filter(points -> points != null)
-                        .reduce(0f, Float::sum);
+            if (orderEntity.getOrderStatus().equalsIgnoreCase(DELIVERED)
+                    || orderEntity.getOrderStatus().equalsIgnoreCase(ORDER_REPLACED)) {
+                orderModel.setDriverContactNo(helplinePhone);
             }
-
-            Date expiryDate = Date.from(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().plusDays(DEFAULT_REFUND_EXPIRY_DAYS).atStartOfDay(ZoneId.systemDefault()).toInstant());
-            try {
-                Optional<StaticPropertiesEntity> staticProperties = staticPropertiesRepository.findAllByPropertyKey(REFUND_EXPIRY_DAYS).stream().findFirst();
-                Integer days = staticProperties.isPresent() && Integer.valueOf(staticProperties.get().getPropertyValue()) >= 0 ? Integer.valueOf(staticProperties.get().getPropertyValue()) : DEFAULT_REFUND_EXPIRY_DAYS;
-                expiryDate = getExpiryDate(days);
-            } catch (ParseException e) {
-                log.error("Error while fetching refund expiry days from DB: {}", e.getMessage());
-            }
-
-            List<OrderDiscountingHistory> orderDiscountingHistories = orderDiscountingHistoryRepository.findByOrderId(order.getId());
-
-            int refundAndWalletDiscountAmount = 0;
-            if(orderDiscountingHistories != null && !orderDiscountingHistories.isEmpty()) {
-                refundAndWalletDiscountAmount = orderDiscountingHistories.stream()
-                        .filter(orderDiscountingHistory ->
-                                REFUND_DISCOUNT_TYPE.equalsIgnoreCase(orderDiscountingHistory.getDiscountType()) ||
-                                        WALLET_DISCOUNT_TYPE.equalsIgnoreCase(orderDiscountingHistory.getDiscountType())
-                        )
-                        .map(orderDiscountingHistory ->
-                                orderDiscountingHistory.getDiscountAmount() != null ? orderDiscountingHistory.getDiscountAmount() : 0
-                        )
-                        .reduce(0, Integer::sum);
-            }
-            log.error("refundAndWalletDiscountAmount : {}, creditedCustomerPoints : {} and amount :{} while creating customerPoints in return refund  for orderId : {}", refundAndWalletDiscountAmount, creditedCustomerPoints,order.getAmount(),order.getId());
-
-            float requiredCustomerPoints = order.getAmount().floatValue() + refundAndWalletDiscountAmount - creditedCustomerPoints;
-
---- PointsServiceImpl.java | PointsServiceImpl | creditReturnOrderCustomerPoints | 2/2 ---
-                        .reduce(0, Integer::sum);
-            }
-            log.error("refundAndWalletDiscountAmount : {}, creditedCustomerPoints : {} and amount :{} while creating customerPoints in return refund  for orderId : {}", refundAndWalletDiscountAmount, creditedCustomerPoints,order.getAmount(),order.getId());
-
-            float requiredCustomerPoints = order.getAmount().floatValue() + refundAndWalletDiscountAmount - creditedCustomerPoints;
-            if (requiredCustomerPoints > 0) {
-                CustomerPoints saveCustomerPoints = new CustomerPoints();
-                saveCustomerPoints.setExpiryDate(expiryDate);
-                saveCustomerPoints.setRemarks(ORDER_RETURN_REFUND_REMARKS);
-                saveCustomerPoints.setOrderId(order.getId());
-                saveCustomerPoints.setPriority(1L);
-                saveCustomerPoints.setType(CREDITED);
-                saveCustomerPoints.setStatus(1L);
-                saveCustomerPoints.setUserId(order.getUserId());
-                saveCustomerPoints.setIncentivePlanId((long) REFUND_PLAN_ID);
-                saveCustomerPoints.setPoints(requiredCustomerPoints);
-                customerPointsList.add(saveCustomerPoints);
-            }
-
-            refundMap.put(order.getId(), requiredCustomerPoints);
-            try {
-                if (requiredCustomerPoints > 0) {
-                    OrderStatusChangeCommModel orderStatusChangeCommModel = new OrderStatusChangeCommModel();
-                    orderStatusChangeCommModel.setOrderId(order.getId());
-                    orderStatusChangeCommModel.setTemplateName(WALLET_CREDIT_COMM);
-                    orderStatusChangeCommModel.setRefundAmount(requiredCustomerPoints);
-                    myOrderService.triggerOrderStatusNotification(orderStatusChangeCommModel);
-                }
-            } catch (Exception ex) {
-                log.error("Credit refund points API creditReturnOrderCustomerPoints : {} ex {}", ordersData, ex.getMessage());
-            }
-        }
-
-        customerPointsRepository.saveAll(customerPointsList);
-        raiseThirdPartyEvents(customerPointsList);
-        return refundMap;
-
---- PointsServiceImpl.java | PointsServiceImpl | creditOrderCustomerPoints | 1/3 ---
-    public Map<Long, Float> creditOrderCustomerPoints(Order orderData, WalletRefundCreditModel walletRefundCreditModel) {
-        if (walletRefundCreditModel.getAmount() > orderData.getAmount().longValue() + orderData.getDiscountAmount()) {
-            throw new ValidationException("Refund amount Rs." + walletRefundCreditModel.getAmount()
-                    + " is greater than order amount Rs." + orderData.getAmount().longValue() + " and discount amount Rs." + orderData.getDiscountAmount());
-        }
-
-        Map<Long, Float> refundMap = new HashMap<>();
-        List<CustomerPoints> customerPointsList = new ArrayList<>();
-
-        List<CustomerPoints> orderCreditedCustomerPoints = customerPointsRepository.findByOrderIdInAndTypeInAndStatusAndIncentivePlanId(
-                Collections.singletonList(orderData.getId()), Arrays.asList(CREDITED, WALLET_POINTS_PENDING), 1, REFUND_PLAN_ID);
-        Map<Long, List<CustomerPoints>> alreadyCreditedCustomerPointsMap = new HashMap<>();
-        if ( ! orderCreditedCustomerPoints.isEmpty()) {
-            alreadyCreditedCustomerPointsMap = orderCreditedCustomerPoints.stream().collect(Collectors.groupingBy(CustomerPoints::getOrderId));
-        }
-
-        float creditedCustomerPoints = 0f;
-        if ( ! ObjectUtils.isEmpty(alreadyCreditedCustomerPointsMap) && alreadyCreditedCustomerPointsMap.containsKey(orderData.getId())) {
-            List<CustomerPoints> existingCustomerPoints = alreadyCreditedCustomerPointsMap.get(orderData.getId());
-            creditedCustomerPoints = existingCustomerPoints.stream()
-                    .map(CustomerPoints::getPoints)
-                    .filter(points -> points != null)
-                    .reduce(0f, Float::sum);
-        }
-
-        Date expiryDate = Date.from(new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().plusDays(DEFAULT_REFUND_EXPIRY_DAYS).atStartOfDay(ZoneId.systemDefault()).toInstant());
-        try {
-            Optional<StaticPropertiesEntity> staticProperties = staticPropertiesRepository.findAllByPropertyKey(REFUND_EXPIRY_DAYS).stream().findFirst();
-            Integer days = staticProperties.isPresent() && Integer.valueOf(staticProperties.get().getPropertyValue()) >= 0 ? Integer.valueOf(staticProperties.get().getPropertyValue()) : DEFAULT_REFUND_EXPIRY_DAYS;
-            expiryDate = getExpiryDate(days);
-        } catch (ParseException e) {
-            log.error("Error while fetching refund expiry days from DB: {}", e.getMessage());
-        }
-
-        List<OrderDiscountingHistory> orderDiscountingHistories = orderDiscountingHistoryRepository.findByOrderId(orderData.getId());
-
-        int refundAndWalletDiscountAmount = 0;
-//        if(orderDiscountingHistories != null && !orderDiscountingHistories.isEmpty()) {
-//            refundAndWalletDiscountAmount = orderDiscountingHistories.stream()
-//                    .filter(orderDiscountingHistory ->
-//                            REFUND_DISCOUNT_TYPE.equalsIgnoreCase(orderDiscountingHistory.getDiscountType()) ||
-//                                    WALLET_DISCOUNT_TYPE.equalsIgnoreCase(orderDiscountingHistory.getDiscountType())
-//                    )
-//                    .map(orderDiscountingHistory ->
-//                            orderDiscountingHistory.getDiscountAmount() != null ? orderDiscountingHistory.getDiscountAmount() : 0
-//                    )
-//                    .reduce(0, Integer::sum);
-//        }
-
-        log.error("refundAndWalletDiscountAmount : {}, creditedCustomerPoints : {} and amount :{} while creating customerPoints in return refund  for orderId : {}",
-
---- PointsServiceImpl.java | PointsServiceImpl | creditOrderCustomerPoints | 2/3 ---
-//                    )
-//                    .reduce(0, Integer::sum);
-//        }
-
-        log.error("refundAndWalletDiscountAmount : {}, creditedCustomerPoints : {} and amount :{} while creating customerPoints in return refund  for orderId : {}",
-                refundAndWalletDiscountAmount, creditedCustomerPoints,orderData.getAmount(),orderData.getId());
-        if (orderData.getAmount().floatValue() + orderData.getDiscountAmount() <
-                refundAndWalletDiscountAmount + creditedCustomerPoints + walletRefundCreditModel.getAmount()) {
-            throw new ValidationException("Current refund amount Rs." + walletRefundCreditModel.getAmount() + " and already credited Customer Points " + creditedCustomerPoints + ""
-                    + " is greater than order amount Rs." + orderData.getAmount().longValue() + " and discount amount Rs." + orderData.getDiscountAmount());
-        }
-
-        int walletRefundsAmount = schemeServiceClient.getUserRefundedValueWallets(walletRefundCreditModel.getUserName());
-        int onlineRefundsAmount = paymentServiceClient.getUserRefundedValue(walletRefundCreditModel.getUserName());
-
-        DsUserModel dsUserModel = null;
-        try {
-            dsUserModel = userServiceClient.searchDsUser(walletRefundCreditModel.getUserName());
-        } catch (Exception ex) {
-            log.error("creditOrderCustomerPoints user service - user does not exist for {}", walletRefundCreditModel.getUserName());
-        }
-
-        boolean creatorAllowedToRefund = true;
-        CustomerPoints saveCustomerPoints = new CustomerPoints();
-        for (String r : walletRefundCreditModel.getUserRoles()) {
-            String trimmedRole = r.trim();
-            try {
-                PaymentDashboardRoles role = PaymentDashboardRoles.valueOf(trimmedRole);
-                if (role.equals(PaymentDashboardRoles.REFUND_CREATER)) {
-                    if (ObjectUtils.isEmpty(dsUserModel) || ObjectUtils.isEmpty(dsUserModel.getUserRefundLimit())) {
-                        throw new ValidationException("Refund limit not set for the user - " + walletRefundCreditModel.getUserName() + ". Please update from CS Panel");
-                    }
-
-                    if ((walletRefundsAmount + onlineRefundsAmount + walletRefundCreditModel.getAmount()) > dsUserModel.getUserRefundLimit()) {
-                        creatorAllowedToRefund = false;
-                        saveCustomerPoints.setType(WALLET_POINTS_PENDING);
+            if (!ObjectUtils.isEmpty(orderEntity.getDeliveryInfo()) && orderEntity.getOrderStatus().equalsIgnoreCase("outfordelivery")) {
+                String[] result = orderEntity.getDeliveryInfo().split("/");
+                if (result.length != 0) {
+                    orderModel.setDriverName(result[0]);
+                    if (result.length == 2) {
+                        orderModel.setDriverContactNo(result[1]);
                     } else {
-                        saveCustomerPoints.setType(CREDITED);
+                        orderModel.setDriverContactNo(helplinePhone);
                     }
-                } else if (role.equals(PaymentDashboardRoles.REFUND_INITIATER) || role.equals(PaymentDashboardRoles.REFUND_ADMIN)) {
-                    saveCustomerPoints.setType(CREDITED);
                 }
-            } catch (IllegalArgumentException e) {
+            }
 
+            String orderStatusText = staticPropertyService.getStaticPropertyCache(
+                StaticPropertiesKeyName.SP_ORDER_STATUS.getValue(),
+                orderEntity.getOrderStatus(),
+                lang
+            );
+
+            if (!ObjectUtils.isEmpty(orderStatusText)) {
+                orderModel.setOrderStatusDes(orderStatusText);
+            } else {
+                orderModel.setOrderStatusDes(orderEntity.getOrderStatus());
+            }
+
+            if (!orderEntity.getPaymentType().equalsIgnoreCase(OrderPaymentMode.COD.name())) {
+                if (orderEntity.getPaymentStatus().equalsIgnoreCase(PaymentStatus.INITIATE_REFUND.name())) {
+                    String refundMessageText = staticPropertyService.getStaticPropertyCache (
+                        StaticPropertiesKeyName.SP_REFUND_MESSAGE.getValue(),
+                        orderEntity.getPaymentStatus(),
+                        lang
+                    );
+
+                    if (!ObjectUtils.isEmpty(refundMessageText)) {
+                        orderModel.setOrderStatusDes(refundMessageText);
+                    } else {
+                        orderModel.setOrderStatusDes(orderEntity.getPaymentStatus());
+                    }
+
+                    String orderStatusTextCOD = staticPropertyService.getStaticPropertyCache (
+                        StaticPropertiesKeyName.SP_ORDER_STATUS.getValue(),
+                        orderEntity.getPaymentStatus(),
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | getOrdersBasedOnPhone | CODE | 3/4 ---
+                    }
+
+                    String orderStatusTextCOD = staticPropertyService.getStaticPropertyCache (
+                        StaticPropertiesKeyName.SP_ORDER_STATUS.getValue(),
+                        orderEntity.getPaymentStatus(),
+                        lang
+                    );
+
+                    if (!ObjectUtils.isEmpty(orderStatusTextCOD)) {
+                        orderModel.setRefundMessage(orderStatusTextCOD);
+                    } else {
+                        orderModel.setRefundMessage(orderEntity.getPaymentStatus());
+                    }
+                }
+
+                if (orderEntity.getPaymentStatus().equalsIgnoreCase(PaymentStatus.REFUND_DONE.name())) {
+                    String refundMessageText = staticPropertyService.getStaticPropertyCache (
+                        StaticPropertiesKeyName.SP_ORDER_STATUS.getValue(),
+                        orderEntity.getPaymentStatus(),
+                        lang
+                    );
+
+                    if (!ObjectUtils.isEmpty(refundMessageText)) {
+                        orderModel.setOrderStatusDes(refundMessageText);
+                    } else {
+                        orderModel.setOrderStatusDes(orderEntity.getPaymentStatus());
+                    }
+                }
+            }
+
+            String orderPaymentStatus = staticPropertyService.getStaticPropertyCache (
+                StaticPropertiesKeyName.SP_PAYMENT_TYPE_TEXT.getValue(),
+                orderEntity.getPaymentType(),
+                lang
+            );
+
+            if (!ObjectUtils.isEmpty(orderPaymentStatus)) {
+                orderModel.setPaymentType(orderPaymentStatus);
+            } else {
+                orderModel.setPaymentType(orderEntity.getPaymentType());
+            }
+
+            orderModel.setPaymentStatus(orderEntity.getPaymentStatus());
+            orderModel.setOrderStatus(orderEntity.getOrderStatus());
+            orderModel.setSource(orderEntity.getSource());
+            orderModel.setId(orderEntity.getId());
+            orderModel.setDeliveryDate(orderEntity.getDeliveryDate());
+            orderModel.setOfferId(orderEntity.getOfferId());
+            orderModel.setOfferType(orderEntity.getOrderType());
+
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | getOrdersBasedOnPhone | CODE | 4/4 ---
+            orderModel.setId(orderEntity.getId());
+            orderModel.setDeliveryDate(orderEntity.getDeliveryDate());
+            orderModel.setOfferId(orderEntity.getOfferId());
+            orderModel.setOfferType(orderEntity.getOrderType());
+
+            orderModel.setOrderDate(orderEntity.getOrderDate());
+            orderModel.setQuantity(orderEntity.getQuantity());
+            orderModel.setUserId(orderEntity.getUserId());
+            orderModel.setOrderId(orderEntity.getOrderId());
+            orderModel.setDeliveryFee(new BigDecimal(0));
+            orderModel.setPin(MyOrderPinEncryption.getEncryption(orderEntity.getPhone(), orderEntity.getOrderId()));
+            resultList.add(orderModel);
+        });
+
+        myOrderResponseModel.setOrders(resultList);
+        if(resultList.stream().anyMatch(orderModel -> orderModel.getOrderStatus().equalsIgnoreCase("pending"))){
+            myOrderResponseModel.setPendingOrders(true);
+        }else{
+            myOrderResponseModel.setPendingOrders(false);
+        }
+
+        if (myOrderResponseModel.getPendingOrders()) {
+            String rtgsPaymentStatusText = staticPropertyService.getStaticPropertyCache (
+                StaticPropertiesKeyName.SP_RTGS_ADVANCE_PAYMENT_PENDING.getValue(),
+                StaticPropertiesPropertyName.SP_SUCCESS_MESSAGE.getValue(),
+                lang
+            );
+
+            if (!ObjectUtils.isEmpty(rtgsPaymentStatusText)) {
+                myOrderResponseModel.setPendingPaymentMessage(rtgsPaymentStatusText);
             }
         }
 
-        if (ObjectUtils.isEmpty(saveCustomerPoints.getStatus())) {
-            throw new ValidationException("You don't have access to create a refund, please contact the dashboard admin");
+        return this.setDeliveryFeeInfoInOrders(myOrderResponseModel);
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | checkMinimumMovPerDay | CODE | 1/1 ---
+    @Override
+    public OrderMovModel checkMinimumMovPerDay(String phone, String source, String pinCode) throws IOException {
+        OrderMovModel orderMovModel = new OrderMovModel();
+        orderMovModel.setIsShow(Boolean.FALSE);
+        return orderMovModel;
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | getCartIdForOrder | CODE | 1/1 ---
+    private Long getCartIdForOrder(Order orderData) {
+        Optional<CartOrderMapping> cartOrderMapping = cartOrderMappingRepository.findFirstByOrderId(orderData.getId());
+        return cartOrderMapping.map(CartOrderMapping::getCartId).orElse(null);
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | pushToSellersPanel | CODE | 1/1 ---
+    public void pushToSellersPanel(Order order){
+        if(!MARKET_PLACE.equalsIgnoreCase(order.getOrderType()))
+            return;
+
+
+        CancelOrderSellerSyncModel cancelOrderSellerSyncModel= new CancelOrderSellerSyncModel();
+        cancelOrderSellerSyncModel.setOrderId(order.getId());
+        queueProducer.pushOrderCancelToSellerSync(cancelOrderSellerSyncModel);
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | triggerOrderCancelEventBulk | CODE | 1/1 ---
+    private void triggerOrderCancelEventBulk(List<Order> orderDataList) {
+        List<Long> orderIds = orderDataList.stream().map(Order::getId).collect(Collectors.toList());
+        OrdersStatusUpdateEvent ordersStatusUpdateEvent = new OrdersStatusUpdateEvent();
+        ordersStatusUpdateEvent.setOrderIds(orderIds);
+        if(!orderIds.isEmpty()) {
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | addToOrderAndOrderHistoryModels | CODE | 1/1 ---
+    private void addToOrderAndOrderHistoryModels(OrderPromotion orderPromotion, Integer discountAmount,
+                                                 List<Order> orderList, List<OrderHistory> orderHistoryList, Long cancelledOrderId) {
+        Optional<Order> orderOptional = orderRepository.findById(orderPromotion.getOrderId());
+        if (orderOptional.isPresent()) {
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | bulkReturnWalletUpdate | CODE | 1/1 ---
+    @Override
+    public BulkOrderReturnWalletUpdate bulkReturnWalletUpdate(BulkCancelWalletCreditModel bulkCancelWalletCreditModel) {
+        BulkOrderReturnWalletUpdate bulkOrderReturnWalletUpdate = new BulkOrderReturnWalletUpdate();
+
+        List<Order> ordersData = orderRepository.findByIdIn(bulkCancelWalletCreditModel.getOrderIds());
+        if (ordersData.isEmpty()) {
+            log.error("bulkReturnWalletUpdate ordersData not found : {}", bulkCancelWalletCreditModel);
+            return bulkOrderReturnWalletUpdate;
         }
 
---- PointsServiceImpl.java | PointsServiceImpl | creditOrderCustomerPoints | 3/3 ---
+        bulkOrderReturnWalletUpdate.setBulkCancelWalletUpdate(this.bulkCancelWalletUpdate(bulkCancelWalletCreditModel));
+
+        List<Order> codOrdersData = orderRepository.findByIdInAndPaymentType(bulkCancelWalletCreditModel.getOrderIds(), COD_TYPE);
+        if (codOrdersData.isEmpty()) {
+            log.error("bulkReturnWalletUpdate codOrdersData ordersData not found : {}", bulkCancelWalletCreditModel);
+            return bulkOrderReturnWalletUpdate;
         }
 
-        if (ObjectUtils.isEmpty(saveCustomerPoints.getStatus())) {
-            throw new ValidationException("You don't have access to create a refund, please contact the dashboard admin");
-        }
+        bulkOrderReturnWalletUpdate.setCreditReturnOrderCustomerPoints(pointsService.creditReturnOrderCustomerPoints(codOrdersData));
+        return bulkOrderReturnWalletUpdate;
 
-        saveCustomerPoints.setExpiryDate(expiryDate);
-        saveCustomerPoints.setRemarks(ORDER_RETURN_REFUND_REMARKS);
-        saveCustomerPoints.setOrderId(orderData.getId());
-        saveCustomerPoints.setPriority(1L);
-        saveCustomerPoints.setStatus(1L);
-        saveCustomerPoints.setUserId(orderData.getUserId());
-        saveCustomerPoints.setIncentivePlanId((long) REFUND_PLAN_ID);
-        saveCustomerPoints.setPoints(walletRefundCreditModel.getAmount());
-        saveCustomerPoints.setRemarks(walletRefundCreditModel.getReason());
-        saveCustomerPoints.setSupportTicketId(walletRefundCreditModel.getSupportTicketId());
-        saveCustomerPoints.setCreatedBy(walletRefundCreditModel.getUserName());
-        saveCustomerPoints.setUpdatedBy(walletRefundCreditModel.getUserName());
-        saveCustomerPoints.setApprovalFlow(1L);
-        customerPointsList.add(saveCustomerPoints);
-
-        refundMap.put(orderData.getId(), walletRefundCreditModel.getAmount());
-        try {
-            if (walletRefundCreditModel.getAmount() > 0 && saveCustomerPoints.getType().equalsIgnoreCase(CREDITED)) {
-                OrderStatusChangeCommModel orderStatusChangeCommModel = new OrderStatusChangeCommModel();
-                orderStatusChangeCommModel.setOrderId(orderData.getId());
-                orderStatusChangeCommModel.setTemplateName(WALLET_CREDIT_COMM);
-                orderStatusChangeCommModel.setRefundAmount(walletRefundCreditModel.getAmount());
-                myOrderService.triggerOrderStatusNotification(orderStatusChangeCommModel);
-            }
-        } catch (Exception ex) {
-            log.error("Credit refund points API creditReturnOrderCustomerPoints : {} ex {}", orderData, ex.getMessage());
-        }
-
-        customerPointsRepository.saveAll(customerPointsList);
-        raiseThirdPartyEvents(customerPointsList);
-
-        if ( ! creatorAllowedToRefund) {
-            throw new ValidationException("Your refund is pending. Your refund limit of " + dsUserModel.getUserRefundLimit() + " has been reached. "
-                    + "You have already refunded offline amount " + walletRefundsAmount + " and online amount " + onlineRefundsAmount + ".");
-        }
-        return refundMap;
-
---- PointsServiceImpl.java | PointsServiceImpl | debitedMyDiscountCart | 1/1 ---
-    public void debitedMyDiscountCart(DebitedMyDiscountCartRequestModel debitedMyDiscountCartRequest, OrderEntity order) {
-        if (debitedMyDiscountCartRequest.getConfirmIncentive() <= 0) {
-            log.error(" debitedMyDiscountCart confirm incentive amount is :{}", debitedMyDiscountCartRequest.getConfirmIncentive());
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | triggerOrderStatusNotificationBulk | CODE | 1/1 ---
+    @Override
+    public void triggerOrderStatusNotificationBulk(BulkOrderStatusChangeCommModel bulkOrderStatusChangeCommModel) {
+        if (bulkOrderStatusChangeCommModel.getOrderIds().isEmpty()) {
             return;
         }
 
-        if (debitedMyDiscountCartRequest.getConfirmIncentive() > debitedMyDiscountCartRequest.getBilledAmount()) {
-            debitedMyDiscountCartRequest.setConfirmIncentive(debitedMyDiscountCartRequest.getBilledAmount());
+        List<Order> ordersData = orderRepository.findByIdIn(bulkOrderStatusChangeCommModel.getOrderIds());
+        if (ordersData.isEmpty()) {
+            log.error("triggerOrderStatusNotificationBulk ordersData not found : {}", bulkOrderStatusChangeCommModel);
+            return;
         }
-        Integer discountPlanId = Integer.parseInt(debitedMyDiscountCartRequest.getPlanId());
-        order.setDiscountPlanId(discountPlanId);
-//        log.error(" debitedMyDiscountCart get order discount type is :{}", debitedMyDiscountCartRequest.getOrderDiscountType());
-        String[] availableDiscountTypes = {"WALLET", "wallet", "walletcashback"};
-        if (Arrays.stream(availableDiscountTypes).anyMatch(debitedMyDiscountCartRequest.getOrderDiscountType()::contains)) {
 
---- UserCartServiceImpl.java | UserCartServiceImpl | prepareCartModel | 1/3 ---
-    private UserCartModel prepareCartModel(UserCartType userCartType, Cart cart, Order order, String lang) {
-        final UserCartModel userCartModel = new UserCartModel();
-        userCartModel.setCartType(userCartType);
-        userCartModel.setImages(new ArrayList<>());
-        final List<Order> cartOrders = new ArrayList<>();
+        for (Long orderId : bulkOrderStatusChangeCommModel.getOrderIds()) {
 
-        Map<String, FeesData> feesMap = new HashMap<>();
-        if(checkIfCartIsCentralisation(cart)) {
-            feesMap = fetchDeliveryFee(cart.getId());
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | triggerOrderCancelEventSyncCall | CODE | 1/1 ---
+    @Override
+    public void triggerOrderCancelEventSyncCall(Long userId, OrderCancelModel orderCancelModel) {
+
+        if (Objects.isNull(orderCancelModel)  || orderCancelModel.getOrderId() == null) {
+            return;
         }
-        List<AmountBreakUp> amountBreakUps = new ArrayList<>();
-        AmountBreakUp amountBreakUp = new AmountBreakUp();
-        amountBreakUp.setType(AmountBreakUpType.FEES);
-        amountBreakUp.setLabel("FEES");
 
-
-        switch (userCartType) {
-            case Cart:
-                userCartModel.setId(cart.getId());
-                userCartModel.setDeliveryFee(cart.getDeliveryFee() != null ? cart.getDeliveryFee() : 0); // what need to be done for platForm Fees
-                cartOrders.addAll(this.orderRepository.getOrdersByCartIdForGetCarts(cart.getId()));
-                break;
-            case Order:
-                userCartModel.setId(order.getId());
-                cartOrders.add(order);
-                break;
+        Optional<Order> optionalOrder = orderRepository.findById(orderCancelModel.getOrderId());
+        if(!optionalOrder.isPresent()){
+            return;
         }
-        if(!CollectionUtils.isEmpty(cartOrders)) {
-            Map<String, OfferResponseModel> offerResponseModelMap = cartItemService
-                    .getOfferMapByOfferIds(cartOrders.stream().map(Order::getOfferId)
-                            .collect(Collectors.toList()));
-            this.setCartModelDate(userCartModel, cartOrders.get(0), lang);
-            this.setCartModelPaymentDetails(userCartModel, cartOrders.get(0), lang);
-            cartOrders.forEach(cartOrder -> {
-                if(cartOrder.getBilledAmount() == null){
-                    log.error("UserCartServiceImpl prepareCartModel -> cartOrder : {}", cartOrder);
-                    cartOrder.setBilledAmount(0.0);
-                }
-                String offerId = cartOrder.getOfferId();
-                if (offerResponseModelMap.containsKey(offerId)) {
-                    userCartModel.getImages().add(offerResponseModelMap.get(offerId).getImage());
-                } else {
-                    this.setCartModelImage(userCartModel, cartOrder);
-                }
-                userCartModel.setQuantity(userCartModel.getQuantity() + 1);
-                userCartModel.setOriginalAmount(userCartModel.getOriginalAmount() + cartOrder.getBilledAmount().longValue());
-                userCartModel.setFinalAmount(userCartModel.getFinalAmount() + cartOrder.getAmount().longValue());
-                final UserOrderStatus orderStatus = UserOrderStatus.getUserOrderStatus(cartOrder.getOrderStatus());
+        Order order = optionalOrder.get();
 
-                if (!ObjectUtils.isEmpty(orderStatus)) {
+        OrdersStatusUpdateEvent ordersStatusUpdateEvent = new OrdersStatusUpdateEvent();
+        ordersStatusUpdateEvent.setOrderIds(Collections.singletonList(order.getId()));
+        String event = order.getPaymentType().equalsIgnoreCase(PAYMENT_TYPE_PAYTM) ?
+                APP_CANCEL_ONLINE : APP_CANCEL_COD;
+        ordersStatusUpdateEvent.setEvent(event);
+        queueProducer.sendOrdersStatusUpdateTopic(ordersStatusUpdateEvent);
 
---- UserCartServiceImpl.java | UserCartServiceImpl | prepareCartModel | 2/3 ---
-                userCartModel.setOriginalAmount(userCartModel.getOriginalAmount() + cartOrder.getBilledAmount().longValue());
-                userCartModel.setFinalAmount(userCartModel.getFinalAmount() + cartOrder.getAmount().longValue());
-                final UserOrderStatus orderStatus = UserOrderStatus.getUserOrderStatus(cartOrder.getOrderStatus());
+        log.error("raised event for order cancellation for dto : {} and event : {} and orderId : {}", ordersStatusUpdateEvent,event,order.getId());
 
-                if (!ObjectUtils.isEmpty(orderStatus)) {
-                    switch (orderStatus) {
-                        case ONGOING:
-                        case OUTFORDELIVERY:
-                        case DELIVERED:
-                            if(orderStatus.equals(UserOrderStatus.DELIVERED)) {
-                                userCartModel.setDeliveredQuantity(userCartModel.getDeliveredQuantity() + 1);
-                            } else {
-                                userCartModel.setActiveQuantity(userCartModel.getActiveQuantity() + 1);
-                            }
-                            break;
-                        case CANCELLED:
-                        case REFUNDED:
-                        case RETURNED:
-                            userCartModel.setCancelledQuantity(userCartModel.getCancelledQuantity() + 1);
-                            break;
+        String flagValue = staticPropertyService.getStaticPropertyCache(SP_USER_RANK_TRANSITION_LIVE,
+                SP_USER_RANK_TRANSITION_CANCEL_FLOW, Language.ENG.getValue());
+        if (!ObjectUtils.isEmpty(flagValue) && flagValue.equals("true")) {
 
-                    }
-                }
-            });
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | minimartOrderSync | CODE | 1/2 ---
+    public OrderSyncResponseModel minimartOrderSync(OrderSyncRequestModel orderSyncRequestModel) {
 
-            userCartModel.setFinalAmount(userCartModel.getFinalAmount() + userCartModel.getDeliveryFee());
-            if(feesMap != null) {
-                for (Map.Entry<String, FeesData> entry : feesMap.entrySet()) {
-                    if (entry.getKey().equals(FeesType.DELIVERY_FEES.name())) {
-                        userCartModel.setDeliveryFee(entry.getValue().getFeesFinal().longValue());
-                        continue;
-                    }
+        List<UserOrderSyncModel> userOrderSyncModelList = orderSyncRequestModel.getUserOrderSyncModelList();
+        
+        List<String> posOrderIds = userOrderSyncModelList.stream()
+                .map(UserOrderSyncModel::getPosOrderId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        List<String> acquiredLocks = new ArrayList<>();
+        try {
+            for (String posOrderId : posOrderIds.stream().sorted().collect(Collectors.toList())) {
+                String lockKey = MINIMART_ORDER_SYNC_LOCK + posOrderId;
+                acquireLock(lockKey, posOrderId);
+                acquiredLocks.add(lockKey);
+            }
+        } catch (Exception e) {
+            // Release all acquired locks if any lock acquisition fails
+            releaseLocks(acquiredLocks);
+            throw e;
+        }
 
-                    FeeConfiguration feeConfiguration = feeConfigRepository.findByCode(entry.getKey());
+        OrderSyncResponseModel orderSyncResponseModel = new OrderSyncResponseModel();
+        Map<String, List<OrderDealMappingModel>> posOrderOmsOrderMap = new HashMap<>();
+        Map<String, String> ordersSyncStatusMap = new HashMap<>();
 
-                    Double genericFees = entry.getValue().getFeesFinal();
-                    AmountBreakUpDetails amountBreakUpDetails = new AmountBreakUpDetails();
-                    amountBreakUpDetails.setType(entry.getKey());
-                    amountBreakUpDetails.setLabel(Objects.nonNull(feeConfiguration) ? feeConfiguration.getDisplayName() : entry.getKey());
-                    amountBreakUpDetails.setAmountLabel(String.format(AppConstant.FEE_AMOUNT_LABEL_FORMAT, genericFees.intValue()));
-                    amountBreakUpDetails.setAmount(genericFees);
-                    amountBreakUpDetails.setPriority(entry.getValue().getPriority());
+        List<String> posOrderIdList = userOrderSyncModelList.stream()
+                .map(UserOrderSyncModel::getPosOrderId)
+                .collect(Collectors.toList());
 
-                    if (Objects.isNull(amountBreakUp.getDetails())) {
-                        amountBreakUp.setDetails(new ArrayList<>());
-                    }
-                    amountBreakUp.getDetails().add(amountBreakUpDetails);
-                    amountBreakUp.setAmount(amountBreakUp.getAmount() + amountBreakUpDetails.getAmount());
+        List<POSOrderMapping> posOrderMappingList = posOrderMappingRepository.findByPosOrderIdIn(posOrderIdList);
 
-                    userCartModel.setFinalAmount(userCartModel.getFinalAmount() + genericFees.longValue());
+        Set<String> posOrderIdSet = posOrderMappingList.stream()
+                .map(POSOrderMapping::getPosOrderId)
+                .collect(Collectors.toSet());
 
---- UserCartServiceImpl.java | UserCartServiceImpl | prepareCartModel | 3/3 ---
-                    }
-                    amountBreakUp.getDetails().add(amountBreakUpDetails);
-                    amountBreakUp.setAmount(amountBreakUp.getAmount() + amountBreakUpDetails.getAmount());
+        List<UserOrderSyncModel> existingUserOrderSyncModelList = userOrderSyncModelList.stream()
+                .filter(userOrderSyncModel -> posOrderIdSet.contains(userOrderSyncModel.getPosOrderId()))
+                .collect(Collectors.toList());
 
-                    userCartModel.setFinalAmount(userCartModel.getFinalAmount() + genericFees.longValue());
+        Map<String, List<POSOrderMapping>> posOrderMappingMap = posOrderMappingList.stream()
+                .collect(Collectors.groupingBy(POSOrderMapping::getPosOrderId));
+
+        posOrderIdSet.clear();
+
+        for(UserOrderSyncModel userOrderSyncModel : existingUserOrderSyncModelList) {
+            List<POSOrderMapping> posOrderMappings = posOrderMappingMap.get(userOrderSyncModel.getPosOrderId());
+
+            List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | minimartOrderSync | CODE | 2/2 ---
+
+        for(UserOrderSyncModel userOrderSyncModel : existingUserOrderSyncModelList) {
+            List<POSOrderMapping> posOrderMappings = posOrderMappingMap.get(userOrderSyncModel.getPosOrderId());
+
+            List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
+                    userOrderSyncModel.getOfferIdOrderSummaryModelMap());
+
+            if(!ObjectUtils.isEmpty(orderDealMappingModelList)) {
+                posOrderIdSet.add(userOrderSyncModel.getPosOrderId());
+                posOrderOmsOrderMap.put(userOrderSyncModel.getPosOrderId(), orderDealMappingModelList);
+            }
+        }
+
+        userOrderSyncModelList = userOrderSyncModelList.stream()
+                .filter(userOrderSyncModel -> !posOrderIdSet.contains(userOrderSyncModel.getPosOrderId()))
+                .collect(Collectors.toList());
+
+        for (UserOrderSyncModel userOrderSyncModel : userOrderSyncModelList) {
+
+            UserInfoModel userInfoModel = userOrderSyncModel.getUserInfoModel();
+            try {
+                UserCacheModel userCacheModel = userService.getUser(userInfoModel);
+
+                /** userCacheModel and userInfoModel pincode can be different if user is present in db already*/
+                Long userAddressId = userAddressService.getUserAddress(userCacheModel).getId();
+
+                List<OrderDealMappingModel> orderDealMappingModelList = userOrderService.syncOrders(userCacheModel,
+                        userOrderSyncModel,
+                        userAddressId);
+
+                posOrderOmsOrderMap.put(userOrderSyncModel.getPosOrderId(), orderDealMappingModelList);
+            } catch (Exception e) {
+//                chatServiceClient.sendEmailToMultiple(CommonUtils.prepareEmailRequestModel(EmailSubject.MINIMART_ORDER_SYNC.getValue(), String.format("userOrderSyncModel : %s, Exception : %s", userOrderSyncModel, e)));
+                ordersSyncStatusMap.put(userOrderSyncModel.getPosOrderId(), e.getMessage());
+                log.error("Something went wrong in saving order : {}, Exception : {}", userOrderSyncModel, e.getMessage());
+            }
+        }
+        orderSyncResponseModel.setPosOrderOmsOrderMap(posOrderOmsOrderMap);
+        posOrderOmsOrderMap.keySet().forEach(posOrderId -> ordersSyncStatusMap.put(posOrderId, "Synced Successfully"));
+        orderSyncResponseModel.setOrdersSyncStatusMap(ordersSyncStatusMap);
+
+        releaseLocks(acquiredLocks);
+
+        return orderSyncResponseModel;
+
+--- MyOrderServiceImpl.java | MyOrderServiceImpl | prepareOrderInfo | CODE | 1/1 ---
+    private List<OrderInfo> prepareOrderInfo(List<Order> orders, Set<Long> cancelledByCustomerFault,
+                                             Map<Long, OrderCancelDiscountUpdateRequest> orderIdToOrderSyncRequestMap,
+                                             Map<Long, DealDetail> orderToDealDetailMap){
+        return orders.stream().map(o -> {
+
+--- UserShipmentServiceImpl.java | UserShipmentServiceImpl | calculateShipmentEta | CODE | 1/1 ---
+    public void calculateShipmentEta(UserShipmentModel shipment, List<Order> orders){
+        Boolean isLive = commonUtils.getEtaFlag(ETA_FLAG,ETA_FLAG);
+        String eta = null;
+        if(isLive){
+            Order latestOrder = orders.stream()
+                    .max(Comparator.comparing(Order::getId))
+                    .orElse(null);
+            eta = etaService.orderEta(latestOrder);
+            if (eta != null) {
+                try {
+                    // Parse the string according to ETA_FORMAT_FROM_CACHE
+                    shipment.setEtaFromCache(eta);
+                    SimpleDateFormat inputFormat = new SimpleDateFormat(ETA_FORMAT_FROM_CACHE);
+                    Date etaDate = inputFormat.parse(eta);
+                    eta = commonUtils.formatEtaV2(etaDate);
+                } catch (Exception e) {
+                    eta = null;
                 }
             }
-            this.setCartStatus(userCartModel, cartOrders, lang);
         }
-
-
-
-        AmountBreakUpDetails delFeeAmountBreakUpDetails = new AmountBreakUpDetails();
-        delFeeAmountBreakUpDetails.setType(AmountBreakUpDetailType.DELIVERY_FEE.name());
-        delFeeAmountBreakUpDetails.setLabel(DELIVERY_FEE);
-        delFeeAmountBreakUpDetails.setAmount(userCartModel.getDeliveryFee());
-        delFeeAmountBreakUpDetails.setAmountLabel(String.format(AppConstant.FEE_AMOUNT_LABEL_FORMAT, Math.toIntExact(userCartModel.getDeliveryFee())));
-        amountBreakUp.setAmount(amountBreakUp.getAmount() + delFeeAmountBreakUpDetails.getAmount());
-        if(Objects.isNull(amountBreakUp.getDetails())){
-            amountBreakUp.setDetails(new ArrayList<>());
+        if(eta == null){
+            Optional<List<OrderHistory>> orderHistories = orderHistoryRepository.findByOrderId(orders.get(0).getId());
+            eta = orderHistories
+                    .flatMap(list -> list.stream()
+                            .filter(oh -> OUT_FOR_DELIVERY.equalsIgnoreCase(oh.getStatus()))
+                            .map(OrderHistory::getCreatedDate)
+                            .filter(Objects::nonNull) // ensure no null date
+                            .findFirst()
+                    )
+                    .map(commonUtils::formatEta)
+                    .orElse(null);
         }
-        amountBreakUp.getDetails().add(delFeeAmountBreakUpDetails);
+        if(eta == null || eta.isEmpty() ){
 
-        amountBreakUps.add(amountBreakUp);
-        userCartModel.setUserCartAmountBreakUp(amountBreakUps);
-        return userCartModel;
+--- EtaServiceImpl.java | EtaServiceImpl | updateCacheForCancelledOrders | CODE | 1/1 ---
+    public List<OrderStatusWidgetCacheUpdateModel> updateCacheForCancelledOrders(Order order){
+        if(order == null){
+            return null;
+        }
+        OrderStatusWidgetCacheUpdateModel model = new OrderStatusWidgetCacheUpdateModel();
+        model.setOrderId(order.getId());
+        model.setUserId(order.getUserId());
+        model.setStatus(order.getOrderStatus());
+        return Collections.singletonList(model);
 
---- UserCartServiceImpl.java | UserCartServiceImpl | getCartDiscountItems | 1/5 ---
-    private List<DiscountSummaryItem> getCartDiscountItems(List<Order> orders, String authKey,
-                                                           String lang, UserCartDetailsModel cartDetailsModel,
-                                                           Map<String, FeesData> feesMap){
-        List<DiscountSummaryItem> discountSummaryItems = new ArrayList<>();
+--- EtaServiceImpl.java | EtaServiceImpl | updateOrderStatusWidgetCacheAsync | CODE | 1/1 ---
+    @Async
+    public CompletableFuture<Void> updateOrderStatusWidgetCacheAsync(List<OrderStatusWidgetCacheUpdateModel> orderStatusWidgetCacheUpdateModelList) {
+        orderServiceClient.updateOrderStatusWidgetCache(orderStatusWidgetCacheUpdateModelList);
+        return CompletableFuture.completedFuture(null);
 
-        BigDecimal totalMrp = BigDecimal.ZERO;
-        BigDecimal totalProductDiscount = BigDecimal.ZERO;
-        BigDecimal totalBilledAmount = BigDecimal.ZERO;
+--- CartServiceV2Impl.java | CartServiceV2Impl | getTitleAndGradientFromEtaDateV2 | CODE | 1/2 ---
+    private EtaDisplayData getTitleAndGradientFromEtaDateV2(OrderStatusWidgetStaticModel orderStatusWidgetStaticModel,
+                                                    LocalDateTime eta, String lang, Integer warehouseId) {
+        EtaDisplayData etaDisplayData = new EtaDisplayData();
+        try {
+            LocalDate orderETADate = eta.toLocalDate();
+            LocalTime orderETATime = eta.toLocalTime();
+            LocalDate currentDate =  LocalDate.now();
+            LocalDate nextDate = currentDate.plusDays(1);
 
-        List<String> offerIds = orders.stream()
-            .map(Order::getOfferId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toList());
+            OrderConfirmationEtaBufferConfig etaBuffer = etaService.getOrderConfirmationEtaBufferConfig(warehouseId);
+            if (Objects.isNull(etaBuffer.getHours()) || etaBuffer.getHours().equals(0L)) {
+                etaBuffer.setEnable(true);
+                etaBuffer.setHours(1L);
+            }
 
-        List<ProductOffer> productOffers = productOfferRepository.findByOfferIdIn(offerIds);
+            TomorrowEtaWarehouseConfig etaTomorrow = etaService.getTomorrowEtaWarehouseConfig(warehouseId);
 
-        Map<String, ProductOffer> offerMap = productOffers.stream()
-            .collect(Collectors.toMap(ProductOffer::getOfferId, Function.identity()));
+            if (orderETADate.isEqual(currentDate)) {
+                EtaDisplayData etaDisplayData1 = getETAResponse(orderStatusWidgetStaticModel.getArrivingToday(),
+                        orderETATime,orderStatusWidgetStaticModel.getToday()
+                        , etaBuffer, lang, orderStatusWidgetStaticModel);
+                return etaDisplayData1;
+            } else if (orderETADate.isEqual(nextDate)) {
+                if (etaTomorrow.isEnable()) {
+                    return getETAResponse(orderStatusWidgetStaticModel.getArrivingTomorrow(),
+                            orderETATime, orderStatusWidgetStaticModel.getTomorrow(),
+                            etaBuffer, lang, orderStatusWidgetStaticModel);
+                } else {
+                    etaDisplayData.setTitle(CommonUtils.getValueFromMapByLang(orderStatusWidgetStaticModel.getArrivingTomorrow(), lang));
+                    etaDisplayData.setEtaTitle(CommonUtils.getValueFromMapByLang(orderStatusWidgetStaticModel.getArrivingTomorrow(), lang));
+                    return etaDisplayData;
+                }
 
-        for (Order order : orders) {
-            if (order.getOfferId() != null) {
-                ProductOffer productOffer = offerMap.get(order.getOfferId());
-                if (productOffer != null) {
-                    BigDecimal orderMrp = BigDecimal.valueOf(productOffer.getMrp()).multiply(BigDecimal.valueOf(order.getQuantity()));
-                    totalMrp = totalMrp.add(orderMrp);
+            } else if (orderETADate.isAfter(nextDate)) {
+                // etaString is replaced by etaDate (need to modify etaDate to match etaString format)
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(stringToDateFormat, Locale.ENGLISH); // Adjust format as needed
+                etaDisplayData.setEtaTitle(CommonUtils.getValueFromMapByLang(orderStatusWidgetStaticModel.getArrivingOn(), lang)
+                        + orderETADate.format(formatter));
+                etaDisplayData.setTitle(CommonUtils.getValueFromMapByLang(orderStatusWidgetStaticModel.getArrivingOn(), lang)
+                        + orderETADate.format(formatter));
+                return etaDisplayData;
 
-                    // Calculate product discount (MRP - billedAmount)
-                    if (order.getBilledAmount() != null) {
-                        BigDecimal orderBilledAmount = BigDecimal.valueOf(order.getBilledAmount());
-                        totalBilledAmount = totalBilledAmount.add(orderBilledAmount);
+            }
+        } catch (Exception e) {
+            log.error("Fetching title from eta date {}, input- staticModel: {}, deliveryDateTime: {}, lang: {}",
+                    e.getMessage(), orderStatusWidgetStaticModel, eta, lang);
+        }
+        return etaDisplayData;
 
-                        BigDecimal orderProductDiscount = orderMrp.subtract(orderBilledAmount);
-                        if (orderProductDiscount.compareTo(BigDecimal.ZERO) > 0) {
-                            totalProductDiscount = totalProductDiscount.add(orderProductDiscount);
+--- CartServiceV2Impl.java | CartServiceV2Impl | getTitleAndGradientFromEtaDateV2 | CODE | 2/2 ---
+                    e.getMessage(), orderStatusWidgetStaticModel, eta, lang);
+        }
+        return etaDisplayData;
+
+--- CartServiceV2Impl.java | CartServiceV2Impl | triggerOrderPlacedEvent | CODE | 1/1 ---
+    private void triggerOrderPlacedEvent(CartOrderModel responseCartOrderModel){
+        List<Long> orderIds = new ArrayList<>();
+        responseCartOrderModel.getCartItems()
+                .forEach(cartItem -> orderIds.add(cartItem.getOrderPKId()));
+        OrdersStatusUpdateEvent ordersStatusUpdateEvent = new OrdersStatusUpdateEvent();
+        ordersStatusUpdateEvent.setOrderIds(orderIds);
+        ordersStatusUpdateEvent.setEvent(UserRankUpdateEvent.ORDER_PLACED.toString());
+        queueProducer.sendOrdersStatusUpdateTopic(ordersStatusUpdateEvent);
+
+        UserRankTransitionRequestModel userRankTransitionRequestModel = UserRankTransitionRequestModel.builder()
+                .userId(responseCartOrderModel.getUserId())
+                .event(UserRankUpdateEvent.ORDER_PLACED.toString())
+                .build();
+
+        try {
+
+--- CartServiceV2Impl.java | CartServiceV2Impl | setPostOrderEtaDeliveryDate | CODE | 1/1 ---
+    private void setPostOrderEtaDeliveryDate(List<OrderETAModel> ordersETA, List<DealLevelPromotion> responseDealLevelPromotions) {
+            Map<String, OrderETAModel> orderETAMap =
+                    ordersETA.stream().collect(
+                            Collectors.toMap(OrderETAModel::getOrderId, Function.identity()));
+            responseDealLevelPromotions.forEach(dealLevelPromotion -> {
+
+--- UserOrderCartServiceImpl.java | UserOrderCartServiceImpl | setModifiedDate | CODE | 1/1 ---
+    private void setModifiedDate(OrderListModel orderListModel, Order order){
+        DateFormat dateFormat = new SimpleDateFormat("dd MMM");
+        String fetchModifiedDate = dateFormat.format(order.getModifiedDate());
+        orderListModel.setDeliveryDate(fetchModifiedDate);
+
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | getOrderTracking | CODE | 1/1 ---
+    @Override
+    public List<OrderTrackingModel> getOrderTracking(Long orderId, String authkey) {
+        List<OrderTrackingModel> orderTrackingModels = new ArrayList<>();
+        Optional<List<OrderHistory>> orders = orderHistoryRepository.findByOrderId(orderId);
+        if (orders.isPresent()) {
+            {
+                for (OrderTrackingType orderTrackingType : OrderTrackingType.values()) {
+                    OrderTrackingModel orderTrackingModel = new OrderTrackingModel();
+                    for (OrderHistory orderHistory : orders.get()) {
+                        if (orderHistory.getStatus().equalsIgnoreCase(orderTrackingType.toString())) {
+                            orderTrackingModel.setStatus(orderTrackingType.toString());
+                            orderTrackingModel.setUpdatedAt(setOrderTrackingDate(orderHistory));
+                            orderTrackingModel.setStageChanged(true);
+                            break;
+                        } else {
+                            orderTrackingModel.setStatus(orderTrackingType.toString());
+                            orderTrackingModel.setUpdatedAt(setOrderTrackingDate(orderHistory));
+                            orderTrackingModel.setStageChanged(false);
                         }
                     }
+                    orderTrackingModels.add(orderTrackingModel);
                 }
             }
-        }
-
-        // Create Item Total section if there are products with discounts
-        if (totalMrp.compareTo(BigDecimal.ZERO) > 0) {
-            // Create Item Total discount summary item
-            DiscountSummaryItem itemTotalSummary = DiscountSummaryItem.builder()
-                    .discountType(DiscountConstants.ITEM_TOTAL)
-                    .discountLabel(messageSource.getMessage(AppConstant.ITEM_TOTAL_LABEL_KEY, null, LocaleContextHolder.getLocale()))
-                    .amountAppliedLabel(String.format(AppConstant.ITEM_TOTAL_FORMAT, totalMrp.intValue(), totalBilledAmount.intValue()))
-                    .build();
-
-            // Create discount details for Item Total
-
---- UserCartServiceImpl.java | UserCartServiceImpl | getCartDiscountItems | 2/5 ---
-                    .discountLabel(messageSource.getMessage(AppConstant.ITEM_TOTAL_LABEL_KEY, null, LocaleContextHolder.getLocale()))
-                    .amountAppliedLabel(String.format(AppConstant.ITEM_TOTAL_FORMAT, totalMrp.intValue(), totalBilledAmount.intValue()))
-                    .build();
-
-            // Create discount details for Item Total
-            List<DiscountSummaryItemV2> discountDetails = new ArrayList<>();
-
-            // Add MRP detail
-            DiscountSummaryItemV2 mrpDetail = new DiscountSummaryItemV2();
-            mrpDetail.setDiscountType(DiscountConstants.MRP);
-            mrpDetail.setDiscountLabel(messageSource.getMessage(AppConstant.SUMMARY_MRP_LABEL_KEY, null, LocaleContextHolder.getLocale()));
-            mrpDetail.setAmountAppliedLabel(String.format(AppConstant.MRP_FORMAT_NO_STRIKE, totalMrp.intValue()));
-            discountDetails.add(mrpDetail);
-
-            // Add Product Discount detail if there's any discount
-            if (totalProductDiscount.compareTo(BigDecimal.ZERO) > 0) {
-                DiscountSummaryItemV2 productDiscountDetail = new DiscountSummaryItemV2();
-                productDiscountDetail.setDiscountType(DiscountConstants.PRODUCT_DISCOUNT);
-                productDiscountDetail.setDiscountLabel(messageSource.getMessage("product.discount.label", null, LocaleContextHolder.getLocale()));
-                productDiscountDetail.setAmountApplied( totalProductDiscount.intValue());
-                productDiscountDetail.setAmountAppliedLabel(String.format(AppConstant.DISCOUNT_FORMAT, totalProductDiscount.intValue()));
-                discountDetails.add(productDiscountDetail);
-            }
-
-            itemTotalSummary.setDiscountDetails(discountDetails);
-            discountSummaryItems.add(itemTotalSummary);
         } else {
-            // Fallback to original Order Value if we can't calculate MRP
-            discountSummaryItems.add(DiscountSummaryItem.builder()
-                    .discountLabel(messageSource.getMessage(ORDER_VALUE_KEY, null,LocaleContextHolder.getLocale()))
-                    .amountApplied((int) cartDetailsModel.getOriginalAmount())
-                    .icon(ORDER_VALUE_ICON)
-                    .build());
+            throw new ValidationException("Order not found in Order History");
+        }
+        return orderTrackingModels;
+
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | setDeliveryDetails | CODE | 1/1 ---
+    private void setDeliveryDetails(UserOrderModel userOrder, Order order) {
+        if (userOrder.getOrderStatus() == null) {
+            return;
         }
 
-        List<Long> orderIds = orders.stream().map(Order::getId).collect(Collectors.toList());
-        List<DiscountSummaryItem> fromDiscountServiceSummary =
-            discountServiceClientWrapper.getOrderDiscountSummaryResponse(orderIds,authKey,lang).getDiscountSummaryItems();
+        if (!ObjectUtils.isEmpty(userOrder)) {
 
-        fromDiscountServiceSummary.forEach(item -> {
-            if (item.getAmountAppliedLabel() == null && item.getAmountApplied() != null && item.getAmountApplied() > 0) {
-                item.setAmountAppliedLabel(String.format(AppConstant.DISCOUNT_FORMAT, item.getAmountApplied()));
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | createOrderHistory | CODE | 1/1 ---
+    private OrderHistory createOrderHistory(Order order, Date cancellationTime) {
+        return new OrderHistory(order, cancellationTime,
+
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | discardOrders | CODE | 1/2 ---
+    public byte[] discardOrders(MultipartFile file) throws Exception {
+        List<OrderStatusUpdateDTO> orderDTOs = parseOrderFile(file);
+        if(orderDTOs.size() >= 100 ){
+            throw new ValidationException("You can only update 100 orders at a time, can you please update a new file.");
+        }
+        List<Long> orderIds = orderDTOs.stream()
+                .map(OrderStatusUpdateDTO::getOrderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        List<Order> orders = orderRepository.findByIdIn(orderIds);
+        Map<Long, Order> orderIdToOrder = orders.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(Order::getId, order -> order));
+        Map<Long, Order> result = orderIds.stream()
+                .filter(orderIdToOrder::containsKey)
+                .collect(Collectors.toMap(
+                        id -> id,
+                        orderIdToOrder::get
+                ));
+        List<Order> orderToUpdate = new ArrayList<>();
+        for(OrderStatusUpdateDTO orderDTO : orderDTOs){
+            if(orderDTO.getOrderId() == null){
+                orderDTO.setTechRemarks("Order id is null");
             }
-        });
-
-        discountSummaryItems.addAll(fromDiscountServiceSummary);
-        List<OrderDiscountingHistory> orderDiscountingHistories = discountService.getAllOrderDiscount(orderIds);
-        Map<String,List<OrderDiscountingHistory>> refundAndCashbackMap =
-                orderDiscountingHistories.stream().collect(Collectors.groupingBy(OrderDiscountingHistory::getDiscountType));
-
-
---- UserCartServiceImpl.java | UserCartServiceImpl | getCartDiscountItems | 3/5 ---
-        discountSummaryItems.addAll(fromDiscountServiceSummary);
-        List<OrderDiscountingHistory> orderDiscountingHistories = discountService.getAllOrderDiscount(orderIds);
-        Map<String,List<OrderDiscountingHistory>> refundAndCashbackMap =
-                orderDiscountingHistories.stream().collect(Collectors.groupingBy(OrderDiscountingHistory::getDiscountType));
-
-        Integer walletCashback = refundAndCashbackMap.getOrDefault(DiscountConstants.WALLET_CASHBACK, new ArrayList<>())
-            .stream().mapToInt(OrderDiscountingHistory::getDiscountAmount).sum();
-        addWalletSummary(walletCashback,discountSummaryItems,DiscountConstants.WALLET_CASHBACK,
-                WALLET_CASHBACK_LABEL_KEY, CASHBACK_ICON);
-
-        Integer refundCashback = refundAndCashbackMap.getOrDefault(DiscountConstants.REFUND, new ArrayList<>())
-            .stream().mapToInt(OrderDiscountingHistory::getDiscountAmount).sum();
-        addWalletSummary(refundCashback,discountSummaryItems,DiscountConstants.REFUND,
-                WALLET_REFUND_LABEL_KEY, REFUND_ICON);
-
-        long totalFees = 0L;
-        if(!feesMap.isEmpty()){
-            List<Map.Entry<String, FeesData>> feesDataList = feesMap.entrySet().stream().sorted((a,b) -> a.getValue().getPriority() - b.getValue().getPriority()).collect(Collectors.toList());
-            for(Map.Entry<String, FeesData> entry:feesDataList){
-                if(entry.getKey().equals(FeesType.DELIVERY_FEES.name())){
-                    FeesData deliveryFeeDataModel = entry.getValue();
-                    totalFees = totalFees+deliveryFeeDataModel.getFeesFinal().longValue();
-
-                    DiscountSummaryItem.DiscountSummaryItemBuilder deliveryFeeBuilder = DiscountSummaryItem.builder()
-                            .discountType(DiscountConstants.DELIVERY_FEE)
-                            .discountLabel(messageSource.getMessage(DELIVERY_FEE_LABEL_KEY, null,LocaleContextHolder.getLocale()))
-                            .amountApplied(deliveryFeeDataModel.getFeesFinal().intValue())
-                            .icon(DELIVERY_FEE_ICON);
-
-                    Double originalFee = deliveryFeeDataModel.getOriginalDelFee();
-                    setDeliveryFeeDisplayLabel(deliveryFeeBuilder, deliveryFeeDataModel.getFeesFinal().intValue(), originalFee);
-
-                    discountSummaryItems.add(deliveryFeeBuilder.build());
-                } else {
-                    FeeConfiguration feeConfiguration = feeConfigRepository.findByCode(entry.getKey());
-                    FeesData platformFeeDataModel = entry.getValue();
-                    totalFees = totalFees+platformFeeDataModel.getFeesFinal().longValue();
-
-                    String feesValue;
-
-                    if(Objects.nonNull(platformFeeDataModel.getStrikeOffValue())){
-                        feesValue = ZERO.equals(platformFeeDataModel.getFeesFinal().intValue()) ?
-                                String.format(PLATFORM_FEE_FREE_STRIKE_FORMAT,platformFeeDataModel.getStrikeOffValue().longValue()) : String.format(PLATFORM_FEE_STRIKE_FORMAT, platformFeeDataModel.getStrikeOffValue().longValue(), platformFeeDataModel.getFeesFinal().intValue());
+            else if(!orderDTO.getStatus().equalsIgnoreCase("discarded")){
+                orderDTO.setTechRemarks("Cannot update the status to : "+orderDTO.getStatus());
+            }
+            else if(orderDTO.getComments() == null || orderDTO.getComments().isEmpty()){
+                orderDTO.setTechRemarks("Reason / Remark cannot be empty to discard the order, Please try again with Valid Reason");
+            }
+            else if(orderDTO.getSubStatus() == null || orderDTO.getSubStatus().isEmpty()){
+                orderDTO.setTechRemarks("Substatus cannot be empty to discard the order, Please try again with Valid subStatus");
+            }
+            else{
+                if (result == null || result.get(orderDTO.getOrderId()) == null){
+                    orderDTO.setTechRemarks("Order doesn't exist with this id");
+                    continue;
+                }
+                Order order = result.get(orderDTO.getOrderId());
+                if(!order.getOrderStatus().equals(CANCEL_STATUS)){
+                    if(order.getOrderStatus().equals(DISCARD_STATUS)){
+                        orderDTO.setTechRemarks("Order is already in Discard status");
                     }else{
-                        feesValue = ZERO.equals(platformFeeDataModel.getFeesFinal().intValue()) ?
-                                PLATFORM_FEE_FREE : String.format(PLATFORM_FEE_FORMAT, platformFeeDataModel.getFeesFinal().intValue());
+                        orderDTO.setTechRemarks("Order is not in cancel state");
                     }
+                }else{
+                    order.setOrderStatus(DISCARD_STATUS);
+                    order.setOrderSubStatus(orderDTO.getSubStatus());
+                    order.setComments(orderDTO.getComments());
+                    orderDTO.setTechRemarks(DONE);
 
-                    discountSummaryItems.add(DiscountSummaryItem.builder()
-                            .discountLabel(feeConfiguration.getDisplayName())
-
---- UserCartServiceImpl.java | UserCartServiceImpl | getCartDiscountItems | 4/5 ---
-                                PLATFORM_FEE_FREE : String.format(PLATFORM_FEE_FORMAT, platformFeeDataModel.getFeesFinal().intValue());
-                    }
-
-                    discountSummaryItems.add(DiscountSummaryItem.builder()
-                            .discountLabel(feeConfiguration.getDisplayName())
-                            .amountApplied(platformFeeDataModel.getFeesFinal().intValue())
-                            .amountAppliedLabel(feesValue)
-                            .icon(DELIVERY_FEE_ICON)
-                            .build());
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | discardOrders | CODE | 2/2 ---
+                }else{
+                    order.setOrderStatus(DISCARD_STATUS);
+                    order.setOrderSubStatus(orderDTO.getSubStatus());
+                    order.setComments(orderDTO.getComments());
+                    orderDTO.setTechRemarks(DONE);
+                    orderToUpdate.add(order);
                 }
             }
-        } else {
-            totalFees = cartDetailsModel.getDeliveryFee();
-            // For non-centralized delivery fee, check if we can get original fee from cart config
-            Double originalFee = getOriginalDeliveryFeeFromCartConfig(cartDetailsModel.getId());
+        }
+        orderRepository.saveAll(orderToUpdate);
+        byte[] bite = generateCsvFile(orderDTOs);
+        emailSenderService.sendEmailWithAttachment(
+                DISCARD_ORDER_EMAIL_LIST,
+                DISCARD_ORDER_SUBJECT,
+                DISCARD_ORDER_CONTENT,
+                DISCARD_ORDER_FILE_NAME,
+                bite
+        );
+        return bite;
 
-            DiscountSummaryItem.DiscountSummaryItemBuilder deliveryFeeBuilder = DiscountSummaryItem.builder()
-                    .discountType(DiscountConstants.DELIVERY_FEE)
-                    .discountLabel(messageSource.getMessage(DELIVERY_FEE_LABEL_KEY, null,LocaleContextHolder.getLocale()))
-                    .amountApplied((int) cartDetailsModel.getDeliveryFee())
-                    .icon(DELIVERY_FEE_ICON);
-
-            setDeliveryFeeDisplayLabel(deliveryFeeBuilder, (int) cartDetailsModel.getDeliveryFee(), originalFee);
-
-            discountSummaryItems.add(deliveryFeeBuilder.build());
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | discardFlaggedOrders | CODE | 1/2 ---
+    public void discardFlaggedOrders(Long userId, Long cartId) {
+        if (cartId > 0) {
+//            log.error("Discard is blocked as of now userId {} cartId {}", userId, cartId);
+            return;
         }
 
-        Integer bankDiscount = refundAndCashbackMap.getOrDefault(DiscountConstants.BANK_OFFER, new ArrayList<>())
-            .stream().mapToInt(OrderDiscountingHistory::getDiscountAmount).sum();
+        cartRepository.findCartByIdAndUserId(cartId, userId)
+                .orElseThrow(() -> new ValidationException("Cart not found for the given user."));
 
-        discountSummaryItems.add(DiscountSummaryItem.builder()
-            .discountLabel(messageSource.getMessage(DISCOUNT_TYPE+DEFAULT_DISCOUNT_TYPE, null,LocaleContextHolder.getLocale()))
-            .amountApplied(bankDiscount)
-            .amountAppliedLabel(String.format(AppConstant.DISCOUNT_FORMAT, bankDiscount))
-            .icon(ORDER_VALUE_ICON)
-            .build());
+        List<CartOrderMapping> cartOrderMappings = cartOrderMappingRepository.findByCartId(cartId)
+                .orElseThrow(() -> new ValidationException("No orders found for the given cart."));
 
-        int finalDiscountAmount = walletCashback + refundCashback + bankDiscount +
-            fromDiscountServiceSummary.stream().mapToInt(DiscountSummaryItem::getAmountApplied).sum();
+        List<Long> orderIds = cartOrderMappings.stream()
+                .map(CartOrderMapping::getOrderId)
+                .collect(Collectors.toList());
 
-        cartDetailsModel.setFinalDiscount(finalDiscountAmount);
+        List<Order> orders = orderRepository.findAllById(orderIds);
+        if (orders.isEmpty()) {
+            throw new ValidationException("Orders not found for the given cart.");
+        }
 
-        long finalAmount = cartDetailsModel.getOriginalAmount() - cartDetailsModel.getFinalDiscount() + totalFees;
-        cartDetailsModel.setFinalAmount(finalAmount);
-        cartDetailsModel.setTotalPrice(finalAmount); // Set totalPrice for backward compatibility
+        for (Order order : orders) {
+            if (order.getOrderStatus().equals(DISCARD_STATUS)) {
+                log.warn("discardFlaggedOrders Order {} is already in discard status, skipping.", order.getId());
+                continue;
+            }
 
-        return discountSummaryItems;
+            if (order.getOrderStatus().equals(CANCEL_STATUS)) {
+                log.warn("discardFlaggedOrders Order {} is already in cancel status, skipping.", order.getId());
+                continue;
+            }
 
---- UserCartServiceImpl.java | UserCartServiceImpl | getCartDiscountItems | 5/5 ---
+            OrderCancelModel cancelModel = createOrderCancelModel(
+                    order.getId(), order.getUserId(), order.getSource(), CANCEL_BY_SYSTEM, "Flagged Abuse Users"
+            );
 
-        return discountSummaryItems;
+            try {
+                myOrderService.cancelOrder(cancelModel, order.getUserId(), null, true);
+                myOrderService.triggerOrderCancelEventSyncCall(order.getUserId(),cancelModel);
+            } catch (Exception | ValidationExceptionV2 ex) {
+                log.error("discardFlaggedOrders Failed to cancel order {}: {}", order.getId(), ex.getMessage(), ex);
+            }
+
+            order.setComments("Flagged Abuse Users");
+            order.setOrderSubStatus(CANCEL_BY_SYSTEM);
+            order.setOrderStatus(DISCARD_STATUS);
+        }
+
+        orderRepository.saveAll(orders);
+
+--- UserOrderServiceImpl.java | UserOrderServiceImpl | discardFlaggedOrders | CODE | 2/2 ---
+            order.setOrderStatus(DISCARD_STATUS);
+        }
+
+        orderRepository.saveAll(orders);
+
+--- KafkaProducer.java | KafkaProducer | sendOrdersStatusUpdateTopic | CODE | 1/1 ---
+    @Async
+    @Override
+    public void sendOrdersStatusUpdateTopic(OrdersStatusUpdateEvent ordersStatusUpdateEvent) {
+        try {
+
+--- KafkaProducer.java | KafkaProducer | sendOrderPlacedUserSMSCommunicationEvent | CODE | 1/1 ---
+    @Async
+    @Override
+    public void sendOrderPlacedUserSMSCommunicationEvent(OrderUpdateEventDetail orderUpdateEventDetail) {
+        try {
+
+--- UserCartServiceImpl.java | UserCartServiceImpl | CreateOrderWidgetModel | CODE | 1/1 ---
+    public EtaWidgetModel CreateOrderWidgetModel(List <Order> orders, String lang){
+        EtaWidgetModel etaWidgetModel = EtaWidgetModel.builder().icon("https://images.dealshare.in/1753346135502fi_17124525.png?tr=f-webp").etaTitle("Arriving Soon").build();
+        Boolean isLive = getEtaFlag(ETA_FLAG,ETA_FLAG);
+        String eta = null;
+        try{
+            if(isLive){
+                Order latestOrder = orders.stream()
+                        .max(Comparator.comparing(Order::getId))
+                        .orElse(null);
+                eta = etaService.orderEta(latestOrder);
+                etaWidgetModel.setEtaFromCache(eta);
+                SimpleDateFormat inputFormat = new SimpleDateFormat(ETA_FORMAT_FROM_CACHE);
+                try {
+                    Date date = inputFormat.parse(eta);
+                    eta = commonUtils.formatEtaV2(date);
+                } catch (Exception e) {
+                    eta = null;
+                }
+            }
+            if(eta != null){
+                etaWidgetModel.setEtaTitle(ARRIVING);
+                etaWidgetModel.setEtaData(eta);
+            }else{
+                List<Long> ordersList = orders.stream().map(Order::getId).collect(Collectors.toList());
+                OrderStatusWidgetStaticModel staticModel = commonUtils.getOrderStatusWidgetFromStaticProperties(ENGLISH);
+                ZonedDateTime cartETA = etaService.getEarliestCeiledDeliveryHour(ordersList);
+                String finalTitle = etaService.formatDeliveryEta(staticModel,cartETA, lang);
+                etaWidgetModel.setEtaTitle(CommonUtils.getValueFromMapByLang(staticModel.getArrivingBy(), lang));
+                etaWidgetModel.setEtaData(finalTitle);
+            }
+
+        }catch(Exception e){
+            log.error("Exception in CreateOrderWidgetModel: {}", e.getMessage(), e);
+        }
+        return etaWidgetModel;
+
+--- KafkaProducerTest.java | KafkaProducerTest | testPushOrderCancelToSellerSync | TEST | 1/1 ---
+    @Test
+    public void testPushOrderCancelToSellerSync() {
+        // Arrange
+        CancelOrderSellerSyncModel payload = new CancelOrderSellerSyncModel(123L);
+        
+        // Act
+        kafkaProducer.pushOrderCancelToSellerSync(payload);
+        
+        // Assert
+        verify(cancelOrderSellerSyncModelKafkaTemplate).send(eq(CANCEL_ORDER_SELLER_SYNC_TOPIC), eq(payload));
+
+--- CreateOrderServiceAdditionalTest.java | CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_OfflineSource_ReturnsFalse | TEST | 1/1 ---
+    @Test
+    public void testCheckOfflineToOnlineConversion_OfflineSource_ReturnsFalse() throws Exception {
+        // Setup - Current order is from an offline source (MINIMART)
+        User user = createTestUser();
+        String currentOrderSource = "MINIMART"; // This is in OFFLINE_SOURCES
+        
+        // Execute
+        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
+        method.setAccessible(true);
+        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
+        
+        // Verify
+        assertFalse(result, "Should return false when current order source is offline");
+
+--- CreateOrderServiceAdditionalTest.java | CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_HasMinimartOrdersAndHasPreviousOnlineOrder_ReturnsFalse | TEST | 1/1 ---
+    @Test
+    public void testCheckOfflineToOnlineConversion_HasMinimartOrdersAndHasPreviousOnlineOrder_ReturnsFalse() throws Exception {
+        // Setup - User has MINIMART orders and a previous online order
+        User user = createTestUser();
+        String currentOrderSource = "app"; // This is in ONLINE_SOURCES
+        
+        // Reset mocks
+        reset(orderRepository);
+        
+        // Mock list with one MINIMART order
+        List<Order> minimartOrders = new ArrayList<>();
+        Order minimartOrder = new Order();
+        minimartOrders.add(minimartOrder);
+        
+        // Setup the mocks with correct arguments
+        when(orderRepository.findByUserIdAndSourceIn(
+                eq(user.getId()),
+                eq(OFFLINE_SOURCES),
+                any(PageRequest.class)))
+                .thenReturn(minimartOrders);
+        
+        // Setup the user to have a previous COD order (not a first purchase)
+        when(orderRepository.findFirstByUserIdAndPaymentType(
+                eq(user.getId()), eq(COD_TYPE)))
+                .thenReturn(Optional.of(new Order()));
+        
+        // Execute
+        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
+        method.setAccessible(true);
+        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
+        
+        // Verify repository calls
+        verify(orderRepository).findByUserIdAndSourceIn(
+                eq(user.getId()),
+                eq(OFFLINE_SOURCES),
+                any(PageRequest.class));
+                
+        verify(orderRepository).findFirstByUserIdAndPaymentType(eq(user.getId()), eq(COD_TYPE));
+        
+        assertFalse(result, "Should return false when user has previous online orders");
+
+--- CreateOrderServiceAdditionalTest.java | CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_HasMinimartOrdersAndIsFirstOnlinePurchase_ReturnsTrue | TEST | 1/2 ---
+    @Test
+    public void testCheckOfflineToOnlineConversion_HasMinimartOrdersAndIsFirstOnlinePurchase_ReturnsTrue() throws Exception {
+        // Setup - User has MINIMART orders and this is their first online purchase
+        User user = createTestUser();
+        String currentOrderSource = "app"; // This is in ONLINE_SOURCES
+        
+        // Reset mocks
+        reset(orderRepository);
+        
+        // Mock list with one MINIMART order
+        List<Order> minimartOrders = new ArrayList<>();
+        Order minimartOrder = new Order();
+        minimartOrders.add(minimartOrder);
+        
+        // Setup the mocks with correct arguments
+        when(orderRepository.findByUserIdAndSourceIn(
+                eq(user.getId()),
+                eq(OFFLINE_SOURCES),
+                any(PageRequest.class)))
+                .thenReturn(minimartOrders);
+        
+        // Setup the user to have no previous COD order
+        when(orderRepository.findFirstByUserIdAndPaymentType(
+                eq(user.getId()), eq(COD_TYPE)))
+                .thenReturn(Optional.empty());
+                
+        // Setup the user to have no previous successful PAYTM order
+        when(orderRepository.findFirstByUserIdAndPaymentTypeAndPaymentStatus(
+                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PAYMENT_SUCCESSFUL)))
+                .thenReturn(Optional.empty());
+                
+        // Setup the user to have no previous refunded PAYTM order
+        when(orderRepository.findFirstByUserIdAndPaymentTypeAndPaymentStatus(
+                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PaymentStatus.REFUND_DONE.name())))
+                .thenReturn(Optional.empty());
+        
+        // Execute
+        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
+        method.setAccessible(true);
+        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
+        
+        // Verify repository calls
+        verify(orderRepository).findByUserIdAndSourceIn(
+                eq(user.getId()),
+                eq(OFFLINE_SOURCES),
+                any(PageRequest.class));
+                
+        verify(orderRepository).findFirstByUserIdAndPaymentType(eq(user.getId()), eq(COD_TYPE));
+        verify(orderRepository).findFirstByUserIdAndPaymentTypeAndPaymentStatus(
+                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PAYMENT_SUCCESSFUL));
+
+--- CreateOrderServiceAdditionalTest.java | CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_HasMinimartOrdersAndIsFirstOnlinePurchase_ReturnsTrue | TEST | 2/2 ---
+                any(PageRequest.class));
+                
+        verify(orderRepository).findFirstByUserIdAndPaymentType(eq(user.getId()), eq(COD_TYPE));
+        verify(orderRepository).findFirstByUserIdAndPaymentTypeAndPaymentStatus(
+                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PAYMENT_SUCCESSFUL));
+        verify(orderRepository).findFirstByUserIdAndPaymentTypeAndPaymentStatus(
+                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PaymentStatus.REFUND_DONE.name()));
+                
+        assertTrue(result, "Should return true when user has MINIMART orders and this is their first online purchase");
+
+--- ExpressDeliveryServiceImplTest.java | ExpressDeliveryServiceImplTest | testOrderSyncException | TEST | 1/1 ---
+    @Test
+    public void testOrderSyncException() throws Exception {
+        // We need to access the private syncOrdersToIms method
+        Method syncOrdersToImsMethod = ExpressDeliveryServiceImpl.class.getDeclaredMethod(
+            "syncOrdersToIms", List.class, long.class);
+        syncOrdersToImsMethod.setAccessible(true);
+        
+        // Create test data
+        List<DealLevelPromotion> cartItems = new ArrayList<>();
+        DealLevelPromotion item1 = new DealLevelPromotion();
+        item1.setDeliveryType(DeliveryType.EXPRESS.name());
+        item1.setOrderPKId(101L);
+        
+        DealLevelPromotion item2 = new DealLevelPromotion();
+        item2.setDeliveryType(DeliveryType.EXPRESS.name());
+        item2.setOrderPKId(102L);
+        
+        cartItems.add(item1);
+        cartItems.add(item2);
+        
+        // Mock the orderServiceClient to throw an exception
+        when(orderServiceClient.syncOrderService(any()))
+            .thenThrow(new RuntimeException("Sync Failed"));
+        
+        // Invoke the private method
+        syncOrdersToImsMethod.invoke(expressDeliveryService, cartItems, 1001L);
+        
+        // Verify that orderServiceClient was called with an OrderPushToImsRequest 
+        // containing the correct order IDs and warehouse ID
+        ArgumentCaptor<OrderPushToImsRequest> requestCaptor = ArgumentCaptor.forClass(OrderPushToImsRequest.class);
+        verify(orderServiceClient).syncOrderService(requestCaptor.capture());
+        
+        OrderPushToImsRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(Long.valueOf(1001L), capturedRequest.getWarehouseId());
+        assertEquals(DeliveryType.EXPRESS.name(), capturedRequest.getDeliveryType());
+        assertEquals(2, capturedRequest.getOrderIds().size());
+        assertTrue(capturedRequest.getOrderIds().contains(101L));
+        assertTrue(capturedRequest.getOrderIds().contains(102L));
