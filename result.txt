@@ -1,59 +1,900 @@
-Question: how do we sync minimart orders ? /v1/minimart-order-sync
+Question: how do we sync minimart orders ?
 
 
-=== 🧩 UnknownRepo → FeesServiceImplTest.java ===
+🟦 SERVICE: chat-service
+======================================================================
 
---- FeesServiceImplTest | testUpdateCartConfigBenefits_EmptyOrderIds | TEST | 1/1 ---
+📄 FILE: KafkaProvider.java
+
+--- KafkaProvider | getLeadUpdateKafka | TEST | 1/1 ---
+    public static final LeadUpdateKafka getLeadUpdateKafka() {
+        LeadUpdateKafka leadUpdateKafka = new LeadUpdateKafka();
+        leadUpdateKafka.setUpdatedBy("DS1911");
+        leadUpdateKafka.setDispositionText(LeadDispositionType.ALREADY_DELIVERED.getValue());
+        leadUpdateKafka.setContextId("U286191226608872");
+        leadUpdateKafka.setContextType(LeadContextType.SHIPMENTS.getValue());
+        return leadUpdateKafka;
+
+
+📄 FILE: LeadProvider.java
+
+--- LeadProvider | getShipmentDetailsResponse | TEST | 1/1 ---
+    public static BulkShipmentDetailsResponse getShipmentDetailsResponse(){
+        BulkShipmentDetailsResponse bulkShipmentDetailsResponse = new BulkShipmentDetailsResponse();
+
+        ShipmentDetailsDto shipmentDetailsDto = new ShipmentDetailsDto();
+        shipmentDetailsDto.setId(549936736436127598L);
+        shipmentDetailsDto.setDisplayId("U286191226608872");
+        shipmentDetailsDto.setStatus("allotted");
+
+        ShipmentItemDetailsDto itemDetailsDto = new ShipmentItemDetailsDto();
+        itemDetailsDto.setStatus("in_process");
+        OrderDetailsResponseModel orderDetailsResponseModel = new OrderDetailsResponseModel();
+        OrderDetailsModel orderDetailsModel = new OrderDetailsModel();
+        orderDetailsModel.setUserId(875445L);
+        orderDetailsResponseModel.setOrderDetails(orderDetailsModel);
+        itemDetailsDto.setShipmentItemOrderDetails(orderDetailsResponseModel);
+        List<ShipmentItemDetailsDto> shipmentItemDetailsDtos = new ArrayList<>();
+        shipmentItemDetailsDtos.add(itemDetailsDto);
+
+        shipmentDetailsDto.setShipmentItemDetails(shipmentItemDetailsDtos);
+        List<ShipmentDetailsDto> ls = new ArrayList<>();
+        ls.add(shipmentDetailsDto);
+
+        bulkShipmentDetailsResponse.setShipmentDetails(ls);
+        return bulkShipmentDetailsResponse;
+
+
+📄 FILE: ShipmentDataProvider.java
+
+--- ShipmentDataProvider | getShipmentDetailsDto | TEST | 1/1 ---
+    public static ShipmentDetailsDto getShipmentDetailsDto(){
+        ShipmentDetailsDto shipmentDetailsDto = new ShipmentDetailsDto();
+        shipmentDetailsDto.setDisplayId(TEST_CONTEXT_ID);
+        shipmentDetailsDto.setUpdatedAt(TEST_UPDATED_TIME);
+        shipmentDetailsDto.setWarehouseId(TEST_WAREHOUSE_ID);
+        shipmentDetailsDto.setStatus(TEST_SHIPMENT_STATUS);
+        shipmentDetailsDto.setShipmentItemDetails(List.of(getShipmentItemDetails()));
+        return shipmentDetailsDto;
+
+--- ShipmentDataProvider | getShipmentItemDetails | TEST | 1/1 ---
+    public static ShipmentItemDetailsDto getShipmentItemDetails(){
+        ShipmentItemDetailsDto shipmentItemDetailsDto = new ShipmentItemDetailsDto();
+        shipmentItemDetailsDto.setShipmentItemOrderDetails(getShipmentItemOrderDetails());
+        return shipmentItemDetailsDto;
+
+--- ShipmentDataProvider | getShipmentItemOrderDetails | TEST | 1/1 ---
+    public static OrderDetailsResponseModel getShipmentItemOrderDetails(){
+        OrderDetailsResponseModel orderDetailsResponseModel = new OrderDetailsResponseModel();
+        orderDetailsResponseModel.setOrderDetails(getOrderDetailsModel());
+        return orderDetailsResponseModel;
+
+--- ShipmentDataProvider | getOrderDetailsModel | TEST | 1/1 ---
+    public static OrderDetailsModel getOrderDetailsModel(){
+        OrderDetailsModel orderDetailsModel = new OrderDetailsModel();
+        orderDetailsModel.setName(TEST_CUSTOMER_NAME);
+        orderDetailsModel.setPhone(TEST_PHONE_NUMBER);
+        orderDetailsModel.setAmount(TEST_ORDER_AMOUNT);
+        orderDetailsModel.setPaymentType(TEST_PAYMENT_TYPE);
+        orderDetailsModel.setDeliveryBoyName(TEST_DELIVERY_BOY_NAME+"/"+TEST_DELIVERY_BOY_PHONE);
+        return orderDetailsModel;
+
+
+📄 FILE: KafkaTest.java
+
+--- KafkaTest | produceKafka | TEST | 1/1 ---
     @Test
-    public void testUpdateCartConfigBenefits_EmptyOrderIds() {
-        // Arrange
-        SyncCartConfigUsesModel request = new SyncCartConfigUsesModel();
-        request.setOrderIds(new ArrayList<>());
-        
-        // Act
-        Boolean result = feesService.updateCartConfigBenefits(request);
-        
-        // Assert
-        assertTrue(result);
-        verify(myOrderService, never()).prepareCartOrdersMap(anyList());
+    @DisplayName("Kafka producer Success")
+    public void produceKafka() throws JsonProcessingException {
+        String jsonData = "{\"contextType\":\"SHIPMENTS\",\"contextId\":\"U286191226608872\",\"dispositionText\":\"Delivered\",\"updatedBy\":\"DS1911\",\"createdDate\":null}";
+        lenient().when(objectMapper.writeValueAsString(any())).thenReturn(jsonData);
+        lenient().when(kafkaTemplate.send("topic",jsonData)).thenReturn(null);
+        kafkaMessageProducer.produceLeadMessage(KafkaProvider.getLeadUpdateKafka(),"topic");
 
---- FeesServiceImplTest | testUpdateCartConfigBenefits_Success | TEST | 1/1 ---
+
+📄 FILE: LeadCreateTest.java
+
+--- LeadCreateTest | setup | TEST | 1/1 ---
+    @BeforeEach
+    public void setup() {
+        MockitoAnnotations.initMocks(this);
+        lenient().when(leadBasicDetailsProvider.getLeadBasicDetails(LeadContextType.SHIPMENTS))
+            .thenReturn(shipmentLeadDetails);
+        lenient().when(shipmentLeadDetails.createLead(LeadProvider.getLeadCreateRequestDto(),
+
+
+📄 FILE: GetLeadDetailsTest.java
+
+--- GetLeadDetailsTest | setUp | TEST | 1/1 ---
+    @BeforeEach
+    void setUp(){
+
+        warehouseEntity.setId(TEST_WAREHOUSE_ID.longValue());
+        warehouseEntity.setWarehouseName(TEST_WAREHOUSE);
+
+        lenient().when(leadRepository.findById(TEST_LEAD_ID)).thenReturn(Optional.of(leads));
+        lenient().when(leadBasicDetailsProvider.getLeadBasicDetails(LeadContextType.valueOf(TEST_LEAD_CONTEXT_TYPE)))
+                .thenReturn(shipmentLeadDetails);
+        lenient().when(shipmentLeadDetails.getLeadDetails(leads))
+                .thenReturn((ResponseModelProvider.getShipmentDetailsResponse()));
+        lenient().when(userAddressServiceClient.getUserAddressDetail(any()))
+                .thenReturn(ResponseModelProvider.getUserAddressResponseModel());
+        lenient().when(dealIndexServiceClient.getOfferInfoByOfferId(any())).thenReturn(new ArrayList<>());
+        lenient().when(warehouseRepository.findById(TEST_WAREHOUSE_ID.longValue()))
+
+
+📄 FILE: CreateLeadTest.java
+
+--- CreateLeadTest | shipmentLeadCreateTestFail | TEST | 1/1 ---
     @Test
-    public void testUpdateCartConfigBenefits_Success() {
-        // Arrange
-        SyncCartConfigUsesModel request = new SyncCartConfigUsesModel();
-        request.setOrderIds(Arrays.asList(1L, 2L));
-        
-        Map<Long, List<Long>> cartOrdersMap = new HashMap<>();
-        cartOrdersMap.put(123L, Arrays.asList(1L, 2L));
-        
-        UserCartConfigBenefitsHistory debitHistory = new UserCartConfigBenefitsHistory();
-        debitHistory.setCartId(123L);
-        debitHistory.setTxType("debit");
-        debitHistory.setCartConfigBenefitId(456L);
-        
-        when(myOrderService.prepareCartOrdersMap(Arrays.asList(1L, 2L))).thenReturn(cartOrdersMap);
-        when(myOrderService.completeCartCancelledWithoutCustomerFault(anyList(), anyList(), anyList()))
-                .thenReturn(Arrays.asList(new com.dealshare.service.cartservice.entities.Order()));
-        when(userCartConfigBenefitsHistoryRepository.findByCartIdAndTxType(123L, "credit"))
-                .thenReturn(Optional.empty());
-        when(userCartConfigBenefitsHistoryRepository.findByCartIdAndTxType(123L, "debit"))
-                .thenReturn(Optional.of(debitHistory));
-        when(userCartConfigBenefitsRepository.creditUsedBenefitsIfNotInHistory(123L)).thenReturn(1);
-        when(userCartConfigBenefitsHistoryRepository.saveAndFlush(any(UserCartConfigBenefitsHistory.class)))
-                .thenReturn(new UserCartConfigBenefitsHistory());
-        
-        // Act
-        Boolean result = feesService.updateCartConfigBenefits(request);
-        
-        // Assert
-        assertTrue(result);
-        verify(myOrderService).prepareCartOrdersMap(Arrays.asList(1L, 2L));
-        verify(userCartConfigBenefitsRepository).creditUsedBenefitsIfNotInHistory(123L);
-        verify(userCartConfigBenefitsHistoryRepository).saveAndFlush(any(UserCartConfigBenefitsHistory.class));
+    @DisplayName("Shipment CreateLead Fail")
+    public void shipmentLeadCreateTestFail() {
+        BulkShipmentDetailsResponse data = new BulkShipmentDetailsResponse();
+        data.setShipmentDetails(new ArrayList<>());
+        when(routingServiceClientWrapper.getShipmentDetails(any(), any())).thenReturn(data);
+
+        LeadServiceException exception = assertThrows(LeadServiceException.class, () -> {
+            shipmentLeadDetails.createLead(LeadProvider.getLeadCreateRequestDto(),
+                    CommonUtils.getCurrentLocalDateInIST());
+        });
+        assertThat(exception.getMessage()).isNotBlank();
 
 
-=== 🧩 UnknownRepo → V1UserPhoneCartIdTest.java ===
+📄 FILE: KafkaConfig.java
+
+--- KafkaConfig | kafkaListenerContainerFactory | CODE | 1/1 ---
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(){
+    ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory= new ConcurrentKafkaListenerContainerFactory();
+    kafkaListenerContainerFactory.setConsumerFactory(consumerFactory());
+
+    return kafkaListenerContainerFactory;
+
+--- KafkaConfig | ordersStatusUpdateTopic | CODE | 1/1 ---
+  @Bean
+  public NewTopic ordersStatusUpdateTopic(){
+    return new NewTopic(ordersStatusUpdateTopic, 1, (short)2);
+
+
+📄 FILE: SqsConfig.java
+
+--- SqsConfig | simpleMessageListenerContainerFactory | CODE | 1/1 ---
+    @Bean
+    public SimpleMessageListenerContainerFactory simpleMessageListenerContainerFactory() {
+        SimpleMessageListenerContainerFactory msgListenerContainerFactory = new SimpleMessageListenerContainerFactory();
+        msgListenerContainerFactory.setAmazonSqs(amazonSQSAsync());
+        return msgListenerContainerFactory;
+
+--- SqsConfig | amazonSQSAsync | CODE | 1/1 ---
+    public AmazonSQSAsync amazonSQSAsync() {
+        AmazonSQSAsyncClientBuilder amazonSQSAsyncClientBuilder = AmazonSQSAsyncClientBuilder.standard();
+        AmazonSQSAsync amazonSQSAsync = null;
+        amazonSQSAsyncClientBuilder.withRegion(region);
+        BasicAWSCredentials basicAWSCredentials = new BasicAWSCredentials(accessKey, secretKey);
+        amazonSQSAsyncClientBuilder.withCredentials(new AWSStaticCredentialsProvider(basicAWSCredentials));
+        amazonSQSAsync = amazonSQSAsyncClientBuilder.build();
+        return amazonSQSAsync;
+
+
+📄 FILE: SqsMessageReceiver.java
+
+--- SqsMessageReceiver | receiveOrderSmsUpdatesComm | CODE | 1/1 ---
+    @SqsListener("${aws.sqs.order-sms-updates.url}")
+    public void receiveOrderSmsUpdatesComm(String message) throws JsonProcessingException {
+        OrderSmsUpdatesDto orderSmsUpdatesDto = objectMapper.readValue(message, OrderSmsUpdatesDto.class);
+        try {
+
+
+📄 FILE: ChatController.java
+
+--- ChatController | syncRoom | CODE | 1/1 ---
+    @GetMapping(value = "sync-room")
+    public ResponseEntity<?> syncRoom(){
+        return new ResponseEntity<>(chatService.syncRoom(), HttpStatus.OK);
+
+
+📄 FILE: PostOrderCommunicationService.java
+
+--- PostOrderCommunicationService | saveCommunicationMessage | CODE | 1/1 ---
+    private void saveCommunicationMessage(OrderUpdateEventDetail orderUpdateEventDetail, String template) {
+        PostOrderCommunication postOrderCommunication = new PostOrderCommunication();
+        postOrderCommunication.setUserId(orderUpdateEventDetail.getUserId());
+        postOrderCommunication.setCartId(orderUpdateEventDetail.getCartId());
+        postOrderCommunication.setEventType(orderUpdateEventDetail.getEventType());
+        StringBuilder orderIds = new StringBuilder();
+        for (OrderUpdateEventDetail.OrderUpdateDetails orderUpdateDetails : orderUpdateEventDetail.getOrderUpdateDetails()) {
+            if (orderIds.length() > 0) {
+                orderIds.append(",");
+            }
+            orderIds.append(orderUpdateDetails.getOrderId());
+        }
+        postOrderCommunication.setOrderIds(orderIds.toString());
+        postOrderCommunicationRepo.save(postOrderCommunication);
+
+--- PostOrderCommunicationService | getOrderPlacedDataMap | CODE | 1/1 ---
+    private static Map<String, String> getOrderPlacedDataMap(OrderUpdateEventDetail orderUpdateEventDetail) {
+        Map<String,String> data = new HashMap<>();
+
+        if(Objects.isNull(orderUpdateEventDetail.getCartId()) || orderUpdateEventDetail.getOrderUpdateDetails().isEmpty()){
+           throw new IllegalArgumentException("Invalid request to process for OFD transition");
+        }
+
+        data.put(CART_ID_KEY, String.valueOf(orderUpdateEventDetail.getCartId()));
+        data.put(NO_OF_ITEMS_KEY, String.valueOf(orderUpdateEventDetail.getOrderUpdateDetails().size()));
+        data.put(DELIVERY_TIME_KEY,orderUpdateEventDetail.getDeliveryEta());
+
+        float discountAmount = 0;
+        for (OrderUpdateEventDetail.OrderUpdateDetails orderUpdateDetail : orderUpdateEventDetail.getOrderUpdateDetails()) {
+                if (orderUpdateDetail != null) {
+                    discountAmount += (orderUpdateDetail.getDiscountAmount());
+                }
+        }
+
+
+
+        data.put(DISCOUNT_AMOUNT_KEY, String.valueOf((int)discountAmount));
+        data.put(ORDER_DETAILS_DEEP_LINK_KEY, OrderDetailsLink);
+        return data;
+
+--- PostOrderCommunicationService | getOutForDeliveryDataMap | CODE | 1/1 ---
+    private static Map<String,String> getOutForDeliveryDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(Objects.isNull(orderUpdateEventDetail.getDeliveryEta())){
+            throw new IllegalArgumentException("Invalid request to process for OFD transition");
+        }
+
+        data.put(DELIVERY_TIME_KEY, orderUpdateEventDetail.getDeliveryEta());
+
+        return data;
+
+--- PostOrderCommunicationService | getDelayedOutForDeliveryDataMap | CODE | 1/1 ---
+    private static Map<String,String> getDelayedOutForDeliveryDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(Objects.isNull(orderUpdateEventDetail.getDeliveryEta())){
+            throw new IllegalArgumentException("Invalid request to process for OFD transition");
+        }
+
+        data.put(DELIVERY_TIME_KEY, orderUpdateEventDetail.getDeliveryEta());
+
+        return data;
+
+--- PostOrderCommunicationService | getPartiallyDeliveredPrepaidOneItemDataMap | CODE | 1/1 ---
+    private static Map<String,String> getPartiallyDeliveredPrepaidOneItemDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(Objects.isNull(orderUpdateEventDetail.getRefundAmount())){
+            throw new IllegalArgumentException("Invalid request to process for PartiallyDeliveredPrepaid transition");
+        }
+
+        data.put(REFUND_AMOUNT_KEY, String.valueOf(orderUpdateEventDetail.getRefundAmount()));
+
+        return data;
+
+--- PostOrderCommunicationService | getPartiallyDeliveredCODOneItemDataMap | CODE | 1/1 ---
+    private static Map<String,String> getPartiallyDeliveredCODOneItemDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+
+        return data;
+
+--- PostOrderCommunicationService | getPartiallyDeliveredPrepaidMultipleItemDataMap | CODE | 1/1 ---
+    private static Map<String,String> getPartiallyDeliveredPrepaidMultipleItemDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(Objects.isNull(orderUpdateEventDetail.getRefundAmount()) || orderUpdateEventDetail.getOrderUpdateDetails().isEmpty()){
+            throw new IllegalArgumentException("Invalid request to process for PartiallyDeliveredPrepaid transition");
+        }
+
+        data.put(REFUND_AMOUNT_KEY, String.valueOf(orderUpdateEventDetail.getRefundAmount()));
+        data.put(NO_OF_ITEMS_KEY, String.valueOf(orderUpdateEventDetail.getOrderUpdateDetails().size()));
+
+        return data;
+
+--- PostOrderCommunicationService | getPartiallyDeliveredCODMultipleItemDataMap | CODE | 1/1 ---
+    private static Map<String,String> getPartiallyDeliveredCODMultipleItemDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(orderUpdateEventDetail.getOrderUpdateDetails().isEmpty()){
+            throw new IllegalArgumentException("Invalid request to process for PartiallyDeliveredCOD transition");
+        }
+
+        data.put(NO_OF_ITEMS_KEY, String.valueOf(orderUpdateEventDetail.getOrderUpdateDetails().size()));
+
+        return data;
+
+--- PostOrderCommunicationService | getDeliveredDataMap | CODE | 1/1 ---
+    private static Map<String,String> getDeliveredDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        return new HashMap<>();
+
+--- PostOrderCommunicationService | getCustomerNotReachableCancelledDataMap | CODE | 1/1 ---
+    private static Map<String,String> getCustomerNotReachableCancelledDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(Objects.isNull(orderUpdateEventDetail.getDeliveryEta())){
+            throw new IllegalArgumentException("Invalid request to process for CustomerNotReachableCancelled transition");
+        }
+
+        data.put(DELIVERY_TIME_KEY, orderUpdateEventDetail.getDeliveryEta());
+
+        return data;
+
+--- PostOrderCommunicationService | getCustomerRefundInitiatedDataMap | CODE | 1/1 ---
+    private static Map<String,String> getCustomerRefundInitiatedDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        Map<String,String> data = new HashMap<>();
+        if(Objects.isNull(orderUpdateEventDetail.getRefundAmount())){
+            throw new IllegalArgumentException("Invalid request to process for CustomerRefundInitiated transition");
+        }
+
+        data.put(REFUND_AMOUNT_KEY, String.valueOf(orderUpdateEventDetail.getRefundAmount()));
+
+        return data;
+
+--- PostOrderCommunicationService | getOrderDelayedDataMap | CODE | 1/1 ---
+    private static Map<String,String> getOrderDelayedDataMap(OrderUpdateEventDetail orderUpdateEventDetail){
+        return new HashMap<>();
+
+--- PostOrderCommunicationService | processOrderCommunication | CODE | 1/2 ---
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public void processOrderCommunication(OrderUpdateEventDetail orderUpdateEventDetail) {
+
+        ValidateRequest(orderUpdateEventDetail);
+
+        if(!orderUpdateEventDetail.getEventType().equalsIgnoreCase(REFUND_INITIATED_TRANSITION)) {
+            PostOrderCommunication postOrderCommunication = postOrderCommunicationRepo.findByCartIdAndEventType(orderUpdateEventDetail.getCartId(), orderUpdateEventDetail.getEventType());
+            if (Objects.nonNull(postOrderCommunication)) {
+                log.info("Communication already sent for cartId: {}", orderUpdateEventDetail.getCartId());
+                return;
+            }
+        }
+
+        Integer warehouseIdByOrderId = orderRepository.findFirstWarehouseIdByOrderId(orderUpdateEventDetail.getOrderUpdateDetails().get(0).getOrderId());
+        if (ObjectUtils.isEmpty(warehouseIdByOrderId)) {
+            log.error("WarehouseId not found for order: {}", orderUpdateEventDetail.getOrderUpdateDetails().get(0).getOrderId());
+            return;
+        }
+
+        boolean isOmniEnabled = Boolean.TRUE.equals(orderRepository.isWarehouseAStore(warehouseIdByOrderId));
+
+        RiderWarehouseConfig riderWarehouseConfig = growthBookService.getRiderWarehouseEnabled(warehouseIdByOrderId, Long.valueOf(orderUpdateEventDetail.getUserId()));
+
+        boolean isProcess = riderWarehouseConfig.isEnable() || isOmniEnabled;
+        if (!isProcess) {
+//            log.error("RiderWarehouse is not enabled for warehouseId: {} and userId: {}, {} , {}", warehouseIdByOrderId, orderUpdateEventDetail.getUserId(),isOmniEnabled, riderWarehouseConfig);
+            return;
+        }
+
+        PostOrderCommunicationConfig config = growthBookService.getOrderCommunicationEnabled(Long.valueOf(orderUpdateEventDetail.getUserId()), warehouseIdByOrderId);
+        if(!config.getEnable()){
+            return;
+        }
+
+        SendSMSModel sendSMSModel = new SendSMSModel();
+        sendSMSModel.setPhone(String.valueOf(orderUpdateEventDetail.getPhone()));
+
+
+        Map<String, String> data = getStringStringMap(orderUpdateEventDetail);
+        String template = formatTemplate(data, orderUpdateEventDetail.getEventType(),orderUpdateEventDetail.getLang());
+        if (template.contains("Maybe soon")) {
+            try {
+                Long orderId = orderUpdateEventDetail.getOrderUpdateDetails().get(0).getOrderId();
+                String eta = orderServiceClient.getOrderEta(orderId);
+                log.error("Fetched eta {} from client : {}",eta,orderId);
+                template = template.replace("Maybe soon", eta != null ? eta : "tomorrow");
+            } catch (Exception e) {
+                log.error("Failed to fetch delivery ETA for orderId {}", data.get("orderId"), e);
+            }
+        }
+
+--- PostOrderCommunicationService | processOrderCommunication | CODE | 2/2 ---
+                template = template.replace("Maybe soon", eta != null ? eta : "tomorrow");
+            } catch (Exception e) {
+                log.error("Failed to fetch delivery ETA for orderId {}", data.get("orderId"), e);
+            }
+        }
+        sendSMSModel.setMessageText(template);
+        sendSMSModel.setMessageType(KALEYRA_TXN_MESSAGE_TYPE);
+
+        kaleyraMessageService.sendSMS(sendSMSModel);
+        saveCommunicationMessage(orderUpdateEventDetail, template);
+
+
+📄 FILE: GrowthBookService.java
+
+--- GrowthBookService | getOrderCommunicationEnabled | CODE | 1/1 ---
+    public PostOrderCommunicationConfig getOrderCommunicationEnabled(Long userId, Integer warehouseId){
+        Map<String, ?> attributesMap = new HashMap<>();
+        attributesMap.put("userId", GrowthBookUtility.castToGenericType(userId));
+        attributesMap.put("warehouse", GrowthBookUtility.castToGenericType(warehouseId));
+
+        GrowthBook growthBook = growthBookFactory.newGrowthBook(attributesMap);
+
+        PostOrderCommunicationConfig fallbackValue = new PostOrderCommunicationConfig();
+        fallbackValue.setEnable(false);
+
+        return growthBook.evalFeature("chat-service_post-order-sms", fallbackValue, PostOrderCommunicationConfig.class);
+
+
+📄 FILE: CommunicationService.java
+
+--- CommunicationService | getDeeplinkForEvent | CODE | 1/1 ---
+  private String getDeeplinkForEvent(CommunicationEvent event){
+    switch(event){
+      case ORDER_PLACED:
+      case RESCHEDULED:
+      case APP_CANCEL_COD:
+      case APP_CANCEL_ONLINE:
+      case DOORSTEP_CANCEL:
+      case RETURN_PICKED:
+      case INITIATE_REFUND:
+      case REFUND_DONE:
+        return AppConstants.ORDER_DETAIL_DEEPLINK;
+      case OUT_FOR_DELIVERY:
+      case DELIVERED:
+        return AppConstants.ORDER_HISTORY_DEEPLINK;
+      case SHIPMENT_FEEDBACK:
+        return AppConstants.HOME_PAGE_DEEPLINK;
+    }
+
+    return "";
+
+--- CommunicationService | resolveOrderPlaceholders | CODE | 1/1 ---
+  private Map<String, String> resolveOrderPlaceholders(UserData userData, OrderInfoModel oneOrderInfo,
+      CommunicationEventModel communicationEventModel) throws CommunicationException {
+
+    Map<String, String> placeholdersMap = new HashMap<>();
+
+    String itemNamePlaceholder = getDealName(userData, oneOrderInfo);
+    placeholdersMap.put(PlaceholderConstants.ITEM_NAME, itemNamePlaceholder);
+
+    List<Long> orderIds = communicationEventModel.getOrderIds();
+    if(orderIds.size()> 1)
+      itemNamePlaceholder = itemNamePlaceholder + " & " + (orderIds.size()- 1) + " more";
+
+    placeholdersMap.put(PlaceholderConstants.ITEM_NAME_N_MORE, itemNamePlaceholder);
+
+    placeholdersMap.put(PlaceholderConstants.ETA, oneOrderInfo.getDeliveryDate());
+
+    CommunicationEvent event = communicationEventModel.getEvent();
+    switch (event) {
+      case RETURN_PICKED:
+      case INITIATE_REFUND:
+      case REFUND_DONE:
+        BigDecimal billedAmount = getBilledAmount(orderIds);
+        placeholdersMap.put(PlaceholderConstants.BILLED_AMOUNT, String.valueOf(billedAmount));
+        break;
+      case OUT_FOR_DELIVERY:
+        List<UserShipmentModel> shipmentModels = cartServiceClient.getAllShipments(
+            userData.getPhoneNumber(), oneOrderInfo.getSource(), userData.getId());
+        if (CollectionUtils.isEmpty(shipmentModels) || shipmentModels.get(0).getDoorStepOtp() == null) {
+          throw new CommunicationException("No OFD order for userId: " + userData.getId());
+        }
+        placeholdersMap.put(PlaceholderConstants.OTP, String.valueOf(shipmentModels.get(0).getDoorStepOtp()));
+        break;
+      case APP_CANCEL_ONLINE:
+        long refundAmount = cartServiceClient.getOnlineRefundAmount(oneOrderInfo.getOrderPkId());
+        placeholdersMap.put(PlaceholderConstants.BILLED_AMOUNT, String.valueOf(refundAmount));
+        break;
+      default:
+        break;
+    }
+
+    return placeholdersMap;
+
+--- CommunicationService | getBilledAmount | CODE | 1/1 ---
+  private BigDecimal getBilledAmount(List<Long> orderIds) throws CommunicationException {
+    List<RefundInfoModel> refundInfoModels = paymentServiceClient.getRefundsStatusByOrderIds(
+        orderIds, "System", "System123");
+
+    BigDecimal billedAmount = BigDecimal.ZERO;
+    for(RefundInfoModel refundInfoModel: refundInfoModels){
+      billedAmount = billedAmount.add(refundInfoModel.getAmount());
+    }
+
+    return billedAmount;
+
+--- CommunicationService | getDealName | CODE | 1/1 ---
+  private String getDealName(UserData userData, OrderInfoModel orderInfo){
+    String dealName = orderInfo.getNameMap().get(userData.getLang());
+    if(dealName != null)
+      return dealName;
+
+    return orderInfo.getNameMap().get("en");
+
+
+📄 FILE: KafkaConsumer.java
+
+--- KafkaConsumer | listenOrdersStatusUpdates | CODE | 1/1 ---
+  @KafkaListener(topics = "${kafka.topic-name.orders-status-update-topic}", groupId = "${kafka.group-id.orders-status-communication}", autoStartup = "true")
+  public void listenOrdersStatusUpdates(String payload){
+    CommunicationEventModel communicationEventModel = null;
+    try{
+      communicationEventModel = CommonUtils.parseJsonString(payload, CommunicationEventModel.class);
+      communicationService.triggerCommunications(communicationEventModel);
+    }catch(JsonProcessingException e){
+//      log.error("Invalid payload: {}, JsonProcessingException: {}", payload, e.getMessage());
+    }catch(Exception e){
+//      log.error("Exception in processing the payload: {}, exception: {}", payload, e.getMessage());
+    }
+    try {
+
+--- KafkaConsumer | processOrderStatusUpdateEvent | CODE | 1/1 ---
+  @KafkaListener(topics = "${kafka-topic-name-post-order-sms}", groupId = "kafka.group-id.orders-update-chat-service-stage", autoStartup = "true")
+  public void processOrderStatusUpdateEvent(String payload){
+    try{
+
+
+📄 FILE: SmsServiceImpl.java
+
+--- SmsServiceImpl | saveSmsHistory | CODE | 1/1 ---
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public void saveSmsHistory(NotificationRequestBody notificationRequestBody){
+        SMSQueueEntity smsQueueEntity = new SMSQueueEntity();
+        smsQueueEntity.setCurrentState("TRIGGERED");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("orderIds", fetchOrderIdsBySource(notificationRequestBody.getShipmentModel(),
+                notificationRequestBody.getSmsTypes().get("smsType")));
+        parameters.put("phone", notificationRequestBody.getShipmentModel().getPhone());
+        parameters.put("userId" , notificationRequestBody.getShipmentModel().getUserId());
+        parameters.put("bagId", notificationRequestBody.getCartId());
+        parameters.put("type", notificationRequestBody.getSmsTypes().get("messageType"));
+        parameters.put("allocationId", notificationRequestBody.getShipmentModel().getAllocationId());
+        String params = JSONObject.valueToString(parameters);
+        smsQueueEntity.setParameters(params);
+        smsQueueEntity.setUserId(notificationRequestBody.getShipmentModel().getUserId());
+        smsQueueEntity.setReferenceId(Long.parseLong(String.valueOf(parameters.get("allocationId"))));
+        smsQueueEntity.setSmstype(notificationRequestBody.getSmsTypes().get("smsType"));
+        smsQueueEntity = smsQueueEntityRepository.save(smsQueueEntity);
+        log.info("SMS queue entity created : " + smsQueueEntity.getId());
+
+--- SmsServiceImpl | fetchOrderIdsBySource | CODE | 1/1 ---
+    private List<Long> fetchOrderIdsBySource(ShipmentModel shipmentModel, String smsType){
+        switch(smsType){
+
+
+📄 FILE: CoreChatServiceImpl.java
+
+--- CoreChatServiceImpl | syncRoom | CODE | 1/1 ---
+    @Override
+    public List<ChatRoom> syncRoom() {
+        String token = pusherHelper.generateToken("1", true, false);
+        List<JsonNode> roomList = pusherClient.getRooms(token);
+        List<ChatRoom> chatRoomsList = roomList.stream().map(item -> {
+            ChatRoom chatRoom = new ChatRoom();
+            chatRoom.setRoomName(item.get("name").asText());
+            chatRoom.setPusherRoomId(item.get("id").asText());
+            chatRoom.setCreatedAt(item.get("created_at").asText());
+            chatRoom.setCreatedById(item.get("created_by_id").asText());
+            chatRoom.setRoomType(item.get("private").asBoolean());
+            chatRoom.setUpdatedAt(item.get("updated_at").asText());
+            return chatRoom;
+        }).collect(Collectors.toList());
+        return chatRoomRepository.saveAll(chatRoomsList);
+
+
+📄 FILE: RescheduleOrderTrigger.java
+
+--- RescheduleOrderTrigger | processEvent | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public Map<String, Object> processEvent(ShipmentModel shipmentModel) {
+        Map<String, Object> errorMessage = new HashMap<>();
+        if (CollectionUtils.isEmpty(shipmentModel.getRescheduled()))
+            return new HashMap<>();
+
+        Optional<Order> order = ordersRepository.findById(shipmentModel.getRescheduled().get(0));
+        if (!order.isPresent()) {
+            errorMessage.put(AppConstants.ERROR_KEY, String.format("Order id %s does not exist .", shipmentModel.getRescheduled().get(0)));
+            return errorMessage;
+        }
+
+        if (!order.get().getUserId().equals(shipmentModel.getUserId())) {
+            errorMessage.put(AppConstants.ERROR_KEY, String.format("Order id %s does not belong to user %s .", shipmentModel.getRescheduled().get(0), shipmentModel.getUserId()));
+            return errorMessage;
+        }
+        if (!order.get().getStatus().equals("outfordelivery")) {
+            errorMessage.put(AppConstants.ERROR_KEY, String.format("Order id %s is not in outfordelivery state and user ID  %s", shipmentModel.getRescheduled().get(0), shipmentModel.getUserId()));
+            return errorMessage;
+        }
+        if (Arrays.asList(0, 1).contains(order.get().getSkipBts())) {
+            errorMessage.put(AppConstants.ERROR_KEY, String.format("User has already provided response for order ID  %s and user ID  %s", shipmentModel.getRescheduled().get(0), shipmentModel.getUserId()));
+            return errorMessage;
+        }
+        Long cartID = ordersRepository.getCartIdForOrderId(order.get().getId());
+
+        Map<String, Object> response = new HashMap<>();
+        NotificationRequestBody notificationRequestBody = buildNotificationRequestBody(shipmentModel, order.get(), cartID);
+        response.put("firebase_response", triggerNotification(notificationRequestBody));
+        response.put("sms_response", triggerSms(notificationRequestBody));
+        return response;
+
+--- RescheduleOrderTrigger | buildNotificationRequestBody | CODE | 1/1 ---
+    private NotificationRequestBody buildNotificationRequestBody(ShipmentModel shipmentModel, Order order, Long cartID){
+        NotificationRequestBody notificationRequestBody = new NotificationRequestBody();
+        notificationRequestBody.setShipmentModel(shipmentModel);
+        notificationRequestBody.setOrder(order);
+        notificationRequestBody.setCartId(cartID);
+        Map<String, String> smsTypes = new HashMap<>();
+        smsTypes.put("messageType", "reschedule");
+        smsTypes.put("smsType", "RIDER_ORDER_RESCHEDULE");
+        notificationRequestBody.setSmsTypes(smsTypes);
+        return notificationRequestBody;
+
+--- RescheduleOrderTrigger | triggerSms | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public String triggerSms(NotificationRequestBody notificationRequestBody) {
+        try {
+            // need to update these orders in sms queue table
+            smsService.saveSmsHistory(notificationRequestBody);
+            String productSpec = orderDao.getProductNameFromDealIdAndLang(notificationRequestBody.getOrder().getOfferId(), "en");
+            Integer count = notificationRequestBody.getShipmentModel().getRescheduled().size() - 1;
+            String text;
+            String replaceText = "";
+            if(count==0) text = "+ {X} items ";
+            else {
+                text = "{X}";
+                replaceText=String.valueOf(count);
+            }
+            String message = AppConstants.RIDER_RESCHEDULE_REVIEW_SMS_TEMPLATE.replace("productName", StringUtils.abbreviate(productSpec, 30));
+            message = message.replace(text, replaceText);
+            message = message.replace("LINK", AppConstants.RIDER_RESCHEDULE_SMS_DEEPLINK);
+            log.info(message);
+            SendSMSModel messageModel = new SendSMSModel();
+            messageModel.setMessageText(message);
+            messageModel.setMessageUserId(messageUserId);
+            messageModel.setMessagePassword(messagePassword);
+            messageModel.setPhone(notificationRequestBody.getShipmentModel().getPhone());
+            return "Sending msgs stopped";
+        }
+        catch (Exception e) {
+            log.error("Error occurred while triggering sms with exception = {}",e.toString());
+        }
+        return null;
+
+
+📄 FILE: OrderDeliveredTrigger.java
+
+--- OrderDeliveredTrigger | processEvent | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public Map<String, Object> processEvent(ShipmentModel shipmentModel) {
+        Map<String, Object> errorMessage = new HashMap<>();
+        if (CollectionUtils.isEmpty(shipmentModel.getDelivered()))
+            return new HashMap<>();
+
+        Optional<Order> order = ordersRepository.findById(shipmentModel.getDelivered().get(0));
+        if (!order.isPresent()) {
+            errorMessage.put(ERROR_KEY, String.format("Order id %s does not exist .", shipmentModel.getDelivered().get(0)));
+            return errorMessage;
+        }
+
+        if (!order.get().getUserId().equals(shipmentModel.getUserId())) {
+            errorMessage.put(ERROR_KEY, String.format("Order id %s does not belong to user %s .", shipmentModel.getDelivered().get(0), shipmentModel.getUserId()));
+            return errorMessage;
+        }
+        if (!order.get().getStatus().equals("outfordelivery")) {
+            errorMessage.put(ERROR_KEY, String.format("Order id %s is not in outfordelivery state.", shipmentModel.getDelivered().get(0)));
+            return errorMessage;
+        }
+        if (Arrays.asList(0, 1).contains(order.get().getSkipBts())) {
+            errorMessage.put(ERROR_KEY, "User has already provided response for orders.");
+            return errorMessage;
+        }
+        Long cartID = ordersRepository.getCartIdForOrderId(order.get().getId());
+
+        Map<String, Object> response = new HashMap<>();
+        NotificationRequestBody notificationRequestBody = buildNotificationRequestBody(shipmentModel, order.get(), cartID);
+        response.put("firebase_response", triggerNotification(notificationRequestBody));
+        response.put("sms_response", triggerSms(notificationRequestBody));
+        return response;
+
+--- OrderDeliveredTrigger | buildNotificationRequestBody | CODE | 1/1 ---
+    private NotificationRequestBody buildNotificationRequestBody(ShipmentModel shipmentModel, Order order, Long cartID){
+        NotificationRequestBody notificationRequestBody = new NotificationRequestBody();
+        notificationRequestBody.setShipmentModel(shipmentModel);
+        notificationRequestBody.setOrder(order);
+        notificationRequestBody.setCartId(cartID);
+        return notificationRequestBody;
+
+--- OrderDeliveredTrigger | triggerSms | CODE | 1/2 ---
+    @Override
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public String triggerSms(NotificationRequestBody notificationRequestBody) {
+        try {
+            // need to update these orders in sms queue table
+            SMSQueueEntity smsQueueEntity = new SMSQueueEntity();
+            smsQueueEntity.setCurrentState("TRIGGERED");
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("orderIds", notificationRequestBody.getShipmentModel().getDelivered());
+            parameters.put("phone", notificationRequestBody.getShipmentModel().getPhone());
+            parameters.put("userId" , notificationRequestBody.getShipmentModel().getUserId());
+            parameters.put("bagId", notificationRequestBody.getCartId());
+            parameters.put("type", "delivered");
+            parameters.put("allocationId", notificationRequestBody.getShipmentModel().getAllocationId());
+            String params = JSONObject.valueToString(parameters);
+            smsQueueEntity.setParameters(params);
+            smsQueueEntity.setUserId(notificationRequestBody.getShipmentModel().getUserId());
+            smsQueueEntity.setReferenceId(Long.parseLong(String.valueOf(parameters.get("allocationId"))));
+            smsQueueEntity.setSmstype("RIDER_ORDER_DELIVERED");
+            smsQueueEntity = smsQueueEntityRepository.save(smsQueueEntity);
+            log.info("SMS queue entity created : " + smsQueueEntity.getId());
+            String productSpec = orderDao.getProductNameFromDealIdAndLang(notificationRequestBody.getOrder().getOfferId(), "en");
+            Integer count = notificationRequestBody.getShipmentModel().getDelivered().size() - 1;
+            String text;
+            String replaceText = "";
+            if(count==0) text = "+ {X} items ";
+            else {
+                text = "{X}";
+                replaceText=String.valueOf(count);
+            }
+            String message = AppConstants.RIDER_DELIVERED_REVIEW_SMS_TEMPLATE.replace("productName", StringUtils.abbreviate(productSpec, 30));
+            message = message.replace(text, replaceText);
+            message = message.replace("LINK", AppConstants.RIDER_DELIVERED_SMS_DEEPLINK);
+            log.info(message);
+            SendSMSModel messageModel = new SendSMSModel();
+            messageModel.setMessageText(message);
+            messageModel.setMessageUserId(messageUserId);
+            messageModel.setMessagePassword(messagePassword);
+            messageModel.setPhone(notificationRequestBody.getShipmentModel().getPhone());
+            return "Sending msgs stopped";
+        }
+        catch (Exception e) {
+            log.error("Error occurred while triggering sms with exception = {}",e.toString());
+        }
+        return null;
+
+
+📄 FILE: CancelOrderTrigger.java
+
+--- CancelOrderTrigger | processEvent | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public Map<String, Object> processEvent(ShipmentModel shipmentModel) {
+        Map<String, Object> errorMessage = new HashMap<>();
+        if (CollectionUtils.isEmpty(shipmentModel.getCancelled()))
+            return new HashMap<>();
+
+        Optional<Order> order = ordersRepository.findById(shipmentModel.getCancelled().get(0));
+        if (!order.isPresent()) {
+            errorMessage.put(ERROR_KEY, String.format("Order id %s does not exist .", shipmentModel.getCancelled().get(0)));
+            return errorMessage;
+        }
+
+        if (!order.get().getUserId().equals(shipmentModel.getUserId())) {
+            errorMessage.put(ERROR_KEY, String.format("Order id %s does not belong to user %s .", shipmentModel.getCancelled().get(0), shipmentModel.getUserId()));
+            return errorMessage;
+        }
+        if (!order.get().getStatus().equals("outfordelivery")) {
+            errorMessage.put(ERROR_KEY, String.format("Order id %s is not in outfordelivery state.", shipmentModel.getCancelled().get(0)));
+            return errorMessage;
+        }
+        if (Arrays.asList(0, 1).contains(order.get().getSkipBts())) {
+            errorMessage.put(ERROR_KEY, "User has already provided response for orders.");
+            return errorMessage;
+        }
+        Long cartID = ordersRepository.getCartIdForOrderId(order.get().getId());
+
+        Map<String, Object> response = new HashMap<>();
+        NotificationRequestBody notificationRequestBody = buildNotificationRequestBody(shipmentModel, order.get(), cartID);
+        Map<String, Object> notificationResponse = triggerNotification(notificationRequestBody);
+        notificationResponse.forEach((k, v) -> response.put(k, v));
+        response.put("sms_response", triggerSms(notificationRequestBody));
+        return response;
+
+--- CancelOrderTrigger | buildNotificationRequestBody | CODE | 1/1 ---
+    private NotificationRequestBody buildNotificationRequestBody(ShipmentModel shipmentModel, Order order, Long cartID){
+        NotificationRequestBody notificationRequestBody = new NotificationRequestBody();
+        notificationRequestBody.setShipmentModel(shipmentModel);
+        notificationRequestBody.setOrder(order);
+        notificationRequestBody.setCartId(cartID);
+        Map<String, String> smsTypes = new HashMap<>();
+        smsTypes.put("messageType", "cancel");
+        smsTypes.put("smsType", "RIDER_ORDER_CANCEL");
+        notificationRequestBody.setSmsTypes(smsTypes);
+        return notificationRequestBody;
+
+--- CancelOrderTrigger | triggerSms | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "dataSourceTransactionManager")
+    public String triggerSms(NotificationRequestBody notificationRequestBody) {
+        try {
+            // need to update these orders in sms queue table
+            smsService.saveSmsHistory(notificationRequestBody);
+            String productSpec = orderDao.getProductNameFromDealIdAndLang(notificationRequestBody.getOrder().getOfferId(), "en");
+            Integer count = notificationRequestBody.getShipmentModel().getCancelled().size() - 1;
+            String text;
+            String replaceText = "";
+            if(count==0) text = "+ {X} items ";
+            else {
+                text = "{X}";
+                replaceText=String.valueOf(count);
+            }
+            String message = AppConstants.RIDER_CANCELLATION_REVIEW_SMS_TEMPLATE.replace("productName", StringUtils.abbreviate(productSpec, 30));
+            message = message.replace(text, replaceText);
+            message = message.replace("LINK", AppConstants.RIDER_CANCEL_SMS_DEEPLINK);
+            log.info(message);
+            SendSMSModel messageModel = new SendSMSModel();
+            messageModel.setMessageText(message);
+            messageModel.setMessageUserId(messageUserId);
+            messageModel.setMessagePassword(messagePassword);
+            messageModel.setPhone(notificationRequestBody.getShipmentModel().getPhone());
+            return "Sending msgs stopped";
+        }
+        catch (Exception e) {
+            log.error("Error occurred while triggering sms with exception = {}",e.toString());
+        }
+        return null;
+
+
+📄 FILE: LeadServiceImpl.java
+
+--- LeadServiceImpl | getLeadBasicDetails | CODE | 1/1 ---
+    private List<LeadBasicAttributes> getLeadBasicDetails(ShipmentDetailsDto shipmentDetails,Long leadId){
+
+        List<LeadBasicAttributes> leadBasicDetails = new ArrayList<>();
+        OrderDetailsModel orderDetails = shipmentDetails.getShipmentItemDetails().get(0).getShipmentItemOrderDetails().getOrderDetails();
+
+        leadBasicDetails.add(new LeadBasicAttributes(LeadBasicDetailsKeys.LEAD_ID.getValue(), leadId.toString()));
+        leadBasicDetails.add(new LeadBasicAttributes
+                (LeadBasicDetailsKeys.CUSTOMER_NAME.getValue(),orderDetails.getName()));
+        leadBasicDetails.add(new LeadBasicAttributes
+                (LeadBasicDetailsKeys.PHONE_NUMBER.getValue(),orderDetails.getPhone()));
+        leadBasicDetails.add(new LeadBasicAttributes
+                (LeadBasicDetailsKeys.SHIPMENT_ID.getValue(), shipmentDetails.getDisplayId()));
+        UserAddressResponseModel userAddressResponseModel = userAddressServiceClient.getUserAddressDetail(orderDetails.getUserAddressId());
+        String address = userAddressResponseModel.getAddress() + ", "+userAddressResponseModel.getCityName();
+        leadBasicDetails.add(new LeadBasicAttributes
+                (LeadBasicDetailsKeys.ADDRESS.getValue(),address));
+        Optional<WarehouseEntity> warehouseEntity = warehouseRepository.findById(shipmentDetails.getWarehouseId().longValue());
+        if (warehouseEntity.isPresent()){
+            leadBasicDetails.add(new LeadBasicAttributes
+                    (LeadBasicDetailsKeys.WAREHOUSE.getValue(), warehouseEntity.get().getWarehouseName()));
+        } else {
+            leadBasicDetails.add(new LeadBasicAttributes
+                    (LeadBasicDetailsKeys.WAREHOUSE.getValue(), "Warehouse Not found"));
+        }
+        leadBasicDetails.add(new LeadBasicAttributes(
+                LeadBasicDetailsKeys.UPDATED_DATE.getValue(),shipmentDetails.getUpdatedAt().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))));
+        leadBasicDetails.add(new LeadBasicAttributes(
+                LeadBasicDetailsKeys.UPDATED_TIME.getValue(), shipmentDetails.getUpdatedAt().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
+        leadBasicDetails.add(new LeadBasicAttributes(
+                LeadBasicDetailsKeys.REQUEST_TYPE.getValue(), shipmentDetails.getStatus(),"#E15D5D"));
+        leadBasicDetails.add(new LeadBasicAttributes(
+                LeadBasicDetailsKeys.AGENT_ACTION.getValue(), getAgentAction(leadId),"#55A447"));
+        Leads leads = getLeadById(leadId);
+        leadBasicDetails.add(new LeadBasicAttributes(
+                LeadBasicDetailsKeys.CALL_STATUS.getValue(),leads==null?null:leads.getTelephonyStatus()));
+
+        return leadBasicDetails;
+
+--- LeadServiceImpl | getLeadItemDetails | CODE | 1/1 ---
+    private List<Map<String,Object>> getLeadItemDetails(List<ShipmentItemDetailsDto> shipmentItemDetails){
+
+        List<String> offerIds = new ArrayList<>();
+        List<OrderDetailsModel> orderDetailsList = new ArrayList<>();
+        for (ShipmentItemDetailsDto itemDetails:shipmentItemDetails){
+            if (itemDetails.getShipmentItemOrderDetails()==null)
+                continue;
+            OrderDetailsModel orderDetails = itemDetails.getShipmentItemOrderDetails().getOrderDetails();
+            offerIds.add(orderDetails.getOfferId());
+            orderDetailsList.add(orderDetails);
+        }
+
+        List<OfferResponseModel> offerResponseModels =  dealIndexServiceClient.getOfferInfoByOfferId(offerIds);
+
+        List<Map<String,Object>> leadItemsDetails = new ArrayList<>();
+        for (int i=0;i<offerResponseModels.size();i++){
+            Map<String,Object> leadItem = new LinkedHashMap<>();
+            String productName = String.format("<div style = display:flex;align-items:center><img src=%s alt='image not present' height = 50px width = 50px /><p>%s</p></div>", offerResponseModels.get(i).getImage(), offerResponseModels.get(i).getTitle().get("en"));
+            leadItem.put(LeadItemsSchema.PRODUCT_NAME.getKey(), productName);
+            leadItem.put(LeadItemsSchema.ORDER_ID.getKey(), orderDetailsList.get(i).getId().toString());
+            leadItem.put(LeadItemsSchema.ORDER_QUANTITY.getKey(), orderDetailsList.get(i).getQuantity());
+            leadItem.put(LeadItemsSchema.ORDER_DATE.getKey(), orderDetailsList.get(i).getOrderDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy")));
+            leadItem.put(LeadItemsSchema.ORDER_AMOUNT.getKey(), orderDetailsList.get(i).getAmount().doubleValue());
+            leadItemsDetails.add(leadItem);
+        }
+        return leadItemsDetails;
+
+
+🟦 SERVICE: cart-service
+======================================================================
+
+📄 FILE: V1UserPhoneCartIdTest.java
 
 --- V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 1/2 ---
     @Test
@@ -184,262 +1025,106 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         verify(spyEtaService).fetchEtaForOrders(orderIds);
 
 
-=== 🧩 UnknownRepo → KafkaProducerTest.java ===
+📄 FILE: MyOrderServiceImplTest.java
 
---- KafkaProducerTest | setUp | TEST | 1/1 ---
-    @Before
-    public void setUp() {
-        // Set up the values for the topics using ReflectionTestUtils
-        ReflectionTestUtils.setField(kafkaProducer, "topicName", ORDER_CANCEL_TOPIC);
-        ReflectionTestUtils.setField(kafkaProducer, "thirdPartyKafkaTopicName", THIRD_PARTY_TOPIC);
-        ReflectionTestUtils.setField(kafkaProducer, "cacnelOrderSellerSyncTopic", CANCEL_ORDER_SELLER_SYNC_TOPIC);
+--- MyOrderServiceImplTest | createTestOrders | TEST | 1/1 ---
+    private List<Order> createTestOrders() {
+        List<Order> orders = new ArrayList<>();
 
---- KafkaProducerTest | testPushOrderCancelToSellerSync | TEST | 1/1 ---
+        Order order1 = new Order();
+        order1.setId(1L);
+        order1.setOrderId("ORDER001");
+        order1.setOfferId("OFFER001");
+        order1.setOrderStatus("delivered");
+        order1.setOrderType("normal");
+        order1.setSource("B2C");
+        order1.setPhone(phoneNumber);
+        order1.setAmount(100.00);
+        order1.setBilledAmount(100.00);
+        order1.setQuantity(1L);
+        order1.setPaymentType("COD");
+        order1.setPaymentStatus("COMPLETED");
+        order1.setOrderDate(new Date());
+        orders.add(order1);
+
+        Order order2 = new Order();
+        order2.setId(2L);
+        order2.setOrderId("ORDER002");
+        order2.setOfferId("OFFER002");
+        order2.setOrderStatus("cancelled");
+        order2.setOrderType("normal");
+        order2.setSource("B2C");
+        order2.setPhone(phoneNumber);
+        order2.setAmount(200.00);
+        order2.setBilledAmount(200.00);
+        order2.setQuantity(1L);
+        order2.setPaymentType("COD");
+        order2.setPaymentStatus("CANCELLED");
+        order2.setOrderDate(new Date());
+        orders.add(order2);
+
+        return orders;
+
+--- MyOrderServiceImplTest | createMockOrderForCancellation | TEST | 1/1 ---
+    private Order createMockOrderForCancellation() {
+        Order order = new Order();
+        order.setId(1001L);
+        order.setUserId(12345L);
+        order.setOrderStatus("processing"); // Cancellable status
+        order.setPaymentType("COD"); // Not PAYTM pending to avoid early return
+        order.setOfferId("OFFER123");
+        order.setAmount(500.0);
+        order.setBilledAmount(450.0);
+        order.setQuantity(2L);
+        order.setUserAddressId(5001L);
+        order.setOrderType("main"); // Not ORD to proceed with processing
+        return order;
+
+
+📄 FILE: ExpressDeliveryServiceImplTest.java
+
+--- ExpressDeliveryServiceImplTest | testOrderSyncException | TEST | 1/1 ---
     @Test
-    public void testPushOrderCancelToSellerSync() {
-        // Arrange
-        CancelOrderSellerSyncModel payload = new CancelOrderSellerSyncModel(123L);
+    public void testOrderSyncException() throws Exception {
+        // We need to access the private syncOrdersToIms method
+        Method syncOrdersToImsMethod = ExpressDeliveryServiceImpl.class.getDeclaredMethod(
+            "syncOrdersToIms", List.class, long.class);
+        syncOrdersToImsMethod.setAccessible(true);
         
-        // Act
-        kafkaProducer.pushOrderCancelToSellerSync(payload);
+        // Create test data
+        List<DealLevelPromotion> cartItems = new ArrayList<>();
+        DealLevelPromotion item1 = new DealLevelPromotion();
+        item1.setDeliveryType(DeliveryType.EXPRESS.name());
+        item1.setOrderPKId(101L);
         
-        // Assert
-        verify(cancelOrderSellerSyncModelKafkaTemplate).send(eq(CANCEL_ORDER_SELLER_SYNC_TOPIC), eq(payload));
-
-
-=== 🧩 UnknownRepo → CreateOrderServiceAdditionalTest.java ===
-
---- CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_OfflineSource_ReturnsFalse | TEST | 1/1 ---
-    @Test
-    public void testCheckOfflineToOnlineConversion_OfflineSource_ReturnsFalse() throws Exception {
-        // Setup - Current order is from an offline source (MINIMART)
-        User user = createTestUser();
-        String currentOrderSource = "MINIMART"; // This is in OFFLINE_SOURCES
+        DealLevelPromotion item2 = new DealLevelPromotion();
+        item2.setDeliveryType(DeliveryType.EXPRESS.name());
+        item2.setOrderPKId(102L);
         
-        // Execute
-        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
-        method.setAccessible(true);
-        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
+        cartItems.add(item1);
+        cartItems.add(item2);
         
-        // Verify
-        assertFalse(result, "Should return false when current order source is offline");
-
---- CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_NoMinimartOrders_ReturnsFalse | TEST | 1/1 ---
-    @Test
-    public void testCheckOfflineToOnlineConversion_NoMinimartOrders_ReturnsFalse() throws Exception {
-        // Setup - User has no MINIMART orders
-        User user = createTestUser();
-        String currentOrderSource = "app"; // This is in ONLINE_SOURCES
+        // Mock the orderServiceClient to throw an exception
+        when(orderServiceClient.syncOrderService(any()))
+            .thenThrow(new RuntimeException("Sync Failed"));
         
-        // Reset mocks and set up behavior
-        reset(orderRepository);
+        // Invoke the private method
+        syncOrdersToImsMethod.invoke(expressDeliveryService, cartItems, 1001L);
         
-        // When asked for orders from offline sources, return empty list
-        when(orderRepository.findByUserIdAndSourceIn(
-                eq(user.getId()),
-                eq(OFFLINE_SOURCES),  // Directly use the constant
-                any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
+        // Verify that orderServiceClient was called with an OrderPushToImsRequest 
+        // containing the correct order IDs and warehouse ID
+        ArgumentCaptor<OrderPushToImsRequest> requestCaptor = ArgumentCaptor.forClass(OrderPushToImsRequest.class);
+        verify(orderServiceClient).syncOrderService(requestCaptor.capture());
         
-        // Execute
-        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
-        method.setAccessible(true);
-        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
-        
-        // Verify - repository was called with the right arguments
-        verify(orderRepository).findByUserIdAndSourceIn(
-                eq(user.getId()),
-                eq(OFFLINE_SOURCES),
-                any(PageRequest.class));
-        
-        assertFalse(result, "Should return false when user has no MINIMART orders");
-
---- CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_HasMinimartOrdersAndHasPreviousOnlineOrder_ReturnsFalse | TEST | 1/1 ---
-    @Test
-    public void testCheckOfflineToOnlineConversion_HasMinimartOrdersAndHasPreviousOnlineOrder_ReturnsFalse() throws Exception {
-        // Setup - User has MINIMART orders and a previous online order
-        User user = createTestUser();
-        String currentOrderSource = "app"; // This is in ONLINE_SOURCES
-        
-        // Reset mocks
-        reset(orderRepository);
-        
-        // Mock list with one MINIMART order
-        List<Order> minimartOrders = new ArrayList<>();
-        Order minimartOrder = new Order();
-        minimartOrders.add(minimartOrder);
-        
-        // Setup the mocks with correct arguments
-        when(orderRepository.findByUserIdAndSourceIn(
-                eq(user.getId()),
-                eq(OFFLINE_SOURCES),
-                any(PageRequest.class)))
-                .thenReturn(minimartOrders);
-        
-        // Setup the user to have a previous COD order (not a first purchase)
-        when(orderRepository.findFirstByUserIdAndPaymentType(
-                eq(user.getId()), eq(COD_TYPE)))
-                .thenReturn(Optional.of(new Order()));
-        
-        // Execute
-        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
-        method.setAccessible(true);
-        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
-        
-        // Verify repository calls
-        verify(orderRepository).findByUserIdAndSourceIn(
-                eq(user.getId()),
-                eq(OFFLINE_SOURCES),
-                any(PageRequest.class));
-                
-        verify(orderRepository).findFirstByUserIdAndPaymentType(eq(user.getId()), eq(COD_TYPE));
-        
-        assertFalse(result, "Should return false when user has previous online orders");
-
---- CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_HasMinimartOrdersAndIsFirstOnlinePurchase_ReturnsTrue | TEST | 1/2 ---
-    @Test
-    public void testCheckOfflineToOnlineConversion_HasMinimartOrdersAndIsFirstOnlinePurchase_ReturnsTrue() throws Exception {
-        // Setup - User has MINIMART orders and this is their first online purchase
-        User user = createTestUser();
-        String currentOrderSource = "app"; // This is in ONLINE_SOURCES
-        
-        // Reset mocks
-        reset(orderRepository);
-        
-        // Mock list with one MINIMART order
-        List<Order> minimartOrders = new ArrayList<>();
-        Order minimartOrder = new Order();
-        minimartOrders.add(minimartOrder);
-        
-        // Setup the mocks with correct arguments
-        when(orderRepository.findByUserIdAndSourceIn(
-                eq(user.getId()),
-                eq(OFFLINE_SOURCES),
-                any(PageRequest.class)))
-                .thenReturn(minimartOrders);
-        
-        // Setup the user to have no previous COD order
-        when(orderRepository.findFirstByUserIdAndPaymentType(
-                eq(user.getId()), eq(COD_TYPE)))
-                .thenReturn(Optional.empty());
-                
-        // Setup the user to have no previous successful PAYTM order
-        when(orderRepository.findFirstByUserIdAndPaymentTypeAndPaymentStatus(
-                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PAYMENT_SUCCESSFUL)))
-                .thenReturn(Optional.empty());
-                
-        // Setup the user to have no previous refunded PAYTM order
-        when(orderRepository.findFirstByUserIdAndPaymentTypeAndPaymentStatus(
-                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PaymentStatus.REFUND_DONE.name())))
-                .thenReturn(Optional.empty());
-        
-        // Execute
-        Method method = CreateOrderServiceImpl.class.getDeclaredMethod("checkOfflineToOnlineConversion", User.class, String.class);
-        method.setAccessible(true);
-        Boolean result = (Boolean) method.invoke(createOrderService, user, currentOrderSource);
-        
-        // Verify repository calls
-        verify(orderRepository).findByUserIdAndSourceIn(
-                eq(user.getId()),
-                eq(OFFLINE_SOURCES),
-                any(PageRequest.class));
-                
-        verify(orderRepository).findFirstByUserIdAndPaymentType(eq(user.getId()), eq(COD_TYPE));
-        verify(orderRepository).findFirstByUserIdAndPaymentTypeAndPaymentStatus(
-                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PAYMENT_SUCCESSFUL));
-
---- CreateOrderServiceAdditionalTest | testCheckOfflineToOnlineConversion_HasMinimartOrdersAndIsFirstOnlinePurchase_ReturnsTrue | TEST | 2/2 ---
-                any(PageRequest.class));
-                
-        verify(orderRepository).findFirstByUserIdAndPaymentType(eq(user.getId()), eq(COD_TYPE));
-        verify(orderRepository).findFirstByUserIdAndPaymentTypeAndPaymentStatus(
-                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PAYMENT_SUCCESSFUL));
-        verify(orderRepository).findFirstByUserIdAndPaymentTypeAndPaymentStatus(
-                eq(user.getId()), eq(PAYMENT_TYPE_PAYTM), eq(PaymentStatus.REFUND_DONE.name()));
-                
-        assertTrue(result, "Should return true when user has MINIMART orders and this is their first online purchase");
+        OrderPushToImsRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(Long.valueOf(1001L), capturedRequest.getWarehouseId());
+        assertEquals(DeliveryType.EXPRESS.name(), capturedRequest.getDeliveryType());
+        assertEquals(2, capturedRequest.getOrderIds().size());
+        assertTrue(capturedRequest.getOrderIds().contains(101L));
+        assertTrue(capturedRequest.getOrderIds().contains(102L));
 
 
-=== 🧩 UnknownRepo → FeesServiceImpl.java ===
-
---- FeesServiceImpl | updateCartConfigBenefits | CODE | 1/2 ---
-    @Transactional
-    @Override
-    public Boolean updateCartConfigBenefits(SyncCartConfigUsesModel request) {
-        log.error("Request received for updateCartConfigBenefits SyncCartConfigUsesModel {} ", request);
-        if (request.getOrderIds().isEmpty()) {
-            return true;
-        }
-
-        Map<Long, List<Long>> cartOrdersMap = myOrderService.prepareCartOrdersMap(request.getOrderIds());
-        if (cartOrdersMap.isEmpty()) {
-            return true;
-        }
-
-        for (Map.Entry<Long, List<Long>> entry : cartOrdersMap.entrySet()) {
-            List<Order> completeCartCancelledOrders = myOrderService.completeCartCancelledWithoutCustomerFault(
-                    entry.getValue(),
-                    UserOrderStatus.CANCELLED_ORDER_STATUES.getValues(),
-                    UserOrderStatus.CUSTOMER_FAULT_CANCELLED_SUB_STATUS.getValues());
-
-            if (completeCartCancelledOrders.isEmpty()) {
-                continue;
-            }
-
-            Optional<UserCartConfigBenefitsHistory> userCartConfigBenefitsHistory
-                    = userCartConfigBenefitsHistoryRepository.findByCartIdAndTxType(entry.getKey(), "credit");
-            if (userCartConfigBenefitsHistory.isPresent()) {
-                log.error("creditUsedBenefitsIfNotInHistory - credit already exist for cartId {}", entry.getKey());
-                continue;
-            }
-
-            Optional<UserCartConfigBenefitsHistory> userCartConfigBenefitsDebitHistory
-                    = userCartConfigBenefitsHistoryRepository.findByCartIdAndTxType(entry.getKey(), "debit");
-            if ( ! userCartConfigBenefitsDebitHistory.isPresent()) {
-                log.error("creditUsedBenefitsIfNotInHistory - debit history does not exist for cartId {}", entry.getKey());
-                continue;
-            }
-
-            try {
-                userCartConfigBenefitsRepository.creditUsedBenefitsIfNotInHistory(entry.getKey());
-
-                UserCartConfigBenefitsHistory newUserCartConfigBenefitsHistory = new UserCartConfigBenefitsHistory();
-                newUserCartConfigBenefitsHistory.setBenefitCount(1L);
-                newUserCartConfigBenefitsHistory.setCartId(entry.getKey());
-                newUserCartConfigBenefitsHistory.setTxType("credit");
-                newUserCartConfigBenefitsHistory.setCartConfigBenefitId(userCartConfigBenefitsDebitHistory.get().getCartConfigBenefitId());
-                userCartConfigBenefitsHistoryRepository.saveAndFlush(newUserCartConfigBenefitsHistory);
-            } catch (Exception ex) {
-                log.error("Exception in creditUsedBenefitsIfNotInHistory {} cartId {}", ex.getMessage(), entry.getKey());
-            }
-        }
-
---- FeesServiceImpl | updateCartConfigBenefits | CODE | 2/2 ---
-                userCartConfigBenefitsHistoryRepository.saveAndFlush(newUserCartConfigBenefitsHistory);
-            } catch (Exception ex) {
-                log.error("Exception in creditUsedBenefitsIfNotInHistory {} cartId {}", ex.getMessage(), entry.getKey());
-            }
-        }
-
-        return true;
-
-
-=== 🧩 UnknownRepo → OrderServiceClientWrapper.java ===
-
---- OrderServiceClientWrapper | updateInventoryOnOrderCancellation | CODE | 1/1 ---
-    public void updateInventoryOnOrderCancellation(Long orderId, Long quantity, Long offerPkId, String offerId){
-        orderServiceClient.updateInventoryOnOrderCancellation(orderId, quantity, offerPkId, offerId);
-
-
-=== 🧩 UnknownRepo → MyOrderController.java ===
-
---- MyOrderController | triggerOrderStatusNotification | CODE | 1/1 ---
-    @Async
-    @PostMapping(value = "/v1/order/status-change-noti")
-    public ResponseEntity<?> triggerOrderStatusNotification(@RequestBody OrderStatusChangeCommModel orderStatusChangeCommModel) {
-        log.error("Request received in /v1/order/status-change-notification, {}", orderStatusChangeCommModel);
-        myOrderService.triggerOrderStatusNotification(orderStatusChangeCommModel);
-        return new ResponseEntity<>("Success", HttpStatus.OK);
+📄 FILE: MyOrderController.java
 
 --- MyOrderController | triggerOrderStatusNotificationBulk | CODE | 1/1 ---
     @Async
@@ -450,20 +1135,15 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         return new ResponseEntity<>("Success", HttpStatus.OK);
 
 
-=== 🧩 UnknownRepo → CartOrderPrivateController.java ===
+📄 FILE: CartOrderPrivateController.java
 
 --- CartOrderPrivateController | minimartOrderSync | CODE | 1/1 ---
     @PostMapping(value = "/v1/minimart-order-sync")
     public ResponseEntity<?> minimartOrderSync(@RequestBody OrderSyncRequestModel orderSyncRequestModel){
         return new ResponseEntity<>(myOrderService.minimartOrderSync(orderSyncRequestModel), HttpStatus.OK);
 
---- CartOrderPrivateController | orderStatusEvent | CODE | 1/1 ---
-    @PostMapping("/v1/order/status/event")
-    public ResponseEntity<?> orderStatusEvent(@RequestBody OrdersStatusUpdateEvent ordersStatusUpdateEvent){
-        return myOrderService.triggerEvent(ordersStatusUpdateEvent);
 
-
-=== 🧩 UnknownRepo → ExpressDeliveryServiceImpl.java ===
+📄 FILE: ExpressDeliveryServiceImpl.java
 
 --- ExpressDeliveryServiceImpl | syncOrdersToIms | CODE | 1/1 ---
     private void syncOrdersToIms(List<DealLevelPromotion> cartItems, long warehouseId) {
@@ -477,19 +1157,7 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         try {
 
 
-=== 🧩 UnknownRepo → UserAddressServiceImpl.java ===
-
---- UserAddressServiceImpl | updateLastUsedAddress | CODE | 1/1 ---
-    @Async
-    public void updateLastUsedAddress(Long userId, Long addressId, String orderStatus) throws Exception {
-        UpdateUserAddressRequestModel userAddressRequestModel = new UpdateUserAddressRequestModel();
-        userAddressRequestModel.setAddressId(addressId);
-        userAddressRequestModel.setUserId(userId);
-        userAddressRequestModel.setOrderStatus(orderStatus);
-        try {
-
-
-=== 🧩 UnknownRepo → MyOrderServiceImpl.java ===
+📄 FILE: MyOrderServiceImpl.java
 
 --- MyOrderServiceImpl | checkMinimumMovPerDay | CODE | 1/1 ---
     @Override
@@ -497,6 +1165,11 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         OrderMovModel orderMovModel = new OrderMovModel();
         orderMovModel.setIsShow(Boolean.FALSE);
         return orderMovModel;
+
+--- MyOrderServiceImpl | orderCancellationBulk | CODE | 1/1 ---
+    @Transactional
+    public void orderCancellationBulk(List<KafkaCancellationRequestModel> kafkaPayloadList, Boolean cartLevelDeliveryFee) {
+        if(kafkaPayloadList.size() > 0) {
 
 --- MyOrderServiceImpl | pushToSellersPanel | CODE | 1/1 ---
     public void pushToSellersPanel(Order order){
@@ -539,73 +1212,6 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         OrdersStatusUpdateEvent ordersStatusUpdateEvent = new OrdersStatusUpdateEvent();
         ordersStatusUpdateEvent.setOrderIds(orderIds);
         if(!orderIds.isEmpty()) {
-
---- MyOrderServiceImpl | triggerOrderCancelEvent | CODE | 1/1 ---
-    private void triggerOrderCancelEvent(List<Order> order,Long cartId, Boolean isInternalServiceCall, Boolean cloneCart) {
-        if(Objects.isNull(order) || order.isEmpty()) return;
-
-        // no need to raise events for internal service calls and clone cart
-        if(!cloneCart && !isInternalServiceCall){
-
---- MyOrderServiceImpl | bulkReturnWalletUpdate | CODE | 1/1 ---
-    @Override
-    public BulkOrderReturnWalletUpdate bulkReturnWalletUpdate(BulkCancelWalletCreditModel bulkCancelWalletCreditModel) {
-        BulkOrderReturnWalletUpdate bulkOrderReturnWalletUpdate = new BulkOrderReturnWalletUpdate();
-
-        List<Order> ordersData = orderRepository.findByIdIn(bulkCancelWalletCreditModel.getOrderIds());
-        if (ordersData.isEmpty()) {
-            log.error("bulkReturnWalletUpdate ordersData not found : {}", bulkCancelWalletCreditModel);
-            return bulkOrderReturnWalletUpdate;
-        }
-
-        bulkOrderReturnWalletUpdate.setBulkCancelWalletUpdate(this.bulkCancelWalletUpdate(bulkCancelWalletCreditModel));
-
-        List<Order> codOrdersData = orderRepository.findByIdInAndPaymentType(bulkCancelWalletCreditModel.getOrderIds(), COD_TYPE);
-        if (codOrdersData.isEmpty()) {
-            log.error("bulkReturnWalletUpdate codOrdersData ordersData not found : {}", bulkCancelWalletCreditModel);
-            return bulkOrderReturnWalletUpdate;
-        }
-
-        bulkOrderReturnWalletUpdate.setCreditReturnOrderCustomerPoints(pointsService.creditReturnOrderCustomerPoints(codOrdersData));
-        return bulkOrderReturnWalletUpdate;
-
---- MyOrderServiceImpl | refundOrderWalletCredits | CODE | 1/1 ---
-    @Override
-    public BulkOrderReturnWalletUpdate refundOrderWalletCredits(WalletRefundCreditModel walletRefundCreditModel) {
-        BulkOrderReturnWalletUpdate bulkOrderReturnWalletUpdate = new BulkOrderReturnWalletUpdate();
-
-        List<Order> ordersData = orderRepository.findByIdIn(Collections.singletonList(walletRefundCreditModel.getOrderId()));
-        if (ordersData.isEmpty()) {
-            log.error("bulkReturnWalletUpdate ordersData not found : {}", walletRefundCreditModel);
-            return bulkOrderReturnWalletUpdate;
-        }
-
-        if ( ! walletRefundCreditModel.isRefundDiscountAmount()) {
-            List<Order> codOrdersData = orderRepository.findByIdInAndPaymentType(Collections.singletonList(walletRefundCreditModel.getOrderId()), COD_TYPE);
-            if (codOrdersData.isEmpty()) {
-                log.error("bulkReturnWalletUpdate codOrdersData ordersData not found : {}", walletRefundCreditModel);
-                return bulkOrderReturnWalletUpdate;
-            }
-        }
-
-        bulkOrderReturnWalletUpdate.setCreditReturnOrderCustomerPoints(
-                pointsService.creditOrderCustomerPoints(ordersData.get(0), walletRefundCreditModel));
-        return bulkOrderReturnWalletUpdate;
-
---- MyOrderServiceImpl | triggerOrderStatusNotification | CODE | 1/1 ---
-    @Override
-    public void triggerOrderStatusNotification(OrderStatusChangeCommModel orderStatusChangeCommModel) {
-        if (ObjectUtils.isEmpty(orderStatusChangeCommModel.getOrderId())) {
-            return;
-        }
-
-        List<Order> ordersData = orderRepository.findByIdIn(Collections.singletonList(orderStatusChangeCommModel.getOrderId()));
-        if (ordersData.isEmpty()) {
-            log.error("triggerOrderStatusNotification ordersData not found : {}", orderStatusChangeCommModel);
-            return;
-        }
-
-        try {
 
 --- MyOrderServiceImpl | triggerOrderStatusNotificationBulk | CODE | 1/1 ---
     @Override
@@ -654,58 +1260,6 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
                                              Map<Long, OrderCancelDiscountUpdateRequest> orderIdToOrderSyncRequestMap,
                                              Map<Long, DealDetail> orderToDealDetailMap){
         return orders.stream().map(o -> {
-
---- MyOrderServiceImpl | updateDoorStepDeliveryFee | CODE | 1/2 ---
-    @Override
-    public DoorStepDeliveryFeeUpdateResponseModel updateDoorStepDeliveryFee(DoorStepDeliveryFeeUpdate doorStepDeliveryFeeUpdate)
-        throws JsonProcessingException {
-
-        DoorStepDeliveryFeeUpdateResponseModel doorStepDeliveryFeeUpdateResponseModel = new DoorStepDeliveryFeeUpdateResponseModel();
-
-        if(doorStepDeliveryFeeUpdate==null){
-            log.error("Received empty body from ops for door step delivery Fee Update");
-            return doorStepDeliveryFeeUpdateResponseModel;
-        }
-        if(ObjectUtils.isEmpty(doorStepDeliveryFeeUpdate.getDeliveryFee())||
-            ObjectUtils.isEmpty(doorStepDeliveryFeeUpdate.getOrderIds())||
-            ObjectUtils.isEmpty(doorStepDeliveryFeeUpdate.getShipmentId())){
-            log.error("Received bad request from ops for door step delivery Fee Update");
-            return doorStepDeliveryFeeUpdateResponseModel;
-        }
-
-        Optional<DoorStepCancellationsOnlineUpdate> alreadyUpdated =
-            doorStepCancellationsOnlineUpdateRepository.findFirstByShipmentId(doorStepDeliveryFeeUpdate.getShipmentId());
-        if(!ObjectUtils.isEmpty(alreadyUpdated)){
-            return doorStepDeliveryFeeUpdateResponseModel;
-        }
-
-        List<Order> orderList = orderRepository.findByIdIn(doorStepDeliveryFeeUpdate.getOrderIds());
-        Order orderToProcess = null;
-        for(Order order: orderList){
-            if(order.getAmount()>doorStepDeliveryFeeUpdate.getDeliveryFee()){
-                orderToProcess = order;
-                break;
-            }
-        }
-        if(ObjectUtils.isEmpty(orderToProcess)){
-            log.error("No order found with order value greater than delivery fee for request = {}",doorStepDeliveryFeeUpdate.toString());
-            return doorStepDeliveryFeeUpdateResponseModel;
-        }
-
-        Optional<CartOrderMapping> cartOrderMapping = cartOrderMappingRepository.findFirstByOrderId(orderToProcess.getId());
-        if(!cartOrderMapping.isPresent()){
-            log.error("No cart order mapping found for this order id = {}",orderToProcess.toString());
-            return doorStepDeliveryFeeUpdateResponseModel;
-        }
-
-        Optional<Cart> cart = cartRepository.findById(cartOrderMapping.get().getCartId());
-        if(!cart.isPresent()){
-            log.error("No cart found for this order id = {}",orderToProcess.toString());
-            return doorStepDeliveryFeeUpdateResponseModel;
-        }
-
-        RefundAmountPaymentsUpdateModel refundAmountPaymentsUpdateModel = new RefundAmountPaymentsUpdateModel();
-        refundAmountPaymentsUpdateModel.setDeliveryFee(doorStepDeliveryFeeUpdate.getDeliveryFee());
 
 --- MyOrderServiceImpl | minimartOrderSync | CODE | 1/2 ---
     public OrderSyncResponseModel minimartOrderSync(OrderSyncRequestModel orderSyncRequestModel) {
@@ -759,39 +1313,57 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
 
             List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
 
---- MyOrderServiceImpl | updateDoorStepDeliveryFee | CODE | 2/2 ---
-            return doorStepDeliveryFeeUpdateResponseModel;
+--- MyOrderServiceImpl | cancelOrder | CODE | 1/6 ---
+    @Override
+    @Transactional
+    public Object cancelOrder(OrderCancelModel orderCancelModel, Long userId, Integer palId, Boolean isInternalServiceCall) {
+
+        log.error("Cancel Order request {} and userId : {}, internalServiceCall : {}", orderCancelModel, userId,isInternalServiceCall);
+
+        allowCancellation(orderCancelModel.getOrderId());
+        Optional<User> user = userService.getUserFromId(userId,orderCancelModel.getSource());
+        if ( ! user.isPresent()) {
+            throw new ValidationException("Auth key not exists");
         }
 
-        RefundAmountPaymentsUpdateModel refundAmountPaymentsUpdateModel = new RefundAmountPaymentsUpdateModel();
-        refundAmountPaymentsUpdateModel.setDeliveryFee(doorStepDeliveryFeeUpdate.getDeliveryFee());
-        refundAmountPaymentsUpdateModel.setOrderId(orderToProcess.getId());
-        ResponseEntity<?> response = null;
-
-        try {
-            response = paymentServiceClient
-                .updateRefundAmount(refundAmountPaymentsUpdateModel, userName, password);
-        }
-        catch (Exception e){
-            log.error("exception is {}",e.toString());
-            return doorStepDeliveryFeeUpdateResponseModel;
+        Optional<Order> order = orderRepository.findByIdAndUserId(orderCancelModel.getOrderId(), user.get().getId());
+        if (!order.isPresent()) {
+            throw new ValidationException("Order and user id not matching");
         }
 
-        cart.get().setDeliveryFee(doorStepDeliveryFeeUpdate.getDeliveryFee());
-        cart.get().setCartConfigId(doorStepDeliveryFeeUpdate.getConfigId());
-        cartRepository.save(cart.get());
+        if (this.setCartOrderCancellationKey(orderCancelModel.getOrderId()) == Boolean.FALSE) {
+            log.error("Order cancellation is failed due to unable to acquire lock {}, user Id {}", orderCancelModel.getOrderId(), userId);
+            throw new ValidationException("Something went wrong, Please try again.");
+        }
 
-        DoorStepCancellationsOnlineUpdate doorStepCancellationsOnlineUpdate = new DoorStepCancellationsOnlineUpdate();
-        doorStepCancellationsOnlineUpdate.setDeliveryFee(doorStepDeliveryFeeUpdate.getDeliveryFee());
-        doorStepCancellationsOnlineUpdate.setCancelledOrderIds(objectMapper.writeValueAsString(doorStepDeliveryFeeUpdate.getOrderIds()));
-        doorStepCancellationsOnlineUpdate.setOrderId(orderToProcess.getId());
-        doorStepCancellationsOnlineUpdate.setConfigId(doorStepDeliveryFeeUpdate.getConfigId());
-        doorStepCancellationsOnlineUpdate.setShipmentId(doorStepDeliveryFeeUpdate.getShipmentId());
+        ValidationExceptionV2 message = new ValidationExceptionV2();
+        List<OrderMovBreach> movBreaches = new ArrayList<>();
+        MovBreachMessage movBreachMessage = new MovBreachMessage();
+        if (order.isPresent()) {
+            if (UserOrderStatus.NONCANCEBLESTATUS.getValues().stream().anyMatch(s -> s.equalsIgnoreCase(order.get().getOrderStatus()))) {
+                message.setMessage(messageSource.getMessage("non.cancellable.status", null, LocaleContextHolder.getLocale()));
+                return message;
+            }
+            if (!orderCancelModel.getDiscard()) {
+                if ((order.get().getPaymentType().equalsIgnoreCase(OrderPaymentMode.PAYTM.name()) && order.get().getOrderStatus().equalsIgnoreCase("pending"))) {
+                    message.setMessage(messageSource.getMessage("cancel.message", null, LocaleContextHolder.getLocale()));
+                    return message;
+                }
+            }
+            if(CANCELLED.getValues().stream().anyMatch(s -> s.equalsIgnoreCase(order.get().getOrderStatus()))) {
+                message.setMessage(messageSource.getMessage("already.cancelled", null, LocaleContextHolder.getLocale()));
+                return message;
+            }
 
-        doorStepCancellationsOnlineUpdateRepository.save(doorStepCancellationsOnlineUpdate);
+            ValidationExceptionV2 validationExceptionV2;
+            try{
+                Order orderData = order.get();
+                Long cartId = null;
+                List<CartOrderMapping> cartOrderMappingList = cartOrderMappingRepository.findCartOrderMappings(orderData.getId());
+                if (cartOrderMappingList != null && !cartOrderMappingList.isEmpty()) cartId = cartOrderMappingList.get(0).getCartId();
 
-        doorStepDeliveryFeeUpdateResponseModel.setStatus(Boolean.TRUE);
-        return doorStepDeliveryFeeUpdateResponseModel;
+                Optional<UserAddress> userAddress = userAddressesRepository.findById(orderData.getUserAddressId());
+                if(!userAddress.isPresent()) throw new ValidationException("User Address not found for this order");
 
 --- MyOrderServiceImpl | minimartOrderSync | CODE | 2/2 ---
 
@@ -839,8 +1411,233 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
 
         return orderSyncResponseModel;
 
+--- MyOrderServiceImpl | cancelOrder | CODE | 2/6 ---
+                List<CartOrderMapping> cartOrderMappingList = cartOrderMappingRepository.findCartOrderMappings(orderData.getId());
+                if (cartOrderMappingList != null && !cartOrderMappingList.isEmpty()) cartId = cartOrderMappingList.get(0).getCartId();
 
-=== 🧩 UnknownRepo → UserShipmentServiceImpl.java ===
+                Optional<UserAddress> userAddress = userAddressesRepository.findById(orderData.getUserAddressId());
+                if(!userAddress.isPresent()) throw new ValidationException("User Address not found for this order");
+
+//                LocationV3Model locationV3Model = locationService.getLocationDataFromPinCodeV3(userAddress.get().getPinCode(),
+//                                                null, orderCancelModel.getSource(), null);
+
+                Boolean canCancelCentralizedOrder = this.cancelCentralizedOrder(orderData,cartId,cartOrderMappingList);
+                Boolean cartLevelDeliveryFee = false;
+                if (checkIfCancellationDisabledSingleOrder(user.get().getId(), orderData, isInternalServiceCall,canCancelCentralizedOrder)) {
+                    log.error("Cancellation is disabled for this order : {}", orderData.getId());
+                    throw new ValidationException(messageSource.getMessage(CANCELLATION_DISABLED_MESSAGE,null, LocaleContextHolder.getLocale()));
+                }
+
+                Map<String, Object> cartItemsInfo = this.checkIfCartContainsOrdOrder(orderData, user.get(),
+                        orderCancelModel.getOrdSchemeKey(), cartId,orderCancelModel.getDiscard());
+                if (cartId == null) {
+                    throw new ValidationException("Valid user cart id is missing");
+                }
+                Boolean cancelOrderBool = (Boolean) cartItemsInfo.get(CART_CONTAINS_ORD);
+                /**
+                 * First order condition not to put check delivery fee. not handled pop up cancel
+                 * from order success screen
+                 */
+                //scratch card cancellation msg.
+                if(!orderCancelModel.getScratchCardKey()) {
+                    Map<String, Object> scratchCardRedeemedCheck =
+                        this.checkIfScratchCardRedeemed(orderData, cartId);
+                    if (scratchCardRedeemedCheck.containsKey(POPUP_MESSAGE_OBJECT)) {
+                        return scratchCardRedeemedCheck.get(POPUP_MESSAGE_OBJECT);
+                    }
+                }
+                boolean revertAB = true;
+                if(!orderCancelModel.getOrdSchemeKey() && !orderCancelModel.getDeliveryFeeKey()
+                    && revertAB) {
+                    // Cart Discount Mov breach check
+                    OrderMovBreach discountMovBreach =
+                        this.getCartDiscountMovBreach(orderData, cartId, orderCancelModel.getLang());
+                    log.error("Cancel Order request Cart Discount MovBreach Response  : {}, userId : {},cartId : {}", discountMovBreach,userId,cartId);
+                    if (Objects.nonNull(discountMovBreach)) {
+                        movBreaches.add(discountMovBreach);
+                    }
+                }
+                Map<String, Object> checkDeliveryFeeInfo = this.checkDeliveryFee(orderData, user.get(), orderCancelModel, cartId);
+
+                log.error("Cancel Order request CheckDeliveryFee Response  : {}, userId : {},cartId : {}", checkDeliveryFeeInfo,userId,cartId);
+
+                cartLevelDeliveryFee = (Boolean) checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") && checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") != null;
+
+--- MyOrderServiceImpl | cancelOrder | CODE | 3/6 ---
+                Map<String, Object> checkDeliveryFeeInfo = this.checkDeliveryFee(orderData, user.get(), orderCancelModel, cartId);
+
+                log.error("Cancel Order request CheckDeliveryFee Response  : {}, userId : {},cartId : {}", checkDeliveryFeeInfo,userId,cartId);
+
+                cartLevelDeliveryFee = (Boolean) checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") && checkDeliveryFeeInfo.get("CART_LEVEL_DELIVERY_FEE") != null;
+                Boolean deliveryFeeCentralisationFlow = (Boolean) checkDeliveryFeeInfo.get("DELIVERY_FEE_CENTRALISATION_FLOW") && checkDeliveryFeeInfo.get("DELIVERY_FEE_CENTRALISATION_FLOW") != null;
+                cancelOrderBool = (Boolean) checkDeliveryFeeInfo.get(DELIVERY_FEES_APPLICABLE_CHECK);
+                Boolean lastOrder = checkDeliveryFeeInfo.get("LAST_ORDER") != null && (Boolean) checkDeliveryFeeInfo.get("LAST_ORDER");
+                if (!orderCancelModel.getOrdSchemeKey() && !orderCancelModel.getDeliveryFeeKey()
+                    && checkDeliveryFeeInfo.containsKey(POPUP_MESSAGE_OBJECT)) {
+                    List<StaticPropertiesEntity> staticProperties =
+                        staticPropertiesRepository.findAllByPropertyKey(DELIVERY_PROP_KEY);
+                    if (Objects.isNull(movBreachMessage.getMessage())) {
+                        validationExceptionV2 = objectMapper.convertValue(
+                            checkDeliveryFeeInfo.get(POPUP_MESSAGE_OBJECT),
+                            ValidationExceptionV2.class);
+                        addToMovBreachMessage(movBreachMessage, validationExceptionV2);
+                    }
+                    movBreaches.add(OrderMovBreach.builder()
+                        .icon(
+                            !CollectionUtils.isEmpty(staticProperties) ? staticProperties.get(0)
+                                .getPropertyValue() : null)
+                        .message(messageSource.getMessage(DELIVERY_MSG_KEY,
+                            new Object[] {checkDeliveryFeeInfo.get("delivery_fee")},
+                            LocaleContextHolder.getLocale()))
+                        .type("delivery")
+                        .build());
+                }
+
+                if(!CollectionUtils.isEmpty(movBreaches)) {
+                    Collections.reverse(movBreaches);
+                    movBreachMessage.setOrderMovBreach(movBreaches);
+                    if (Objects.isNull(movBreachMessage.getMessage())) {
+                        OrderMovBreach movBreach = movBreaches.get(0);
+                        movBreachMessage.setMessageFooter(messageSource
+                            .getMessage(MOV_CHECKBOX_MSG, null, LocaleContextHolder.getLocale()));
+                        movBreachMessage.setTitle(messageSource
+                            .getMessage(MOV_TITLE_MSG, null, LocaleContextHolder.getLocale()));
+                        movBreachMessage.setMessage(movBreach.getMessage().replaceAll("<[/]?font>", ""));
+                        movBreachMessage.setInternalId(String.valueOf(orderData.getId()));
+                        movBreachMessage.setOrdSchemeKey(true);
+                    }
+                    return movBreachMessage;
+                }
+
+                KafkaCancellationRequestModel kafkaPayload = new KafkaCancellationRequestModel();
+                kafkaPayload.setCancelOrderBool(cancelOrderBool);
+                kafkaPayload.setCartId(cartId);
+                kafkaPayload.setCartConfig((CartConfig) cartItemsInfo.get("cartConfig"));
+                kafkaPayload.setOrderData(orderData);
+
+--- MyOrderServiceImpl | cancelOrder | CODE | 4/6 ---
+                KafkaCancellationRequestModel kafkaPayload = new KafkaCancellationRequestModel();
+                kafkaPayload.setCancelOrderBool(cancelOrderBool);
+                kafkaPayload.setCartId(cartId);
+                kafkaPayload.setCartConfig((CartConfig) cartItemsInfo.get("cartConfig"));
+                kafkaPayload.setOrderData(orderData);
+                kafkaPayload.setOrderCancelModel(orderCancelModel);
+                kafkaPayload.setCancelOrdOrderBool(orderCancelModel.getOrdSchemeKey());
+                kafkaPayload.setUserRank(user.get().getUserRank());
+                kafkaPayload.setSource(orderCancelModel.getSource());
+                kafkaPayload.setPinCode(user.get().getPincode().toString());
+                if(!cancelOrderBool) {
+                    if(KafkaConstants.KAFKA_ALLOWED) {
+                        queueProducer.produceOrderCancellationSyncEvent(kafkaPayload);
+                    } else {
+                        log.error("Cancel Order request, payload :{}, cartLevelDeliveryFee : {}, internalCall : {}, userId : {}",
+                            kafkaPayload, cartLevelDeliveryFee,isInternalServiceCall, userId);
+                        orderCancellation(kafkaPayload, cartLevelDeliveryFee, isInternalServiceCall);
+
+                    }
+                }
+
+                if (deliveryFeeCentralisationFlow && (Boolean.TRUE.equals(orderCancelModel.getDeliveryFeeKey()) || lastOrder)){
+
+                        List<UpdateFeesModel> updateModels = new ArrayList<>();
+                        UpdateFeesModel updateFeesModel = new UpdateFeesModel();
+                        updateFeesModel.setFeeType(FeesType.DELIVERY_FEES.name());
+
+                        if(lastOrder){
+                            updateFeesModel.setAppliedFees(0.0);
+                            updateFeesModel.setFinalFees(0.0);
+
+                            List<FeeConfiguration> feeConfigurations = feeConfigRepository.findAll();
+                            if(!feeConfigurations.isEmpty()) {
+                                for(FeeConfiguration feeConfiguration : feeConfigurations){
+                                    UpdateFeesModel updateGenericFeeModel = new UpdateFeesModel();
+                                    updateGenericFeeModel.setFeeType(feeConfiguration.getCode());
+                                    updateGenericFeeModel.setAppliedFees(0.0);
+                                    updateGenericFeeModel.setFinalFees(0.0);
+                                    updateModels.add(updateGenericFeeModel);
+                                }
+                            }
+                        } else {
+                            long deliveryFees = checkDeliveryFeeInfo.get("delivery_fee") != null
+                                    ? (Long) checkDeliveryFeeInfo.get("delivery_fee")
+                                    : 0L;
+                            updateFeesModel.setAppliedFees((double) deliveryFees);
+                            updateFeesModel.setFinalFees((double) deliveryFees);
+                        }
+                        updateModels.add(updateFeesModel);
+
+
+--- MyOrderServiceImpl | cancelOrder | CODE | 5/6 ---
+                            updateFeesModel.setAppliedFees((double) deliveryFees);
+                            updateFeesModel.setFinalFees((double) deliveryFees);
+                        }
+                        updateModels.add(updateFeesModel);
+
+
+                        UpdateCartFeesDetails updateCartFeesDetails = new UpdateCartFeesDetails();
+                        updateCartFeesDetails.setCartId(cartId);
+                        updateCartFeesDetails.setUserId(userId);
+                        updateCartFeesDetails.setAllOrderCancelled(lastOrder);
+                        updateCartFeesDetails.setCartUpdateData(updateModels);
+
+                        UpdateCartFeesRequest updateCartFeesRequest = new UpdateCartFeesRequest();
+                        updateCartFeesRequest.setFlow(FlowType.CANCEL_ORDER);
+                        updateCartFeesRequest.setUpdateData(Collections.singletonList(updateCartFeesDetails));
+
+                        try {
+                            feesService.updateCartFees(updateCartFeesRequest);
+                        } catch (Exception ex){
+                            log.error("error in updating cart fees during cancel order,updateCartFeesRequest:{}", updateCartFeesRequest);
+                        }
+
+                        if (lastOrder) {
+                            try {
+                                log.error("Request received for creditCartConfigBenefits cartId {} and userId {} orderId {}", cartId, userId, orderCancelModel.getOrderId());
+                                feesService.creditCartConfigBenefits(cartId, userId);
+                            } catch (Exception ex){
+                                log.error("error in cancel-discarded-orders-creditCartConfigBenefits during cancel order cartId : {}", cartId);
+                            }
+                        }
+                }
+
+                try {
+                    schemeServiceClient.updateHomePageDiscountUsed(order.get().getUserId());
+                } catch (Exception e) {
+                    log.error("Something went wrong while updating home page strip discount amount");
+                }
+                try {
+                    int quantity = order.get().getQuantity() == null ? 1 : order.get().getQuantity().intValue();
+                    DealInfo dealInfo = DealInfo.builder().offerId(order.get().getOfferId())
+                            .quantity(quantity)
+                            .build();
+                    FrdSoldUpdateModel frdSoldUpdateModel = FrdSoldUpdateModel
+                            .builder().dealDetails(Arrays.asList(dealInfo))
+                            .userType(user.get().getUserRank())
+                            .pincode(userAddress.get().getPalPincode())
+                            .palId(userAddress.get().getPalId())
+                            .cancelRequest(true).build();
+                    dealServiceClient.updateFrdSoldQuantity(frdSoldUpdateModel, userName, password);
+                } catch (Exception e) {
+
+--- MyOrderServiceImpl | cancelOrder | CODE | 6/6 ---
+                            .pincode(userAddress.get().getPalPincode())
+                            .palId(userAddress.get().getPalId())
+                            .cancelRequest(true).build();
+                    dealServiceClient.updateFrdSoldQuantity(frdSoldUpdateModel, userName, password);
+                } catch (Exception e) {
+                    log.error("Something went wrong while update frd sold quantity for order cancel {}", e.getMessage());
+                }
+            } catch (Exception e) {
+                log.error("cancelOrder Method Exception: {} , userId : {}", e.getMessage(),userId,e);
+                throw new ValidationException("Something went wrong , please try again!!");
+            }
+        }
+        //updating the cache when order is cancelled.
+        etaService.updateOrderStatusWidgetCacheAsync(etaService.updateCacheForCancelledOrders(order.get()));
+        return true;
+
+
+📄 FILE: UserShipmentServiceImpl.java
 
 --- UserShipmentServiceImpl | calculateShipmentEta | CODE | 1/1 ---
     public void calculateShipmentEta(UserShipmentModel shipment, List<Order> orders){
@@ -878,12 +1675,7 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         if(eta == null || eta.isEmpty() ){
 
 
-=== 🧩 UnknownRepo → EtaServiceImpl.java ===
-
---- EtaServiceImpl | getOrderConfirmationEtaBufferConfig | CODE | 1/1 ---
-    @Override
-    public OrderConfirmationEtaBufferConfig getOrderConfirmationEtaBufferConfig(Integer warehouseId){
-        return growthbookService.getOrderConfirmationEtaBufferConfig(warehouseId);
+📄 FILE: EtaServiceImpl.java
 
 --- EtaServiceImpl | getStoreTimeConfigFromWarehouseEta | CODE | 1/1 ---
     public StoreTimeConfig getStoreTimeConfigFromWarehouseEta(Integer warehouseId) {
@@ -945,7 +1737,7 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         return CompletableFuture.completedFuture(null);
 
 
-=== 🧩 UnknownRepo → CartServiceV2Impl.java ===
+📄 FILE: CartServiceV2Impl.java
 
 --- CartServiceV2Impl | triggerOrderPlacedEvent | CODE | 1/1 ---
     private void triggerOrderPlacedEvent(CartOrderModel responseCartOrderModel){
@@ -963,21 +1755,6 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
                 .build();
 
         try {
-
---- CartServiceV2Impl | syncDeliveryFees | CODE | 1/1 ---
-    @Transactional
-    public Boolean syncDeliveryFees(List<SyncDeliveryFeesModel> syncDeliveryFeesModels){
-        List<Long> cartIds = syncDeliveryFeesModels.stream().map(SyncDeliveryFeesModel::getCartId).distinct().collect(Collectors.toList());
-        Map<Long, Long> cartDeliveryFeeMap;
-        cartDeliveryFeeMap = syncDeliveryFeesModels.stream().collect(Collectors.toMap(SyncDeliveryFeesModel::getCartId, SyncDeliveryFeesModel::getDeliveryFees));
-        List<Cart> carts = cartRepository.findAllById(cartIds);
-        if(!carts.isEmpty()) {
-            for(Cart cart:carts){
-                cart.setDeliveryFee(cartDeliveryFeeMap.get(cart.getId()).intValue());
-            }
-            cartRepository.saveAll(carts);
-        }
-        return true;
 
 --- CartServiceV2Impl | getTitleAndGradientFromEtaDateV2 | CODE | 1/2 ---
     private EtaDisplayData getTitleAndGradientFromEtaDateV2(OrderStatusWidgetStaticModel orderStatusWidgetStaticModel,
@@ -1035,22 +1812,7 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         return etaDisplayData;
 
 
-=== 🧩 UnknownRepo → UserOrderCartServiceImpl.java ===
-
---- UserOrderCartServiceImpl | setModifiedDate | CODE | 1/1 ---
-    private void setModifiedDate(OrderListModel orderListModel, Order order){
-        DateFormat dateFormat = new SimpleDateFormat("dd MMM");
-        String fetchModifiedDate = dateFormat.format(order.getModifiedDate());
-        orderListModel.setDeliveryDate(fetchModifiedDate);
-
---- UserOrderCartServiceImpl | setOrderedDate | CODE | 1/1 ---
-    private void setOrderedDate(OrderListModel orderListModel,Order order){
-        DateFormat dateFormat = new SimpleDateFormat("MMMMM dd, hh:mm:aa");
-        String dateString = dateFormat.format(order.getOrderDate());
-        orderListModel.setOrderedDate(dateString);
-
-
-=== 🧩 UnknownRepo → UserOrderServiceImpl.java ===
+📄 FILE: UserOrderServiceImpl.java
 
 --- UserOrderServiceImpl | getOrderTracking | CODE | 1/1 ---
     @Override
@@ -1084,67 +1846,6 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
 --- UserOrderServiceImpl | createOrderHistory | CODE | 1/1 ---
     private OrderHistory createOrderHistory(Order order, Date cancellationTime) {
         return new OrderHistory(order, cancellationTime,
-
---- UserOrderServiceImpl | updateOrderIdAndTransactionIdInOrderEntity | CODE | 1/1 ---
-    private void updateOrderIdAndTransactionIdInOrderEntity(List<Order> orderList) {
-        orderList.forEach(order -> {
-            Long id = order.getId();
-            order.setTransactionId(id);
-            order.setOrderId(ORDER_ID_PREFIX + id);
-        });
-        orderRepository.saveAll(orderList);
-
---- UserOrderServiceImpl | discardOrders | CODE | 1/2 ---
-    public byte[] discardOrders(MultipartFile file) throws Exception {
-        List<OrderStatusUpdateDTO> orderDTOs = parseOrderFile(file);
-        if(orderDTOs.size() >= 100 ){
-            throw new ValidationException("You can only update 100 orders at a time, can you please update a new file.");
-        }
-        List<Long> orderIds = orderDTOs.stream()
-                .map(OrderStatusUpdateDTO::getOrderId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        List<Order> orders = orderRepository.findByIdIn(orderIds);
-        Map<Long, Order> orderIdToOrder = orders.stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(Order::getId, order -> order));
-        Map<Long, Order> result = orderIds.stream()
-                .filter(orderIdToOrder::containsKey)
-                .collect(Collectors.toMap(
-                        id -> id,
-                        orderIdToOrder::get
-                ));
-        List<Order> orderToUpdate = new ArrayList<>();
-        for(OrderStatusUpdateDTO orderDTO : orderDTOs){
-            if(orderDTO.getOrderId() == null){
-                orderDTO.setTechRemarks("Order id is null");
-            }
-            else if(!orderDTO.getStatus().equalsIgnoreCase("discarded")){
-                orderDTO.setTechRemarks("Cannot update the status to : "+orderDTO.getStatus());
-            }
-            else if(orderDTO.getComments() == null || orderDTO.getComments().isEmpty()){
-                orderDTO.setTechRemarks("Reason / Remark cannot be empty to discard the order, Please try again with Valid Reason");
-            }
-            else if(orderDTO.getSubStatus() == null || orderDTO.getSubStatus().isEmpty()){
-                orderDTO.setTechRemarks("Substatus cannot be empty to discard the order, Please try again with Valid subStatus");
-            }
-            else{
-                if (result == null || result.get(orderDTO.getOrderId()) == null){
-                    orderDTO.setTechRemarks("Order doesn't exist with this id");
-                    continue;
-                }
-                Order order = result.get(orderDTO.getOrderId());
-                if(!order.getOrderStatus().equals(CANCEL_STATUS)){
-                    if(order.getOrderStatus().equals(DISCARD_STATUS)){
-                        orderDTO.setTechRemarks("Order is already in Discard status");
-                    }else{
-                        orderDTO.setTechRemarks("Order is not in cancel state");
-                    }
-                }else{
-                    order.setOrderStatus(DISCARD_STATUS);
-                    order.setOrderSubStatus(orderDTO.getSubStatus());
-                    order.setComments(orderDTO.getComments());
-                    orderDTO.setTechRemarks(DONE);
 
 --- UserOrderServiceImpl | discardFlaggedOrders | CODE | 1/2 ---
     public void discardFlaggedOrders(Long userId, Long cartId) {
@@ -1197,234 +1898,14 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
 
         orderRepository.saveAll(orders);
 
---- UserOrderServiceImpl | syncOrders | CODE | 1/4 ---
-    @Override
-    @Transactional
-    public List<OrderDealMappingModel> syncOrders(UserCacheModel userCacheModel,
-                                                  UserOrderSyncModel userOrderSyncModel,
-                                                  Long userAddressId) {
-
-        List<OrderSummaryModel> orderSummaryModelList = new ArrayList<>(userOrderSyncModel.getOfferIdOrderSummaryModelMap().values());
-
-        boolean newCart = isNewCartRequired(orderSummaryModelList);
-
-        Long cartId = null;
-        if (newCart) {
-            cartId = createCart(userCacheModel.getId());
-        }
-
-        List<SkuInventoryUpdateModel> skuInventoryUpdateModelList = new ArrayList<>();
-
-        List<Order> orderList = new ArrayList<>();
-
-        for (OrderSummaryModel orderSummaryModel : orderSummaryModelList) {
-            String status = orderSummaryModel.getStatus();
-            switch (status) {
-
-                case AppConstant.DELIVERED:
-                    orderList.add(createOrder(orderSummaryModel,
-                            userCacheModel,
-                            userOrderSyncModel.getPaymentType(),
-                            userOrderSyncModel.getSource(),
-                            userAddressId,
-                            userOrderSyncModel.getWarehouseId()));
-
-                    /** update inventory */
-                    skuInventoryUpdateModelList.addAll(createUpdateInventoryModel(orderSummaryModel.getOrderProductDetailModel(), Boolean.TRUE));
-                    break;
-
-                case AppConstant.CANCEL_STATUS:
-                    /** update order status*/
-                    if (orderSummaryModel.getIsOrderPresent()) {
-                        Optional<Order> presentOrder = orderRepository.findById(orderSummaryModel.getOrderId());
-                        if (presentOrder.isPresent()) {
-                            if (cartId == null) {
-                                cartId = cartOrderMappingRepository.findFirstByOrderId(presentOrder.get().getId()).get().getCartId();
-                            }
-
-                            presentOrder.get().setOrderStatus(AppConstant.CANCEL_STATUS);
-                            orderList.add(presentOrder.get());
-                        } else {
-                            log.error("Order Mapping present in pos_order_mapping table but in order table : {}", orderSummaryModel);
-                        }
-
-
---- UserOrderServiceImpl | discardOrders | CODE | 2/2 ---
-                }else{
-                    order.setOrderStatus(DISCARD_STATUS);
-                    order.setOrderSubStatus(orderDTO.getSubStatus());
-                    order.setComments(orderDTO.getComments());
-                    orderDTO.setTechRemarks(DONE);
-                    orderToUpdate.add(order);
-                }
-            }
-        }
-        orderRepository.saveAll(orderToUpdate);
-        byte[] bite = generateCsvFile(orderDTOs);
-        emailSenderService.sendEmailWithAttachment(
-                DISCARD_ORDER_EMAIL_LIST,
-                DISCARD_ORDER_SUBJECT,
-                DISCARD_ORDER_CONTENT,
-                DISCARD_ORDER_FILE_NAME,
-                bite
-        );
-        return bite;
-
 --- UserOrderServiceImpl | discardFlaggedOrders | CODE | 2/2 ---
             order.setOrderStatus(DISCARD_STATUS);
         }
 
         orderRepository.saveAll(orders);
 
---- UserOrderServiceImpl | syncOrders | CODE | 2/4 ---
-                            orderList.add(presentOrder.get());
-                        } else {
-                            log.error("Order Mapping present in pos_order_mapping table but in order table : {}", orderSummaryModel);
-                        }
 
-                        /**  update inventory */
-                        skuInventoryUpdateModelList.addAll(createUpdateInventoryModel(orderSummaryModel.getOrderProductDetailModel(), Boolean.FALSE));
-                    } else {
-                        /** create order with cancel status*/
-                        orderList.add(createOrder(orderSummaryModel,
-                                userCacheModel,
-                                userOrderSyncModel.getPaymentType(),
-                                userOrderSyncModel.getSource(),
-                                userAddressId,
-                                userOrderSyncModel.getWarehouseId()));
-                    }
-                    break;
-            }
-        }
-
-        List<Order> orders = orderRepository.saveAll(orderList);
-        List<Order> cancelOrders = orders.stream().filter(order -> CANCELLED.getValues().contains(order.getOrderStatus())).collect(
-                Collectors.toList());
-        List<InvoiceCancelDto> invoiceCancelList = new ArrayList<>();
-        try {
-            if (!CollectionUtils.isEmpty(cancelOrders)) {
-                List<BtocInvoiceDetails> btocInvoiceDetails =
-                        btocInvoiceDetailsRepository.findByOrderIdIn(
-                                cancelOrders.stream().map(Order::getId).collect(
-                                        Collectors.toSet()));
-                Map<Long, List<BtocInvoiceDetails>> btocInvoiceDetailsMap =
-                        btocInvoiceDetails.stream()
-                                .collect(Collectors.groupingBy(BtocInvoiceDetails::getInvoiceId));
-                for (Map.Entry<Long, List<BtocInvoiceDetails>> entry :
-                        btocInvoiceDetailsMap.entrySet()) {
-
-                    InvoiceCancelDto invoiceCancelDto = new InvoiceCancelDto();
-                    invoiceCancelDto.setBtocInvoiceId(entry.getKey().toString());
-                    invoiceCancelDto.setOrders(
-                            entry.getValue().stream().map(BtocInvoiceDetails::getOrderId).collect(
-                                    Collectors.toList()));
-                    invoiceCancelList.add(invoiceCancelDto);
-                }
-                if (!CollectionUtils.isEmpty(invoiceCancelList)) {
-                    invoiceServiceClient.minimartOrderCancelInvoice(invoiceCancelList);
-                }
-            }
-        } catch (Exception e) {
-            log.error("error occurred while issuing cancel invoice, {}", invoiceCancelList);
-        }
-
---- UserOrderServiceImpl | syncOrders | CODE | 3/4 ---
-                }
-            }
-        } catch (Exception e) {
-            log.error("error occurred while issuing cancel invoice, {}", invoiceCancelList);
-        }
-
-        List<OrderDealMappingModel> orderDealMappingModelList = new ArrayList<>();
-        List<OrderHistory> orderHistoryList = new ArrayList<>();
-
-
-        List<CartDetails> cartDetailsList = new ArrayList<>();
-        List<CartOrderMapping> cartOrderMappingList = new ArrayList<>();
-        List<OrderProductDetails> orderProductDetailsList = new ArrayList<>();
-        List<OrderDiscountingHistory> orderDiscountingHistoryList = new ArrayList<>();
-        List<POSOrderMapping> posOrderMappingList = new ArrayList<>();
-
-        int i = 0;
-        for (Order order : orderList) {
-            OrderSummaryModel orderSummaryModel = orderSummaryModelList.get(i++);
-            OrderProductDetailModel orderProductDetailModel = orderSummaryModel.getOrderProductDetailModel();
-            OrderPricingModel orderPricingModel = orderSummaryModel.getOrderPricingModel();
-            List<OrderDiscountModel> orderDiscountBifurcation=orderSummaryModel.getOrderDiscountBifurcation();
-            if (newCart) {
-                cartDetailsList.add(createCartDetails(orderProductDetailModel, cartId));
-                cartOrderMappingList.add(createCartOrderMapping(order.getId(), cartId));
-
-                orderProductDetailsList.addAll(createOrderProductDetails(order.getId(),
-                        orderPricingModel.getMrp(),
-                        userOrderSyncModel.getWarehouseId(),
-                        orderProductDetailModel, userOrderSyncModel.getPosOrderId()));
-
-                if (orderDiscountBifurcation.size() > 0) {
-                    orderDiscountingHistoryList.addAll(orderDiscountBifurcation.stream().map(discountModel -> createDiscountingHistory(discountModel,order.getId())).collect(
-                            Collectors.toList()));
-                }
-            }
-
-            if (order.getOrderStatus().equalsIgnoreCase(AppConstant.CANCEL_STATUS)) {
-                orderHistoryList.add(createOrderHistory(order, orderSummaryModel.getTransactionTime()));
-            }
-
-            orderDealMappingModelList.add(
-                    createOrderDealMappingModel(order, orderSummaryModel.getIsOrderPresent(), orderProductDetailModel.getSkus(), cartId));
-
-            POSOrderMapping posOrderMapping = POSOrderMapping.builder()
-                    .posOrderId(userOrderSyncModel.getPosOrderId())
-                    .orderId(order.getId())
-                    .status(OrderStatus.valueOf(order.getOrderStatus()))
-                    .offerId(orderProductDetailModel.getOfferId())
-                    .orderDate(order.getOrderDate())
-
---- UserOrderServiceImpl | syncOrders | CODE | 4/4 ---
-                    .posOrderId(userOrderSyncModel.getPosOrderId())
-                    .orderId(order.getId())
-                    .status(OrderStatus.valueOf(order.getOrderStatus()))
-                    .offerId(orderProductDetailModel.getOfferId())
-                    .orderDate(order.getOrderDate())
-                    .cartId(cartId)
-                    .build();
-            posOrderMappingList.add(posOrderMapping);
-        }
-
-        if (!cartDetailsList.isEmpty())
-            cartDetailsRepository.saveAll(cartDetailsList);
-        if (!cartOrderMappingList.isEmpty())
-            cartOrderMappingRepository.saveAll(cartOrderMappingList);
-        if (!orderProductDetailsList.isEmpty()) {
-            orderProductDetailsRepository.saveAll(orderProductDetailsList);
-            try {
-                orderProductDetailsList.stream().map(CommonUtils::getSqsWabpModel)
-                        .forEach(sqsWabpModel -> {
-//                        log.error("Message Published for Wabp/Promo Order update: {}",
-//                            sqsWabpModel);
-                            sqsPublisherService.publishMessage(wabpOrderUpdateQueue,
-                                    sqsWabpModel);
-                        });
-            } catch (Exception ex) {
-                log.error("Error occurred while message publish for Wabp Order update: {}",
-                        orderProductDetailsList);
-            }
-        }
-        if (!orderDiscountingHistoryList.isEmpty())
-            orderDiscountingHistoryRepository.saveAll(orderDiscountingHistoryList);
-        if (!orderHistoryList.isEmpty())
-            orderHistoryRepository.saveAll(orderHistoryList);
-        if (!posOrderMappingList.isEmpty()) {
-            posOrderMappingRepository.saveAll(posOrderMappingList);
-        }
-
-
-        updateInventory(skuInventoryUpdateModelList, userOrderSyncModel.getWarehouseId(), cartId);
-        updateOrderIdAndTransactionIdInOrderEntity(orderList);
-        return orderDealMappingModelList;
-
-
-=== 🧩 UnknownRepo → KafkaProducer.java ===
+📄 FILE: KafkaProducer.java
 
 --- KafkaProducer | sendOrdersStatusUpdateTopic | CODE | 1/1 ---
     @Async
@@ -1439,7 +1920,7 @@ Question: how do we sync minimart orders ? /v1/minimart-order-sync
         try {
 
 
-=== 🧩 UnknownRepo → UserCartServiceImpl.java ===
+📄 FILE: UserCartServiceImpl.java
 
 --- UserCartServiceImpl | CreateOrderWidgetModel | CODE | 1/1 ---
     public EtaWidgetModel CreateOrderWidgetModel(List <Order> orders, String lang){

@@ -124,7 +124,12 @@ if __name__ == "__main__":
         {
             "repo_url": "https://github.com/VishnuSBhatDS/cart-service.git",
             "branch": "master",
-            "db_name": "cart_master"
+            "db_name": "cart-service"
+        },
+        {
+            "repo_url": "https://github.com/VishnuSBhatDS/chat-service.git",
+            "branch": "main",
+            "db_name": "chat-service"
         }
     ]
     index_multiple_repos(repo_configs)
