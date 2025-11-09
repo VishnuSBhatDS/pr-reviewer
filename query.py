@@ -4,6 +4,7 @@ from collections import defaultdict
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from vectorstore import get_vectorstore_paths
+from info_query import query_service_info
 
 
 def load_vectorstore(db_path):
@@ -34,7 +35,9 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
     🔍 Multi-repo intelligent query.
     Groups results by service → file → method.
     """
-    db_paths = get_vectorstore_paths(base_chroma_path)
+    # db_paths = get_vectorstore_paths(base_chroma_path)
+    top_services = query_service_info(question)
+    db_paths = [os.path.join(base_chroma_path, d) for d in top_services]
     if not db_paths:
         raise ValueError(f"No Chroma DBs found in {base_chroma_path}")
 
@@ -141,5 +144,5 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
 
 # === Example usage ===
 if __name__ == "__main__":
-    question = "what is Decentralized  and centralized delivery fee?"
+    question = "how do we sync minimart orders ?"
     query_codebase_context(question)

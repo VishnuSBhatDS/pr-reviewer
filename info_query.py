@@ -48,9 +48,9 @@ def query_service_info(question: str, chroma_db_path="./chroma_dbs/service_info"
         f.write(output_text)
 
     print(f"✅ Query results saved to {output_file}")
-    return output_text
+    return top_services
 
 
 if __name__ == "__main__":
     user_question = input("Enter your query: ")
-    query_service_info(user_question)
+    print(query_service_info(user_question), type(query_service_info(user_question)))

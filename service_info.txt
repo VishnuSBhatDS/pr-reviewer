@@ -1,1628 +1,17 @@
-Question: how does user logs in?
+Question: how do we sync minimart orders ?
 
 ================================================================================
-
-🟦 SERVICE: user-service
-
-------------------------------------------------------------
-
-📄 Section: keyFeatures
-{
-  "keyFeatures": [
-    "User authentication and authorization (OTP, JWT, TrueCaller)",
-    "User profile management (CRUD operations)",
-    "User rank management with state machine",
-    "User rank transitions based on order status and events",
-    "Referral program and tracking",
-    "AppsFlyer integration for attribution",
-    "Device management and validation",
-    "Location and pincode management",
-    "GST document management and verification",
-    "Payment account details management",
-    "User deactivation and reactivation workflow",
-    "Multi-language support",
-    "User preferences and settings",
-    "Role-based access control (RBAC)",
-    "Caching with Redis and Caffeine",
-    "Rate limiting",
-    "Event-driven architecture with Kafka",
-    "Bulk user operations (CSV import/export)",
-    "User search and lookup",
-    "Password management (change, forgot password)",
-    "User experiment/AB testing logging",
-    "Third-party data integration (Singular, CleverTap)",
-    "WhatsApp and SMS integration",
-    "Notification opt-in management"
-  ]
-}
-
-
-📄 Section: parent
-{
-  "serviceName": "user-service",
-  "serviceDescription": "Core user management service for DealShare platform handling user authentication, profile management, user ranks, referrals, location services, device management, OTP verification, AppsFlyer integration, GST management, and user lifecycle operations. Provides comprehensive user data APIs for B2C and B2B applications."
-}
-
-
-📄 Section: keywords
-{
-  "keywords": {
-    "functional": [
-      "user",
-      "authentication",
-      "login",
-      "signup",
-      "signin",
-      "otp",
-      "verification",
-      "phone verification",
-      "user profile",
-      "user management",
-      "user rank",
-      "user ranking",
-      "user rank transition",
-      "user rank state machine",
-      "new user",
-      "react user",
-      "normal user",
-      "user type",
-      "user preferences",
-      "user location",
-      "pincode",
-      "pincode servicable",
-      "user address",
-      "device management",
-      "device details",
-      "device validation",
-      "device info",
-      "referral",
-      "referral program",
-      "share token",
-      "referral install",
-      "friends referral",
-      "appsflyer",
-      "appsflyer install",
-      "appsflyer event",
-      "appsflyer data",
-      "attribution",
-      "user deactivation",
-      "account deactivation",
-      "user reactivation",
-      "user deletion",
-      "user cache",
-      "user config",
-      "user configuration",
-      "user gst",
-      "gst verification",
-      "gst document",
-      "gst upload",
-      "payment details",
-      "payment account",
-      "razorpay",
-      "juspay",
-      "user language",
-      "language preference",
-      "multilingual",
-      "user shipment",
-      "user search",
-      "user lookup",
-      "user by phone",
-      "user by id",
-      "user by auth",
-      "truecaller login",
-      "password",
-      "forgot password",
-      "change password",
-      "user role",
-      "role management",
-      "user permissions",
-      "user authorization",
-      "jwt token",
-      "auth key",
-      "refresh token",
-      "access token",
-      "user session",
-      "user onboarding",
-      "user registration",
-      "user status",
-      "user experiment",
-      "ab testing",
-      "user analytics",
-      "customer points",
-      "dealshare dost",
-      "relationship manager",
-      "dsd friends",
-      "tapri creation",
-      "rashifal",
-      "nakshatra",
-      "user warehouse",
-      "order status",
-      "order update",
-      "user rank by order",
-      "user rank update",
-      "user rank cron",
-      "bulk user update",
-      "user csv",
-      "user export",
-      "user import",
-      "user migration",
-      "user sync",
-      "clevertap sync",
-      "singular data",
-      "third party data",
-      "ingestion",
-      "notification opt-in",
-      "whatsapp",
-      "sms",
-      "email",
-      "user notification"
-    ],
-    "technical": [
-      "spring boot",
-      "java",
-      "jpa",
-      "hibernate",
-      "mysql",
-      "redis",
-      "cache",
-      "caffeine cache",
-      "kafka",
-      "kafka consumer",
-      "kafka producer",
-      "feign client",
-      "rest api",
-      "restful",
-      "microservice",
-      "jwt",
-      "spring security",
-      "rate limiting",
-      "resilience4j",
-      "circuit breaker",
-      "flyway",
-      "database migration",
-      "sqs",
-      "aws sqs",
-      "multitenant",
-      "routing datasource",
-      "datasource routing",
-      "happyoffer database",
-      "users database",
-      "warehouse database",
-      "swagger",
-      "api documentation",
-      "actuator",
-      "health check",
-      "datadog",
-      "monitoring",
-      "logging",
-      "logback",
-      "i18n",
-      "internationalization",
-      "localization",
-      "model mapper",
-      "dto",
-      "entity",
-      "repository",
-      "service layer",
-      "controller",
-      "async",
-      "scheduling",
-      "cron job",
-      "scheduler",
-      "state machine",
-      "spring statemachine",
-      "rule engine",
-      "event driven",
-      "event processing",
-      "ip whitelist",
-      "request validation",
-      "exception handling",
-      "error handling",
-      "transaction management",
-      "batch processing",
-      "bulk operations"
-    ]
-  }
-}
-
-
-📄 Section: domainConcepts
-{
-  "domainConcepts": [
-    "User Rank (new-login, normal, react, etc.)",
-    "User Rank State Machine",
-    "User Type (B2C, B2B)",
-    "Share Token (for referrals)",
-    "Auth Key (JWT token)",
-    "Device ID",
-    "Pincode Serviceability",
-    "User Deactivation Status",
-    "GST Document Status",
-    "User Preferences",
-    "User Location",
-    "Referral Install",
-    "AppsFlyer Attribution",
-    "User Role",
-    "OGS (Optimized Gateway Service) Key",
-    "User Cache",
-    "User Config",
-    "Customer Points",
-    "DealShare Dost",
-    "Relationship Manager",
-    "Rashifal (Horoscope)",
-    "Nakshatra (Star)"
-  ]
-}
-
-
-📄 Section: apis
-{
-  "apis": {
-    "authentication": [
-      {
-        "endpoint": "/user-login/send-login-code",
-        "method": "POST",
-        "description": "Send OTP/verification code for user login",
-        "keywords": [
-          "otp",
-          "verification code",
-          "login",
-          "send otp",
-          "phone verification"
-        ]
-      },
-      {
-        "endpoint": "/user-login/verify-login-code",
-        "method": "POST",
-        "description": "Verify login code and authenticate user",
-        "keywords": [
-          "otp verify",
-          "login verify",
-          "authentication",
-          "token",
-          "jwt"
-        ]
-      },
-      {
-        "endpoint": "/users/signin",
-        "method": "POST",
-        "description": "User sign in with credentials",
-        "keywords": [
-          "signin",
-          "login",
-          "credentials",
-          "authentication"
-        ]
-      },
-      {
-        "endpoint": "/users/signup",
-        "method": "POST",
-        "description": "User registration/signup",
-        "keywords": [
-          "signup",
-          "registration",
-          "create user",
-          "register"
-        ]
-      },
-      {
-        "endpoint": "/truecaller-login",
-        "method": "POST",
-        "description": "TrueCaller based login",
-        "keywords": [
-          "truecaller",
-          "social login",
-          "third party login"
-        ]
-      },
-      {
-        "endpoint": "/send-otp",
-        "method": "POST",
-        "description": "Send OTP for various purposes",
-        "keywords": [
-          "otp",
-          "send otp",
-          "sms otp"
-        ]
-      },
-      {
-        "endpoint": "/otp-verify",
-        "method": "POST",
-        "description": "Verify OTP",
-        "keywords": [
-          "otp verify",
-          "verify otp",
-          "otp validation"
-        ]
-      }
-    ],
-    "userManagement": [
-      {
-        "endpoint": "/get-user",
-        "method": "GET",
-        "description": "Get user by ID, auth key, or phone number",
-        "keywords": [
-          "get user",
-          "user lookup",
-          "user by id",
-          "user by phone",
-          "user by auth"
-        ]
-      },
-      {
-        "endpoint": "/get-users",
-        "method": "POST",
-        "description": "Get multiple users by IDs",
-        "keywords": [
-          "get users",
-          "bulk user",
-          "multiple users",
-          "user list"
-        ]
-      },
-      {
-        "endpoint": "/get-users/phone-numbers",
-        "method": "POST",
-        "description": "Get users by phone numbers",
-        "keywords": [
-          "users by phone",
-          "phone lookup",
-          "bulk phone lookup"
-        ]
-      },
-      {
-        "endpoint": "/users/searchDsUser",
-        "method": "GET",
-        "description": "Search DealShare user by username",
-        "keywords": [
-          "search user",
-          "user search",
-          "find user",
-          "username search"
-        ]
-      },
-      {
-        "endpoint": "/users/searchDsUserByEmail",
-        "method": "GET",
-        "description": "Search user by email",
-        "keywords": [
-          "search by email",
-          "email lookup",
-          "user by email"
-        ]
-      },
-      {
-        "endpoint": "/create-user",
-        "method": "POST",
-        "description": "Create new user",
-        "keywords": [
-          "create user",
-          "new user",
-          "user creation",
-          "register user"
-        ]
-      },
-      {
-        "endpoint": "/users/{username}",
-        "method": "GET",
-        "description": "Get user by username",
-        "keywords": [
-          "get user",
-          "user details",
-          "user info"
-        ]
-      },
-      {
-        "endpoint": "/users/{username}",
-        "method": "DELETE",
-        "description": "Delete user",
-        "keywords": [
-          "delete user",
-          "remove user",
-          "user deletion"
-        ]
-      },
-      {
-        "endpoint": "/users/me",
-        "method": "GET",
-        "description": "Get current authenticated user",
-        "keywords": [
-          "current user",
-          "logged in user",
-          "my profile"
-        ]
-      },
-      {
-        "endpoint": "/users/refresh",
-        "method": "GET",
-        "description": "Refresh authentication token",
-        "keywords": [
-          "refresh token",
-          "token refresh",
-          "renew token"
-        ]
-      },
-      {
-        "endpoint": "/user/cache",
-        "method": "DELETE",
-        "description": "Delete user cache by user ID",
-        "keywords": [
-          "clear cache",
-          "user cache",
-          "cache invalidation",
-          "delete cache"
-        ]
-      },
-      {
-        "endpoint": "/users/delete-ogs-key",
-        "method": "POST",
-        "description": "Delete OGS key for user",
-        "keywords": [
-          "ogs key",
-          "delete key",
-          "cache key"
-        ]
-      },
-      {
-        "endpoint": "/users/get-ogs-key",
-        "method": "GET",
-        "description": "Get OGS key for user",
-        "keywords": [
-          "ogs key",
-          "get key",
-          "cache key"
-        ]
-      },
-      {
-        "endpoint": "/users/set-ogs-key",
-        "method": "POST",
-        "description": "Set OGS key for user",
-        "keywords": [
-          "ogs key",
-          "set key",
-          "cache key"
-        ]
-      }
-    ],
-    "userProfile": [
-      {
-        "endpoint": "/profile",
-        "method": "GET",
-        "description": "Get user profile",
-        "keywords": [
-          "user profile",
-          "profile",
-          "user details",
-          "profile info"
-        ]
-      },
-      {
-        "endpoint": "/profile/{userId}",
-        "method": "GET",
-        "description": "Get user profile by user ID",
-        "keywords": [
-          "user profile",
-          "profile by id",
-          "user details"
-        ]
-      },
-      {
-        "endpoint": "/profile",
-        "method": "PUT",
-        "description": "Update user profile",
-        "keywords": [
-          "update profile",
-          "edit profile",
-          "profile update"
-        ]
-      },
-      {
-        "endpoint": "/profile-update",
-        "method": "POST",
-        "description": "Update user profile information",
-        "keywords": [
-          "profile update",
-          "update profile",
-          "edit profile"
-        ]
-      },
-      {
-        "endpoint": "/user/profile/basics",
-        "method": "GET",
-        "description": "Get basic user profile information",
-        "keywords": [
-          "basic profile",
-          "profile basics",
-          "user basics"
-        ]
-      },
-      {
-        "endpoint": "/get-user-preferences",
-        "method": "GET",
-        "description": "Get user preferences",
-        "keywords": [
-          "user preferences",
-          "preferences",
-          "user settings"
-        ]
-      },
-      {
-        "endpoint": "/create-user-preferences",
-        "method": "POST",
-        "description": "Create user preferences",
-        "keywords": [
-          "create preferences",
-          "user preferences",
-          "preferences setup"
-        ]
-      },
-      {
-        "endpoint": "/user-login/update-name",
-        "method": "POST",
-        "description": "Update user name",
-        "keywords": [
-          "update name",
-          "change name",
-          "user name"
-        ]
-      }
-    ],
-    "userRank": [
-      {
-        "endpoint": "/user-rank/transition",
-        "method": "POST",
-        "description": "Transition user rank based on state machine",
-        "keywords": [
-          "user rank transition",
-          "rank transition",
-          "user rank change",
-          "state machine"
-        ]
-      },
-      {
-        "endpoint": "/user-rank/transition-event",
-        "method": "POST",
-        "description": "Trigger user rank transition event",
-        "keywords": [
-          "rank transition event",
-          "user rank event",
-          "transition event"
-        ]
-      },
-      {
-        "endpoint": "/user-rank/order-status",
-        "method": "POST",
-        "description": "Update user rank based on order status",
-        "keywords": [
-          "user rank by order",
-          "order status",
-          "rank update",
-          "order rank"
-        ]
-      },
-      {
-        "endpoint": "/update-user-rank",
-        "method": "POST",
-        "description": "Update user rank based on last order day",
-        "keywords": [
-          "update user rank",
-          "user rank update",
-          "rank change"
-        ]
-      },
-      {
-        "endpoint": "/user/{userId}/update-user-rank/{userRank}",
-        "method": "PUT",
-        "description": "Update user rank by user ID",
-        "keywords": [
-          "update rank",
-          "user rank",
-          "rank by id"
-        ]
-      },
-      {
-        "endpoint": "/user/{userId}/update-rank-normal",
-        "method": "PUT",
-        "description": "Update user rank to normal",
-        "keywords": [
-          "normal rank",
-          "update to normal",
-          "rank normal"
-        ]
-      },
-      {
-        "endpoint": "/user/update-rank-normal",
-        "method": "PUT",
-        "description": "Bulk update users to normal rank",
-        "keywords": [
-          "bulk normal rank",
-          "normal rank bulk",
-          "update rank normal"
-        ]
-      },
-      {
-        "endpoint": "/user/update-rank",
-        "method": "PUT",
-        "description": "Bulk update user ranks",
-        "keywords": [
-          "bulk rank update",
-          "update ranks",
-          "rank bulk update"
-        ]
-      },
-      {
-        "endpoint": "/user/force-new-user/update",
-        "method": "POST",
-        "description": "Force update new user rank",
-        "keywords": [
-          "force new user",
-          "new user rank",
-          "force rank update"
-        ]
-      },
-      {
-        "endpoint": "/normal-to-react",
-        "method": "POST",
-        "description": "Transition users from normal to react rank",
-        "keywords": [
-          "normal to react",
-          "rank transition",
-          "react rank"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank",
-        "method": "GET",
-        "description": "Get all user ranks",
-        "keywords": [
-          "user ranks",
-          "rank list",
-          "all ranks",
-          "rank configuration"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/",
-        "method": "POST",
-        "description": "Create new user rank",
-        "keywords": [
-          "create rank",
-          "new rank",
-          "rank creation"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/{id}",
-        "method": "GET",
-        "description": "Get user rank by ID",
-        "keywords": [
-          "get rank",
-          "rank by id",
-          "rank details"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/{id}",
-        "method": "PUT",
-        "description": "Update user rank",
-        "keywords": [
-          "update rank",
-          "edit rank",
-          "modify rank"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/upload/{userRank}",
-        "method": "POST",
-        "description": "Upload CSV to update users to specific rank",
-        "keywords": [
-          "csv upload",
-          "bulk rank update",
-          "rank csv",
-          "upload users"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/download/{rank}",
-        "method": "GET",
-        "description": "Download users by rank as CSV",
-        "keywords": [
-          "download csv",
-          "export users",
-          "rank export",
-          "csv download"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/{id}/transition-users/{nextState}",
-        "method": "PUT",
-        "description": "Transition users to next rank state",
-        "keywords": [
-          "transition users",
-          "bulk transition",
-          "rank transition bulk"
-        ]
-      },
-      {
-        "endpoint": "/panel/user-rank/cron",
-        "method": "POST",
-        "description": "Cron job to move expired user ranks",
-        "keywords": [
-          "rank cron",
-          "expired ranks",
-          "rank expiration",
-          "cron job"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/user-rank",
-        "method": "GET",
-        "description": "Get user ranks from state machine",
-        "keywords": [
-          "state machine ranks",
-          "user rank state machine",
-          "rank state machine"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-list",
-        "method": "GET",
-        "description": "Get list of user ranks",
-        "keywords": [
-          "rank list",
-          "user ranks",
-          "all ranks"
-        ]
-      },
-      {
-        "endpoint": "/slot-filter/user-ranks",
-        "method": "GET",
-        "description": "Get user ranks for slot filtering",
-        "keywords": [
-          "slot filter",
-          "ranks for slots",
-          "filter ranks"
-        ]
-      },
-      {
-        "endpoint": "/user-rank/new-user",
-        "method": "GET",
-        "description": "Get new user rank information",
-        "keywords": [
-          "new user rank",
-          "new user",
-          "rank new user"
-        ]
-      }
-    ],
-    "userLocation": [
-      {
-        "endpoint": "/user-location-details",
-        "method": "GET",
-        "description": "Get user location details",
-        "keywords": [
-          "user location",
-          "location details",
-          "user address",
-          "location info"
-        ]
-      },
-      {
-        "endpoint": "/update-user-location",
-        "method": "POST",
-        "description": "Update user location",
-        "keywords": [
-          "update location",
-          "location update",
-          "change location"
-        ]
-      },
-      {
-        "endpoint": "/pincode-update",
-        "method": "GET",
-        "description": "Update user pincode",
-        "keywords": [
-          "pincode update",
-          "update pincode",
-          "change pincode"
-        ]
-      },
-      {
-        "endpoint": "/pincode-servicable",
-        "method": "GET",
-        "description": "Check if pincode is serviceable",
-        "keywords": [
-          "pincode servicable",
-          "check pincode",
-          "pincode service",
-          "serviceable area"
-        ]
-      }
-    ],
-    "deviceManagement": [
-      {
-        "endpoint": "/device-info",
-        "method": "POST",
-        "description": "Save device information",
-        "keywords": [
-          "device info",
-          "save device",
-          "device details",
-          "device registration"
-        ]
-      },
-      {
-        "endpoint": "/validate-device",
-        "method": "GET",
-        "description": "Validate device",
-        "keywords": [
-          "validate device",
-          "device validation",
-          "check device"
-        ]
-      },
-      {
-        "endpoint": "/validated-device",
-        "method": "POST",
-        "description": "Mark device as validated",
-        "keywords": [
-          "validated device",
-          "device validation",
-          "device verified"
-        ]
-      }
-    ],
-    "referral": [
-      {
-        "endpoint": "/user/share/referral",
-        "method": "POST",
-        "description": "Share referral incentive plan",
-        "keywords": [
-          "referral",
-          "share referral",
-          "referral program",
-          "referral incentive"
-        ]
-      },
-      {
-        "endpoint": "/app-installs",
-        "method": "POST",
-        "description": "Save app installs and referral data",
-        "keywords": [
-          "app installs",
-          "referral install",
-          "install tracking",
-          "referral tracking"
-        ]
-      }
-    ],
-    "appsflyer": [
-      {
-        "endpoint": "/appsflyer-install-data",
-        "method": "POST",
-        "description": "Save AppsFlyer install data",
-        "keywords": [
-          "appsflyer install",
-          "install data",
-          "attribution",
-          "appsflyer"
-        ]
-      },
-      {
-        "endpoint": "/appsflyer-event-data",
-        "method": "POST",
-        "description": "Process AppsFlyer event data (signup, purchase, etc.)",
-        "keywords": [
-          "appsflyer event",
-          "event data",
-          "attribution event",
-          "appsflyer data"
-        ]
-      }
-    ],
-    "userDeactivation": [
-      {
-        "endpoint": "/user/deactivate-account",
-        "method": "POST",
-        "description": "Deactivate user account",
-        "keywords": [
-          "deactivate account",
-          "account deactivation",
-          "deactivate user",
-          "user deactivation"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation-allowed",
-        "method": "POST",
-        "description": "Check if deactivation is allowed",
-        "keywords": [
-          "deactivation allowed",
-          "check deactivation",
-          "can deactivate"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation-next-action",
-        "method": "POST",
-        "description": "Get next action for deactivation",
-        "keywords": [
-          "deactivation next action",
-          "deactivation flow",
-          "next step"
-        ]
-      },
-      {
-        "endpoint": "/user/reactivate",
-        "method": "POST",
-        "description": "Reactivate user account",
-        "keywords": [
-          "reactivate",
-          "user reactivation",
-          "reactivate account",
-          "account reactivation"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation/change-status",
-        "method": "POST",
-        "description": "Change deactivation status",
-        "keywords": [
-          "deactivation status",
-          "change status",
-          "update deactivation status"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation/cancel-request",
-        "method": "POST",
-        "description": "Cancel deactivation request",
-        "keywords": [
-          "cancel deactivation",
-          "deactivation cancel",
-          "cancel request"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation/details",
-        "method": "POST",
-        "description": "Get deactivation details",
-        "keywords": [
-          "deactivation details",
-          "deactivation info",
-          "deactivation data"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation/complete-deactivation",
-        "method": "GET",
-        "description": "Complete user deactivation",
-        "keywords": [
-          "complete deactivation",
-          "finish deactivation",
-          "deactivation complete"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation/backfill-deactivations",
-        "method": "GET",
-        "description": "Backfill deactivation data",
-        "keywords": [
-          "backfill deactivation",
-          "deactivation backfill",
-          "migrate deactivation"
-        ]
-      },
-      {
-        "endpoint": "/user/deactivation/deactivation-event",
-        "method": "POST",
-        "description": "Process deactivation event",
-        "keywords": [
-          "deactivation event",
-          "event processing",
-          "deactivation webhook"
-        ]
-      }
-    ],
-    "gst": [
-      {
-        "endpoint": "/gst/check-gst-details",
-        "method": "GET",
-        "description": "Check GST details for user",
-        "keywords": [
-          "gst details",
-          "check gst",
-          "gst info",
-          "gst verification"
-        ]
-      },
-      {
-        "endpoint": "/gst/create_usergst",
-        "method": "POST",
-        "description": "Create user GST",
-        "keywords": [
-          "create gst",
-          "gst creation",
-          "user gst",
-          "add gst"
-        ]
-      },
-      {
-        "endpoint": "/gst/upload_doc",
-        "method": "POST",
-        "description": "Upload GST document",
-        "keywords": [
-          "gst upload",
-          "upload document",
-          "gst doc",
-          "document upload"
-        ]
-      },
-      {
-        "endpoint": "/gst/save_gst_detail",
-        "method": "POST",
-        "description": "Save GST details",
-        "keywords": [
-          "save gst",
-          "gst details",
-          "store gst",
-          "gst info"
-        ]
-      },
-      {
-        "endpoint": "/gst/gst_uploaded_doc_list",
-        "method": "GET",
-        "description": "Get list of uploaded GST documents",
-        "keywords": [
-          "gst documents",
-          "doc list",
-          "uploaded docs",
-          "gst doc list"
-        ]
-      },
-      {
-        "endpoint": "/gst/gst_doc_action/{docId}",
-        "method": "PUT",
-        "description": "Perform action on GST document",
-        "keywords": [
-          "gst doc action",
-          "document action",
-          "gst doc update",
-          "doc status"
-        ]
-      },
-      {
-        "endpoint": "/gst/gst_doctype",
-        "method": "GET",
-        "description": "Get GST document types",
-        "keywords": [
-          "gst doc type",
-          "document types",
-          "gst types"
-        ]
-      },
-      {
-        "endpoint": "/gst/update-tds",
-        "method": "POST",
-        "description": "Update TDS information",
-        "keywords": [
-          "tds update",
-          "update tds",
-          "tds information"
-        ]
-      },
-      {
-        "endpoint": "/gst/add-pan-number",
-        "method": "GET",
-        "description": "Add PAN number",
-        "keywords": [
-          "pan number",
-          "add pan",
-          "pan info"
-        ]
-      },
-      {
-        "endpoint": "/gst/verified-doc",
-        "method": "GET",
-        "description": "Get verified documents",
-        "keywords": [
-          "verified doc",
-          "verified documents",
-          "doc verification"
-        ]
-      },
-      {
-        "endpoint": "/gst/report",
-        "method": "GET",
-        "description": "Get GST report",
-        "keywords": [
-          "gst report",
-          "report",
-          "gst data report"
-        ]
-      },
-      {
-        "endpoint": "/gst/mark-doc-expire",
-        "method": "GET",
-        "description": "Mark document as expired",
-        "keywords": [
-          "expire doc",
-          "document expiry",
-          "mark expired"
-        ]
-      },
-      {
-        "endpoint": "/add-gst",
-        "method": "POST",
-        "description": "Add GST to user",
-        "keywords": [
-          "add gst",
-          "gst add",
-          "create gst"
-        ]
-      },
-      {
-        "endpoint": "/validate-gst",
-        "method": "GET",
-        "description": "Validate GST number",
-        "keywords": [
-          "validate gst",
-          "gst validation",
-          "gst verify"
-        ]
-      }
-    ],
-    "payment": [
-      {
-        "endpoint": "/payment-details",
-        "method": "POST",
-        "description": "Save payment details",
-        "keywords": [
-          "payment details",
-          "save payment",
-          "payment info",
-          "payment account"
-        ]
-      },
-      {
-        "endpoint": "/payment-details/{userId}",
-        "method": "GET",
-        "description": "Get payment details by user ID",
-        "keywords": [
-          "payment details",
-          "get payment",
-          "payment info",
-          "payment account"
-        ]
-      }
-    ],
-    "language": [
-      {
-        "endpoint": "/language-list",
-        "method": "GET",
-        "description": "Get list of supported languages",
-        "keywords": [
-          "language list",
-          "languages",
-          "supported languages",
-          "language options"
-        ]
-      },
-      {
-        "endpoint": "/language-update",
-        "method": "GET",
-        "description": "Update user language preference",
-        "keywords": [
-          "language update",
-          "update language",
-          "language preference",
-          "change language"
-        ]
-      }
-    ],
-    "userConfig": [
-      {
-        "endpoint": "/user/config/{authKey}",
-        "method": "GET",
-        "description": "Get user configuration by auth key",
-        "keywords": [
-          "user config",
-          "configuration",
-          "user settings",
-          "config"
-        ]
-      },
-      {
-        "endpoint": "/user/config/{authKey}/{deviceId}",
-        "method": "GET",
-        "description": "Get user configuration by auth key and device ID",
-        "keywords": [
-          "user config",
-          "configuration",
-          "device config",
-          "user device config"
-        ]
-      }
-    ],
-    "password": [
-      {
-        "endpoint": "/users/change-password",
-        "method": "POST",
-        "description": "Change user password",
-        "keywords": [
-          "change password",
-          "password change",
-          "update password",
-          "modify password"
-        ]
-      },
-      {
-        "endpoint": "/users/forgot-password",
-        "method": "POST",
-        "description": "Forgot password request",
-        "keywords": [
-          "forgot password",
-          "password reset",
-          "reset password",
-          "password recovery"
-        ]
-      }
-    ],
-    "role": [
-      {
-        "endpoint": "/users/role",
-        "method": "POST",
-        "description": "Add user role",
-        "keywords": [
-          "add role",
-          "create role",
-          "user role",
-          "role management"
-        ]
-      },
-      {
-        "endpoint": "/users/role/edit",
-        "method": "POST",
-        "description": "Edit user role",
-        "keywords": [
-          "edit role",
-          "update role",
-          "modify role",
-          "role edit"
-        ]
-      },
-      {
-        "endpoint": "/users/role/all",
-        "method": "GET",
-        "description": "Get all roles",
-        "keywords": [
-          "all roles",
-          "role list",
-          "roles",
-          "get roles"
-        ]
-      }
-    ],
-    "miscellaneous": [
-      {
-        "endpoint": "/users/shipment-detail",
-        "method": "GET",
-        "description": "Get user shipment details",
-        "keywords": [
-          "shipment detail",
-          "shipment info",
-          "delivery info",
-          "shipping"
-        ]
-      },
-      {
-        "endpoint": "/users/is-ogs",
-        "method": "GET",
-        "description": "Check if user is OGS",
-        "keywords": [
-          "ogs user",
-          "is ogs",
-          "ogs check",
-          "ogs status"
-        ]
-      },
-      {
-        "endpoint": "/users/register-user",
-        "method": "GET",
-        "description": "Register user status",
-        "keywords": [
-          "register user",
-          "user status",
-          "registration status"
-        ]
-      },
-      {
-        "endpoint": "/users/id/{userId}",
-        "method": "GET",
-        "description": "Get user details by ID",
-        "keywords": [
-          "user by id",
-          "user details",
-          "get user"
-        ]
-      },
-      {
-        "endpoint": "/singular-data",
-        "method": "POST",
-        "description": "Save singular data",
-        "keywords": [
-          "singular data",
-          "third party data",
-          "analytics data"
-        ]
-      },
-      {
-        "endpoint": "/new-user-details",
-        "method": "GET",
-        "description": "Get new user details",
-        "keywords": [
-          "new user",
-          "new user details",
-          "onboarding"
-        ]
-      },
-      {
-        "endpoint": "/user-type/sync-clevertap",
-        "method": "POST",
-        "description": "Sync user type to CleverTap",
-        "keywords": [
-          "clevertap sync",
-          "user type sync",
-          "sync clevertap"
-        ]
-      },
-      {
-        "endpoint": "/user-type-new/sync-clevertap",
-        "method": "POST",
-        "description": "Sync new user type to CleverTap",
-        "keywords": [
-          "clevertap sync",
-          "new user type",
-          "sync clevertap"
-        ]
-      },
-      {
-        "endpoint": "/get-user-discount-routing-key",
-        "method": "GET",
-        "description": "Get user discount routing key",
-        "keywords": [
-          "discount routing",
-          "routing key",
-          "user routing"
-        ]
-      },
-      {
-        "endpoint": "/update-user-discount-routing-key",
-        "method": "PUT",
-        "description": "Update user discount routing key",
-        "keywords": [
-          "update routing key",
-          "discount routing",
-          "routing key update"
-        ]
-      },
-      {
-        "endpoint": "/user-info",
-        "method": "GET",
-        "description": "Get user information",
-        "keywords": [
-          "user info",
-          "user information",
-          "user data"
-        ]
-      },
-      {
-        "endpoint": "/rashifal",
-        "method": "GET",
-        "description": "Get rashifal (horoscope) information",
-        "keywords": [
-          "rashifal",
-          "horoscope",
-          "astrology"
-        ]
-      },
-      {
-        "endpoint": "/nakshatra",
-        "method": "GET",
-        "description": "Get nakshatra information",
-        "keywords": [
-          "nakshatra",
-          "star",
-          "astrology"
-        ]
-      },
-      {
-        "endpoint": "/tapri",
-        "method": "POST",
-        "description": "Create tapri",
-        "keywords": [
-          "tapri",
-          "tapri creation",
-          "create tapri"
-        ]
-      },
-      {
-        "endpoint": "/warehouse/{warehouseId}",
-        "method": "GET",
-        "description": "Get warehouse information",
-        "keywords": [
-          "warehouse",
-          "warehouse info",
-          "get warehouse"
-        ]
-      },
-      {
-        "endpoint": "/rate-limit/get-rate-limits",
-        "method": "GET",
-        "description": "Get rate limits",
-        "keywords": [
-          "rate limit",
-          "rate limits",
-          "get rate limits"
-        ]
-      },
-      {
-        "endpoint": "/rate-limit/refresh-rate-limits",
-        "method": "POST",
-        "description": "Refresh rate limits",
-        "keywords": [
-          "refresh rate limits",
-          "rate limit refresh",
-          "reload rate limits"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine",
-        "method": "GET",
-        "description": "Get user rank state machine",
-        "keywords": [
-          "state machine",
-          "user rank state machine",
-          "rank state machine"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine",
-        "method": "POST",
-        "description": "Create user rank state machine",
-        "keywords": [
-          "create state machine",
-          "state machine creation"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine",
-        "method": "PUT",
-        "description": "Update user rank state machine",
-        "keywords": [
-          "update state machine",
-          "state machine update"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/event",
-        "method": "GET",
-        "description": "Get state machine events",
-        "keywords": [
-          "state machine events",
-          "events",
-          "rank events"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/event",
-        "method": "POST",
-        "description": "Create state machine event",
-        "keywords": [
-          "create event",
-          "state machine event",
-          "event creation"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/event",
-        "method": "PUT",
-        "description": "Update state machine event",
-        "keywords": [
-          "update event",
-          "event update",
-          "modify event"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/get-next-rank",
-        "method": "POST",
-        "description": "Get next rank from state machine",
-        "keywords": [
-          "next rank",
-          "get next rank",
-          "rank transition"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/user-rank-details",
-        "method": "GET",
-        "description": "Get user rank details from state machine",
-        "keywords": [
-          "rank details",
-          "user rank details",
-          "state machine rank"
-        ]
-      },
-      {
-        "endpoint": "/user-rank-state-machine/user-rank",
-        "method": "GET",
-        "description": "Get user rank from state machine",
-        "keywords": [
-          "user rank",
-          "get rank",
-          "state machine rank"
-        ]
-      }
-    ]
-  }
-}
-
 
 🟦 SERVICE: inventory-service
 
 ------------------------------------------------------------
 
-📄 Section: technicalKeywords
+📄 Section: parent
 {
-  "technicalKeywords": [
-    "spring boot",
-    "java 8",
-    "spring data jpa",
-    "hibernate",
-    "mysql",
-    "mongodb",
-    "redis",
-    "redisson",
-    "kafka",
-    "aws sqs",
-    "feign client",
-    "rest api",
-    "swagger",
-    "openapi",
-    "spring security",
-    "async processing",
-    "transaction management",
-    "master slave database",
-    "read write split",
-    "datadog metrics",
-    "micrometer",
-    "logback",
-    "logstash",
-    "spring cloud sleuth",
-    "distributed tracing",
-    "resilience4j",
-    "circuit breaker",
-    "actuator",
-    "lombok",
-    "jackson",
-    "object mapper",
-    "validation",
-    "bean validation",
-    "exception handling",
-    "idempotent log",
-    "version control",
-    "optimistic locking",
-    "batch processing",
-    "scheduled tasks",
-    "multipart file",
-    "csv parser",
-    "excel parser",
-    "poiji",
-    "opencsv",
-    "guava",
-    "elasticsearch"
-  ]
+  "serviceName": "inventory-service",
+  "serviceId": "inventory-service",
+  "version": "0.0.1-SNAPSHOT",
+  "description": "Core inventory management service responsible for tracking, updating, and synchronizing warehouse-SKU inventory across multiple systems including IMS (Inventory Management System) and OMS (Order Management System). Handles inventory operations, cart validation, reconciliation, passbook management, and real-time inventory synchronization."
 }
 
 
@@ -1648,11 +37,285 @@ Question: how does user logs in?
 }
 
 
-📄 Section: parent
+📄 Section: functionalDescriptions
 {
-  "serviceName": "inventory-service",
-  "serviceId": "inventory-service",
-  "version": "0.0.1-SNAPSHOT",
-  "description": "Core inventory management service responsible for tracking, updating, and synchronizing warehouse-SKU inventory across multiple systems including IMS (Inventory Management System) and OMS (Order Management System). Handles inventory operations, cart validation, reconciliation, passbook management, and real-time inventory synchronization."
+  "functionalDescriptions": [
+    "Manages warehouse-SKU inventory with real-time tracking of available, sold, intransit, hold, damage, and virtual inventory quantities",
+    "Provides cart and order validation to check inventory availability before order placement",
+    "Synchronizes inventory data with IMS (Inventory Management System) for STN, GRN, RTV, RVP, cycle count, and reconciliation operations",
+    "Synchronizes inventory updates with OMS (Order Management System) for order processing and fulfillment",
+    "Maintains inventory passbook for audit trail and reconciliation of all inventory transactions",
+    "Handles inward inventory operations including single, multi, and bulk file uploads (CSV/Excel)",
+    "Manages inventory configuration including category-level and SKU-warehouse level minimum quantity settings",
+    "Tracks deal and offer expiry status and updates inventory accordingly",
+    "Provides inventory mismatch reporting and correction capabilities",
+    "Implements Redis-based caching for high-performance inventory lookups with warehouse-level cache control",
+    "Supports multiple warehouse types: Spoke, Super Spoke, Hub, Mega Spoke, Marketplace, B2B, B2C",
+    "Handles inventory hold operations for STN (Stock Transfer Note) processing",
+    "Manages loose inventory conversion and non-sellable inventory tracking",
+    "Provides idempotency support for inventory update operations to prevent duplicate processing",
+    "Implements compensation and reverse update mechanisms for failure recovery",
+    "Tracks inventory history and provides audit capabilities",
+    "Manages user-warehouse mappings for access control",
+    "Supports async processing via SQS and Kafka for high-throughput inventory operations",
+    "Provides inventory verification and cache validation utilities",
+    "Handles invoice attachment and status management for inventory passbook entries"
+  ]
+}
+
+
+📄 Section: functionalKeywords
+{
+  "functionalKeywords": [
+    "inventory management",
+    "warehouse inventory",
+    "sku inventory",
+    "inventory tracking",
+    "inventory update",
+    "inventory sync",
+    "inventory reconciliation",
+    "inventory passbook",
+    "cart validation",
+    "order validation",
+    "inventory count",
+    "available inventory",
+    "sold inventory",
+    "virtual inventory",
+    "intransit inventory",
+    "hold inventory",
+    "damage inventory",
+    "loose inventory",
+    "inward inventory",
+    "outward inventory",
+    "inventory mismatch",
+    "inventory correction",
+    "warehouse sku inventory",
+    "multi warehouse inventory",
+    "inventory configuration",
+    "min quantity",
+    "category inventory",
+    "deal expiry",
+    "offer expiry",
+    "inventory expiry",
+    "stn sync",
+    "grn sync",
+    "rtv sync",
+    "rvp sync",
+    "cycle count",
+    "external order dispatch",
+    "recon sync",
+    "damage sync",
+    "oms inventory",
+    "ims inventory",
+    "inventory center",
+    "inventory history",
+    "inventory passbook",
+    "passbook entry",
+    "invoice details",
+    "buying price",
+    "warehouse type",
+    "spoke warehouse",
+    "hub warehouse",
+    "super spoke",
+    "mega spoke",
+    "b2b inventory",
+    "b2c inventory",
+    "marketplace inventory",
+    "restrict parent order",
+    "idempotency",
+    "compensate failure",
+    "reverse update",
+    "revert inventory",
+    "inventory cache",
+    "cache flush",
+    "warehouse cache",
+    "inventory verification",
+    "bulk inventory update",
+    "file upload inventory",
+    "excel inventory",
+    "csv inventory"
+  ]
+}
+
+
+📄 Section: apiEndpoints
+{
+  "apiEndpoints": [
+    "/inventory/get-sku-count",
+    "/inventory/get-sku-inventory-detail",
+    "/inventory/order-create/get-sku-detail",
+    "/inventory/insert",
+    "/inventory/update",
+    "/inventory/update-sold",
+    "/inventory/cancel-update",
+    "/inventory/compensate-failure",
+    "/inventory/get-sku-detail",
+    "/inventory/enable-warehouse-cache",
+    "/inventory/enable-warehouse-cache-bulk",
+    "/inventory/cart-validation",
+    "/inventory/order-validation",
+    "/inventory/verify-cache",
+    "/inventory/compensate-sync",
+    "/inventory/get-inv",
+    "/inventory/get-sku-inventory",
+    "/inventory/get-sku-inv",
+    "/inventory/config/category-min-qty",
+    "/inventory/config/sku-warehouse/min-qty",
+    "/inventory/config/sku-warehouse/file",
+    "/inventory/config/download-template",
+    "/inventory/multi-sku-inventory",
+    "/inventory/warehouse-sku-inventory",
+    "/inventory/sku-inventory-list",
+    "/inventory/inward-inventory",
+    "/inventory/inward-inventory-multi",
+    "/inventory/inward-inventory-bulk",
+    "/inventory/inward-inventory-revert",
+    "/inventory/update-inventory",
+    "/inventory/revert-update-inventory",
+    "/inventory/warehouses-sku-inventory",
+    "/inventory/ims-history",
+    "/inventory/validation",
+    "/inventory/inventory-mismatch-report",
+    "/inventory/inventorySold",
+    "/sync/passbook",
+    "/sync/save-passbook-entry",
+    "/sync/save-passbook-entries",
+    "/sync/recon",
+    "/sync/damage",
+    "/sync/external-order-dispatch",
+    "/sync/grn",
+    "/sync/stn",
+    "/sync/rvp",
+    "/sync/rtv",
+    "/sync/cycle-count",
+    "/sync/stn-hold-inventory",
+    "/sync/compensate-stn-hold-inventory",
+    "/sync/oms-update",
+    "/sync/oms-revert-update",
+    "/sync/warehouse-sku-inventory",
+    "/sync/reset-min-qty",
+    "/warehouse/{id}",
+    "/user-warehouses",
+    "/utility/enable-verify-reset",
+    "/utility/flush-cache",
+    "/utility/expire-offer",
+    "/utility/index-active-deals",
+    "/inventory-passbook/passbook",
+    "/inventory-passbook/attach-invoice-details",
+    "/inventory-passbook/update-pending-invoices-scheduled",
+    "/inventory-passbook/update-failed-invoices-scheduled",
+    "/inventory-passbook/attach-invoice-details-scheduled",
+    "/inventory-passbook/old-entries"
+  ]
+}
+
+
+📄 Section: messageQueues
+{
+  "messageQueues": [
+    "sqs-sync-queue",
+    "kafka-inventory-updates",
+    "kafka-deal-expiry"
+  ]
+}
+
+
+🟦 SERVICE: payment-service
+
+------------------------------------------------------------
+
+📄 Section: description
+{
+  "description": {
+    "functional": "The Payment Service is a comprehensive microservice responsible for managing the entire payment lifecycle in an e-commerce platform. It handles payment initiation, processing, verification, and refunds across multiple payment gateways (Razorpay, Paytm, Juspay) and payment methods (UPI, Cards, Wallets, Net Banking, COD, BNPL). The service integrates with cart and order services to process payments for customer orders, manages delivery fee calculations and refunds, and provides payment method configuration and caching. It supports complex refund workflows including order cancellation refunds, late payment refunds, and partial refunds with approval mechanisms. The service also handles payment gateway webhooks, batch processing for refunds, scheduled jobs for payment reconciliation, and provides dashboard APIs for customer support representatives to manage payments and refunds.",
+    "technical": "Built on Spring Boot 2.1.4 with Java 11, the Payment Service follows a microservices architecture with RESTful APIs (versioned V1-V5). It uses JPA/Hibernate for data persistence with MySQL database, implementing BigDecimal for precise monetary calculations. The service employs design patterns including Strategy Pattern for payment processors (AuthorizedPaymentProcessor, CapturedPaymentProcessor, PaidOrderProcessor) and Factory Pattern for payment method services (CardPaymentMethodService, UPIIDPaymentMethodService, WalletPaymentMethodService). It integrates with external services via Feign clients (CartService, OrderService, UserService, DeliveryService, ChatService) and uses Kafka for asynchronous event processing. The service implements caching with Redis and Caffeine for payment methods and static data, uses Spring Batch for batch refund processing, and includes schedulers for background tasks. It supports multiple payment gateways through adapter pattern, handles webhook callbacks, implements retry mechanisms for failed operations, and provides comprehensive error handling and validation. The service uses JWT authentication, implements role-based access control for refund operations, and includes monitoring with New Relic, Datadog, and Elastic APM."
+  }
+}
+
+
+📄 Section: batchJobs
+{
+  "batchJobs": [
+    "AddDeliveryFee",
+    "OrderEntityProcessor",
+    "PaymentRefundWriter"
+  ]
+}
+
+
+📄 Section: relatedServices
+{
+  "relatedServices": {
+    "cart-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Cart information retrieval",
+        "Delivery fee calculation",
+        "Cart order mapping",
+        "Centralized delivery fee check",
+        "Delivery fee collection update"
+      ]
+    },
+    "order-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Order status updates",
+        "Order details retrieval",
+        "Order placement"
+      ]
+    },
+    "user-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "User information retrieval",
+        "User preferences",
+        "User addresses"
+      ]
+    },
+    "delivery-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Delivery system callbacks",
+        "Delivery fee updates"
+      ]
+    },
+    "chat-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Email notifications",
+        "SMS communications",
+        "Order update events"
+      ]
+    },
+    "ingestion-service": {
+      "integration": "Kafka Events",
+      "operations": [
+        "Third-party event tracking (AppsFlyer, CleverTap)",
+        "Cart refund events",
+        "Payment events"
+      ]
+    },
+    "static-data-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Static payment method data",
+        "Bank information",
+        "Payment icons"
+      ]
+    },
+    "scheme-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Payment schemes",
+        "Offers"
+      ]
+    },
+    "dsd-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "DSD related operations"
+      ]
+    }
+  }
 }
 
