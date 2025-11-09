@@ -132,4 +132,9 @@ if __name__ == "__main__":
             "db_name": "chat-service"
         }
     ]
-    index_multiple_repos(repo_configs)
+    index_repo(
+        repo_url="https://github.com/VishnuSBhatDS/payment-service.git",
+        branch="master",
+        db_name="payment-service",
+        base_chroma_path="./chroma_dbs"
+    )

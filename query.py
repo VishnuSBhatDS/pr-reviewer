@@ -141,5 +141,5 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
 
 # === Example usage ===
 if __name__ == "__main__":
-    question = "how do we sync minimart orders ?"
+    question = "what is Decentralized  and centralized delivery fee?"
     query_codebase_context(question)

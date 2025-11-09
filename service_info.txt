@@ -1,0 +1,1488 @@
+Question: how exactly does cart service proceeds to payment?
+
+================================================================================
+
+🟦 SERVICE: cart-service
+
+------------------------------------------------------------
+
+📄 Section: descriptions
+{
+  "descriptions": {
+    "functional": "Cart Service is a comprehensive microservice responsible for managing the entire shopping cart and order lifecycle in an e-commerce platform. It handles cart operations (add, update, remove products), order creation and placement, payment processing integration, fee calculations (delivery fees, cart fees, shipment fees), discount and promotion management, address management, order cancellation and refunds, inventory validation, ETA calculations, and order tracking. The service supports both B2C and B2B order flows, handles multiple payment methods including COD and online payments (Paytm), manages cart-level and shipment-level fee configurations, processes wallet refunds and credits, and provides comprehensive order management capabilities including bulk operations.",
+    "technical": "Cart Service is a Spring Boot 2.2.6 microservice built with Java 8, using MySQL for persistent storage and Redis for caching. It implements RESTful APIs with multiple controller versions (CartController, CartControllerV2, CartControllerV3, CartControllerV4) and service layers (CartService, CartServiceV2, CartServiceV3, CartServiceV4). The service integrates with numerous external services via Feign clients including Payment Service (for payment processing, payment methods, refunds), Discount Service (for discount application and reversion), Pricing Service, Inventory Service, User Service, Location Service, Logistic Service, Recommendation Service, Chat Service, and others. It uses Kafka for asynchronous messaging, implements resilience patterns (circuit breakers, bulkheads, rate limiters) via Resilience4j, employs optimistic locking for cart concurrency control, uses MapStruct for object mapping, and supports async processing and scheduled tasks. The service follows a layered architecture with entities (Cart, Order, PaymentEntity, CartDetails, etc.), repositories, services, controllers, DTOs, and models, and implements comprehensive transaction management for order creation and updates.",
+    "paymentIntegration": "Cart Service integrates closely with Payment Service for payment processing workflows. It calls Payment Service to fetch payment details for carts, retrieve saved payment methods, update refund amounts for cancellations, and process bulk refund updates. The service handles payment type selection (COD, Paytm, online payments), manages payment status during order creation, stores payment-related information in PaymentEntity, and coordinates payment flows during checkout. When users proceed to checkout, Cart Service validates the cart, computes fees, and then integrates with Payment Service to handle payment method selection and payment processing. For order cancellations, it coordinates with Payment Service to process refunds and update payment statuses accordingly.",
+    "summary": "Cart Service is a Spring Boot microservice managing shopping cart and order lifecycle operations. It handles cart operations (add/update/remove products), order creation and placement, payment processing integration with Payment Service (COD, Paytm, online payments), fee calculations (delivery fees, cart fees, shipment fees), discount and promotion management, address management, order cancellation and refunds, inventory validation, ETA calculations, and order tracking. The service integrates with Payment Service for payment processing, payment methods retrieval, refund processing, and payment status management. It uses MySQL for persistence, Redis for caching, Kafka for messaging, and implements resilience patterns via Resilience4j. Key entities include Cart, Order, PaymentEntity, CartDetails, CartFees. Main APIs: /v1/cart/*, /v2/cart/*, /v1/user/{phone}/carts, /v1/myorder/{phone}, /v1/cancel, /v1/order/*, /v1/cart-config/*, /v1/fees/*. Payment integration: calls Payment Service for payment details, saved payment methods, refund updates, and coordinates payment flows during checkout and order cancellation."
+  }
+}
+
+
+📄 Section: paymentServiceIntegration
+{
+  "paymentServiceIntegration": {
+    "description": "Cart Service has critical integration with Payment Service for payment-related operations",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/v5/payment/payment-details",
+        "description": "Fetches payment details for carts",
+        "parameters": [
+          "cartId",
+          "userId"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/v4/payment/methods/cache",
+        "description": "Retrieves saved payment methods from cache",
+        "parameters": [
+          "userId"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v5/payment/methods/cache",
+        "description": "Retrieves saved payment methods from cache (v2)",
+        "parameters": [
+          "SavedPaymentMethodsCacheRequestModel"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v5/payment/methods/v2/cache",
+        "description": "Retrieves saved payment methods cache response",
+        "parameters": [
+          "SavedPaymentMethodsCacheRequestModel"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v1/refund/doorstep-cancellation-refund-update",
+        "description": "Updates refund amounts for doorstep cancellations",
+        "parameters": [
+          "RefundAmountPaymentsUpdateModel",
+          "username",
+          "password"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v1/payment/refund-update",
+        "description": "Processes bulk refund updates",
+        "parameters": [
+          "BulkRefundUpdateRequest"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/v1/panel/user/refunded/amount",
+        "description": "Gets user refunded value",
+        "parameters": [
+          "user_name"
+        ]
+      }
+    ],
+    "paymentFlows": [
+      {
+        "flow": "checkout",
+        "steps": [
+          "cart validation",
+          "fee calculation",
+          "payment method selection",
+          "payment processing"
+        ]
+      },
+      {
+        "flow": "order_cancellation",
+        "steps": [
+          "order cancellation request",
+          "refund calculation",
+          "coordinate with Payment Service for refund processing",
+          "update payment status"
+        ]
+      },
+      {
+        "flow": "order_creation",
+        "steps": [
+          "payment type selection (COD, Paytm, online payments)",
+          "payment status management",
+          "payment entity storage"
+        ]
+      }
+    ],
+    "paymentTypes": [
+      "COD",
+      "Paytm",
+      "online payment"
+    ],
+    "paymentEntities": [
+      "PaymentEntity",
+      "PaymentInitiate"
+    ]
+  }
+}
+
+
+📄 Section: parent
+{
+  "serviceName": "cart-service",
+  "serviceId": "cart-service",
+  "version": "0.0.1-SNAPSHOT",
+  "domain": "e-commerce",
+  "businessDomain": "grocery marketplace",
+  "organization": "dealshare",
+  "indexingPriority": "high",
+  "paymentRelevance": "very_high",
+  "lastUpdated": "2024-01-01"
+}
+
+
+📄 Section: keywords
+{
+  "keywords": {
+    "primary": [
+      "cart",
+      "shopping cart",
+      "add to cart",
+      "cart management",
+      "order creation",
+      "place order",
+      "checkout",
+      "cart checkout",
+      "order placement",
+      "create order",
+      "order management",
+      "my orders",
+      "order cancellation",
+      "cancel order",
+      "order refund",
+      "wallet refund",
+      "payment processing",
+      "payment methods",
+      "payment details",
+      "saved payment methods",
+      "COD",
+      "Cash on Delivery",
+      "Paytm payment",
+      "online payment",
+      "payment gateway",
+      "payment status",
+      "refund processing",
+      "delivery fee",
+      "cart fees",
+      "shipment fees",
+      "fee calculation",
+      "cart config",
+      "delivery fee calculation",
+      "express delivery",
+      "cart validation",
+      "cart snapshot",
+      "user cart",
+      "cart items",
+      "cart operations"
+    ],
+    "secondary": [
+      "discount application",
+      "discount revert",
+      "promotion",
+      "coupon",
+      "cart discount",
+      "order discount",
+      "pricing",
+      "inventory check",
+      "stock validation",
+      "address management",
+      "user address",
+      "delivery address",
+      "ETA calculation",
+      "store ETA",
+      "delivery ETA",
+      "location service",
+      "warehouse",
+      "spoke warehouse",
+      "order tracking",
+      "order status",
+      "order history",
+      "order details",
+      "cart order mapping",
+      "quick checkout",
+      "minimart",
+      "B2B orders",
+      "B2C orders",
+      "user preferences",
+      "cart recommendation",
+      "cart addons",
+      "customer points",
+      "wallet credits",
+      "order sync",
+      "bulk operations",
+      "rate limiting",
+      "cart cache",
+      "Redis cache",
+      "cart status",
+      "active cart",
+      "abandoned cart"
+    ],
+    "technical": [
+      "Spring Boot",
+      "REST API",
+      "Feign client",
+      "microservice",
+      "MySQL",
+      "JPA",
+      "Redis",
+      "Kafka",
+      "circuit breaker",
+      "bulkhead",
+      "rate limiter",
+      "resilience4j",
+      "optimistic locking",
+      "cart entity",
+      "order entity",
+      "payment entity",
+      "cart repository",
+      "cart service",
+      "order service",
+      "payment service client",
+      "discount service client",
+      "pricing service client",
+      "inventory service client",
+      "user service client",
+      "location service client",
+      "logistic service client",
+      "recommendation service client",
+      "chat service client",
+      "gateway service",
+      "cart controller",
+      "order controller",
+      "user cart controller",
+      "cart service v2",
+      "cart service v3",
+      "cart service v4",
+      "create order service",
+      "my order service",
+      "user cart service",
+      "delivery fee service",
+      "fees service",
+      "discount service",
+      "pricing service",
+      "inventory service",
+      "product aggregator service",
+      "MapStruct",
+      "Lombok",
+      "transaction management",
+      "async processing",
+      "scheduled tasks"
+    ],
+    "domainSpecific": [
+      "dealshare",
+      "e-commerce",
+      "grocery",
+      "marketplace",
+      "order fulfillment",
+      "order lifecycle",
+      "cart lifecycle",
+      "payment flow",
+      "checkout flow",
+      "order placement flow",
+      "cancellation flow",
+      "refund flow",
+      "delivery fee centralization",
+      "cart level delivery fee",
+      "shipment level fees",
+      "cart config benefits",
+      "user cart config benefits",
+      "NRO orders",
+      "doorstep delivery",
+      "express delivery fee",
+      "minimum order value",
+      "MOV",
+      "cart discount breach",
+      "false cancellation",
+      "order status confirmation",
+      "order review",
+      "user review form",
+      "AppsFlyer integration",
+      "singular integration"
+    ],
+    "all": [
+      "cart",
+      "shopping cart",
+      "add to cart",
+      "cart management",
+      "order creation",
+      "place order",
+      "checkout",
+      "cart checkout",
+      "order placement",
+      "create order",
+      "order management",
+      "my orders",
+      "order cancellation",
+      "cancel order",
+      "order refund",
+      "wallet refund",
+      "payment processing",
+      "payment methods",
+      "payment details",
+      "saved payment methods",
+      "COD",
+      "Cash on Delivery",
+      "Paytm payment",
+      "online payment",
+      "payment gateway",
+      "payment status",
+      "refund processing",
+      "delivery fee",
+      "cart fees",
+      "shipment fees",
+      "fee calculation",
+      "cart config",
+      "delivery fee calculation",
+      "express delivery",
+      "cart validation",
+      "cart snapshot",
+      "user cart",
+      "cart items",
+      "cart operations",
+      "discount application",
+      "discount revert",
+      "promotion",
+      "coupon",
+      "cart discount",
+      "order discount",
+      "pricing",
+      "inventory check",
+      "stock validation",
+      "address management",
+      "user address",
+      "delivery address",
+      "ETA calculation",
+      "store ETA",
+      "delivery ETA",
+      "location service",
+      "warehouse",
+      "spoke warehouse",
+      "order tracking",
+      "order status",
+      "order history",
+      "order details",
+      "cart order mapping",
+      "quick checkout",
+      "minimart",
+      "B2B orders",
+      "B2C orders",
+      "user preferences",
+      "cart recommendation",
+      "cart addons",
+      "customer points",
+      "wallet credits",
+      "order sync",
+      "bulk operations",
+      "rate limiting",
+      "cart cache",
+      "Redis cache",
+      "cart status",
+      "active cart",
+      "abandoned cart",
+      "Spring Boot",
+      "REST API",
+      "Feign client",
+      "microservice",
+      "MySQL",
+      "JPA",
+      "Redis",
+      "Kafka",
+      "circuit breaker",
+      "bulkhead",
+      "rate limiter",
+      "resilience4j",
+      "optimistic locking",
+      "cart entity",
+      "order entity",
+      "payment entity",
+      "cart repository",
+      "cart service",
+      "order service",
+      "payment service client",
+      "discount service client",
+      "pricing service client",
+      "inventory service client",
+      "user service client",
+      "location service client",
+      "logistic service client",
+      "recommendation service client",
+      "chat service client",
+      "gateway service",
+      "cart controller",
+      "order controller",
+      "user cart controller",
+      "cart service v2",
+      "cart service v3",
+      "cart service v4",
+      "create order service",
+      "my order service",
+      "user cart service",
+      "delivery fee service",
+      "fees service",
+      "discount service",
+      "pricing service",
+      "inventory service",
+      "product aggregator service",
+      "MapStruct",
+      "Lombok",
+      "transaction management",
+      "async processing",
+      "scheduled tasks",
+      "dealshare",
+      "e-commerce",
+      "grocery",
+      "marketplace",
+      "order fulfillment",
+      "order lifecycle",
+      "cart lifecycle",
+      "payment flow",
+      "checkout flow",
+      "order placement flow",
+      "cancellation flow",
+      "refund flow",
+      "delivery fee centralization",
+      "cart level delivery fee",
+      "shipment level fees",
+      "cart config benefits",
+      "user cart config benefits",
+      "NRO orders",
+      "doorstep delivery",
+      "express delivery fee",
+      "minimum order value",
+      "MOV",
+      "cart discount breach",
+      "false cancellation",
+      "order status confirmation",
+      "order review",
+      "user review form",
+      "AppsFlyer integration",
+      "singular integration"
+    ]
+  }
+}
+
+
+📄 Section: integrations
+{
+  "integrations": [
+    {
+      "serviceName": "Payment Service",
+      "priority": "critical",
+      "purpose": "Payment processing, payment methods, refunds, payment details",
+      "client": "PaymentServiceClient",
+      "endpoints": [
+        "/v5/payment/payment-details",
+        "/v4/payment/methods/cache",
+        "/v5/payment/methods/cache",
+        "/v5/payment/methods/v2/cache",
+        "/v1/refund/doorstep-cancellation-refund-update",
+        "/v1/payment/refund-update",
+        "/v1/panel/user/refunded/amount"
+      ]
+    },
+    {
+      "serviceName": "Discount Service",
+      "priority": "high",
+      "purpose": "Discount application, discount reversion, cart discount summary",
+      "client": "DiscountServiceClient"
+    },
+    {
+      "serviceName": "Pricing Service",
+      "priority": "high",
+      "purpose": "Product pricing, price calculations",
+      "client": "PricingServiceClient"
+    },
+    {
+      "serviceName": "Inventory Service",
+      "priority": "high",
+      "purpose": "Stock validation, inventory checks",
+      "client": "InventoryClient"
+    },
+    {
+      "serviceName": "User Service",
+      "priority": "high",
+      "purpose": "User information, user addresses, user preferences",
+      "client": "UserServiceClient"
+    },
+    {
+      "serviceName": "Location Service",
+      "priority": "high",
+      "purpose": "Location data, warehouse information, delivery areas",
+      "client": "LocationServiceClient"
+    },
+    {
+      "serviceName": "Logistic Service",
+      "priority": "medium",
+      "purpose": "Delivery logistics, order fulfillment",
+      "client": "LogisticServiceClient"
+    },
+    {
+      "serviceName": "Recommendation Service",
+      "priority": "medium",
+      "purpose": "Cart recommendations, add-ons",
+      "client": "RecommendationServiceClient"
+    },
+    {
+      "serviceName": "Chat Service",
+      "priority": "medium",
+      "purpose": "Email, SMS, WhatsApp notifications",
+      "client": "ChatServiceClient"
+    },
+    {
+      "serviceName": "Order Service",
+      "priority": "medium",
+      "purpose": "Order management, order tracking",
+      "client": "OrderServiceClient"
+    },
+    {
+      "serviceName": "Deal Service",
+      "priority": "medium",
+      "purpose": "Product/deal information",
+      "client": "DealServiceClient"
+    },
+    {
+      "serviceName": "Scheme Service",
+      "priority": "medium",
+      "purpose": "Promotional schemes",
+      "client": "SchemeServiceClient"
+    },
+    {
+      "serviceName": "Gateway Service",
+      "priority": "low",
+      "purpose": "API gateway integration",
+      "client": "GatewayServiceClient"
+    }
+  ]
+}
+
+
+📄 Section: useCases
+{
+  "useCases": [
+    {
+      "category": "Cart Operations",
+      "description": "Adding products to cart, updating cart, removing items, getting cart details, cart validation, cart checkout",
+      "keywords": [
+        "add to cart",
+        "update cart",
+        "remove from cart",
+        "get cart",
+        "cart validation",
+        "cart checkout"
+      ]
+    },
+    {
+      "category": "Order Creation",
+      "description": "Creating orders, placing orders, order placement flow, checkout process",
+      "keywords": [
+        "create order",
+        "place order",
+        "order placement",
+        "checkout",
+        "order creation"
+      ]
+    },
+    {
+      "category": "Payment Integration",
+      "description": "Payment processing, payment methods, payment details, payment status, payment gateway integration, saved payment methods",
+      "keywords": [
+        "payment processing",
+        "payment methods",
+        "payment details",
+        "payment status",
+        "payment gateway",
+        "saved payment methods",
+        "COD",
+        "Paytm",
+        "online payment"
+      ]
+    },
+    {
+      "category": "Fee Management",
+      "description": "Delivery fee calculation, cart fees, shipment fees, fee configuration, express delivery fees",
+      "keywords": [
+        "delivery fee",
+        "cart fees",
+        "shipment fees",
+        "fee calculation",
+        "express delivery fee"
+      ]
+    },
+    {
+      "category": "Order Management",
+      "description": "Order cancellation, order refunds, order tracking, order status, order history, order details",
+      "keywords": [
+        "order cancellation",
+        "order refund",
+        "order tracking",
+        "order status",
+        "order history",
+        "order details"
+      ]
+    },
+    {
+      "category": "Discount & Promotions",
+      "description": "Applying discounts, reverting discounts, cart discounts, order discounts, promotion preferences",
+      "keywords": [
+        "discount application",
+        "discount revert",
+        "cart discount",
+        "order discount",
+        "promotion",
+        "coupon"
+      ]
+    },
+    {
+      "category": "Address Management",
+      "description": "User addresses, delivery addresses, address validation",
+      "keywords": [
+        "user address",
+        "delivery address",
+        "address management",
+        "address validation"
+      ]
+    },
+    {
+      "category": "Inventory & Validation",
+      "description": "Inventory checks, stock validation, product availability",
+      "keywords": [
+        "inventory check",
+        "stock validation",
+        "product availability",
+        "inventory"
+      ]
+    },
+    {
+      "category": "ETA & Delivery",
+      "description": "Delivery ETA, store ETA, delivery fee calculation based on location",
+      "keywords": [
+        "delivery ETA",
+        "store ETA",
+        "ETA calculation",
+        "delivery"
+      ]
+    },
+    {
+      "category": "Bulk Operations",
+      "description": "Bulk order cancellation, bulk refund updates, bulk discount operations",
+      "keywords": [
+        "bulk cancellation",
+        "bulk refund",
+        "bulk discount",
+        "bulk operations"
+      ]
+    }
+  ]
+}
+
+
+🟦 SERVICE: payment-service
+
+------------------------------------------------------------
+
+📄 Section: description
+{
+  "description": {
+    "functional": "The Payment Service is a comprehensive microservice responsible for managing the entire payment lifecycle in an e-commerce platform. It handles payment initiation, processing, verification, and refunds across multiple payment gateways (Razorpay, Paytm, Juspay) and payment methods (UPI, Cards, Wallets, Net Banking, COD, BNPL). The service integrates with cart and order services to process payments for customer orders, manages delivery fee calculations and refunds, and provides payment method configuration and caching. It supports complex refund workflows including order cancellation refunds, late payment refunds, and partial refunds with approval mechanisms. The service also handles payment gateway webhooks, batch processing for refunds, scheduled jobs for payment reconciliation, and provides dashboard APIs for customer support representatives to manage payments and refunds.",
+    "technical": "Built on Spring Boot 2.1.4 with Java 11, the Payment Service follows a microservices architecture with RESTful APIs (versioned V1-V5). It uses JPA/Hibernate for data persistence with MySQL database, implementing BigDecimal for precise monetary calculations. The service employs design patterns including Strategy Pattern for payment processors (AuthorizedPaymentProcessor, CapturedPaymentProcessor, PaidOrderProcessor) and Factory Pattern for payment method services (CardPaymentMethodService, UPIIDPaymentMethodService, WalletPaymentMethodService). It integrates with external services via Feign clients (CartService, OrderService, UserService, DeliveryService, ChatService) and uses Kafka for asynchronous event processing. The service implements caching with Redis and Caffeine for payment methods and static data, uses Spring Batch for batch refund processing, and includes schedulers for background tasks. It supports multiple payment gateways through adapter pattern, handles webhook callbacks, implements retry mechanisms for failed operations, and provides comprehensive error handling and validation. The service uses JWT authentication, implements role-based access control for refund operations, and includes monitoring with New Relic, Datadog, and Elastic APM."
+  }
+}
+
+
+📄 Section: relatedServices
+{
+  "relatedServices": {
+    "cart-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Cart information retrieval",
+        "Delivery fee calculation",
+        "Cart order mapping",
+        "Centralized delivery fee check",
+        "Delivery fee collection update"
+      ]
+    },
+    "order-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Order status updates",
+        "Order details retrieval",
+        "Order placement"
+      ]
+    },
+    "user-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "User information retrieval",
+        "User preferences",
+        "User addresses"
+      ]
+    },
+    "delivery-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Delivery system callbacks",
+        "Delivery fee updates"
+      ]
+    },
+    "chat-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Email notifications",
+        "SMS communications",
+        "Order update events"
+      ]
+    },
+    "ingestion-service": {
+      "integration": "Kafka Events",
+      "operations": [
+        "Third-party event tracking (AppsFlyer, CleverTap)",
+        "Cart refund events",
+        "Payment events"
+      ]
+    },
+    "static-data-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Static payment method data",
+        "Bank information",
+        "Payment icons"
+      ]
+    },
+    "scheme-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "Payment schemes",
+        "Offers"
+      ]
+    },
+    "dsd-service": {
+      "integration": "Feign Client",
+      "operations": [
+        "DSD related operations"
+      ]
+    }
+  }
+}
+
+
+📄 Section: useCases
+{
+  "useCases": [
+    {
+      "id": "payment-initiation",
+      "title": "Payment Initiation",
+      "description": "Customer selects payment method, service initiates payment with gateway (Razorpay/Juspay/Paytm), creates payment record, returns payment link/order ID",
+      "flow": [
+        "Customer selects payment method",
+        "Service validates cart and order",
+        "Service creates payment record",
+        "Service initiates payment with gateway",
+        "Service returns payment link/order ID to customer"
+      ]
+    },
+    {
+      "id": "payment-verification",
+      "title": "Payment Verification",
+      "description": "Gateway sends webhook/callback, service verifies payment status, updates payment entity, triggers order status update",
+      "flow": [
+        "Gateway sends webhook/callback",
+        "Service verifies payment signature",
+        "Service updates payment entity status",
+        "Service triggers order status update",
+        "Service sends notifications"
+      ]
+    },
+    {
+      "id": "refund-processing",
+      "title": "Refund Processing",
+      "description": "Order cancelled/discarded, service calculates refund amount (including delivery fee deduction), creates refund record, initiates gateway refund, updates refund status",
+      "flow": [
+        "Order cancelled/discarded",
+        "Service calculates refund amount",
+        "Service deducts delivery fee if applicable",
+        "Service creates refund record",
+        "Service initiates gateway refund",
+        "Service updates refund status",
+        "Service sends notifications"
+      ]
+    },
+    {
+      "id": "payment-method-management",
+      "title": "Payment Method Management",
+      "description": "Service fetches available payment methods based on user/cart, caches payment methods, provides payment method icons and configurations",
+      "flow": [
+        "Service receives payment method request",
+        "Service checks cache",
+        "Service fetches payment methods from gateway",
+        "Service applies business rules",
+        "Service caches results",
+        "Service returns payment methods with icons"
+      ]
+    },
+    {
+      "id": "delivery-fee-handling",
+      "title": "Delivery Fee Handling",
+      "description": "Service calculates delivery fee during payment, handles centralized/decentralized delivery fee models, manages delivery fee refunds on order cancellation",
+      "flow": [
+        "Service checks delivery fee model",
+        "Service calculates delivery fee",
+        "Service stores fee details",
+        "On cancellation, service calculates refund",
+        "Service deducts delivery fee from refund if applicable",
+        "Service updates cart service with collected fees"
+      ]
+    },
+    {
+      "id": "dashboard-operations",
+      "title": "Dashboard Operations",
+      "description": "CSR views refunds with filters, creates manual refunds, approves/verifies refunds, views payment transactions",
+      "flow": [
+        "CSR logs into dashboard",
+        "CSR views refunds/payments with filters",
+        "CSR creates/approves refunds",
+        "Service validates permissions",
+        "Service processes refund",
+        "Service updates status"
+      ]
+    },
+    {
+      "id": "batch-processing",
+      "title": "Batch Processing",
+      "description": "Scheduled jobs process cancelled orders for refunds, retry failed refunds, reconcile payment amounts",
+      "flow": [
+        "Scheduler triggers batch job",
+        "Service fetches pending records",
+        "Service processes refunds",
+        "Service retries failed operations",
+        "Service generates reports"
+      ]
+    },
+    {
+      "id": "payment-gateway-integration",
+      "title": "Payment Gateway Integration",
+      "description": "Service creates orders with Razorpay/Juspay, handles webhooks, processes callbacks, manages gateway-specific configurations",
+      "flow": [
+        "Service creates gateway order",
+        "Gateway processes payment",
+        "Gateway sends webhook",
+        "Service verifies webhook",
+        "Service processes callback",
+        "Service updates payment status"
+      ]
+    }
+  ]
+}
+
+
+📄 Section: apiEndpoints
+{
+  "apiEndpoints": {
+    "v1": {
+      "payment": [
+        {
+          "path": "/v1/payment/payment-methods",
+          "method": "POST",
+          "description": "Fetch available payment methods for user/cart",
+          "headers": [
+            "lang",
+            "userId"
+          ]
+        },
+        {
+          "path": "/v1/payment/payment-methods-support",
+          "method": "GET",
+          "description": "Fetch payment methods support information"
+        },
+        {
+          "path": "/v1/payment/update-order-status",
+          "method": [
+            "GET",
+            "POST"
+          ],
+          "description": "Update order status after payment"
+        },
+        {
+          "path": "/v1/payment/callbackurl/rz",
+          "method": "POST",
+          "description": "Razorpay payment callback webhook"
+        },
+        {
+          "path": "/v1/payment/transactions/{phone}",
+          "method": "GET",
+          "description": "Get payment transactions by phone"
+        },
+        {
+          "path": "/v1/payment/{paymentId}",
+          "method": "GET",
+          "description": "Get payment details by payment ID"
+        }
+      ],
+      "refund": [
+        {
+          "path": "/v1/refund",
+          "method": "GET",
+          "description": "Get refund information with filters",
+          "queryParams": [
+            "status",
+            "filterType",
+            "filterKey",
+            "pageSize",
+            "page"
+          ]
+        },
+        {
+          "path": "/v1/refund/create-refund",
+          "method": "POST",
+          "description": "Create refund for order"
+        },
+        {
+          "path": "/v1/refund/update-status",
+          "method": "PUT",
+          "description": "Update refund status"
+        },
+        {
+          "path": "/v1/refund/payment-refunds-info",
+          "method": "POST",
+          "description": "Get payment refunds information"
+        },
+        {
+          "path": "/v1/refund/payment-refunds-info-all",
+          "method": "POST",
+          "description": "Get all payment refunds information"
+        },
+        {
+          "path": "/v1/refund/status",
+          "method": "GET",
+          "description": "Get refund status"
+        },
+        {
+          "path": "/v1/refund/failure",
+          "method": "GET",
+          "description": "Get failed refunds"
+        },
+        {
+          "path": "/v1/refund/cancel-order",
+          "method": "GET",
+          "description": "Process refunds for cancelled orders"
+        },
+        {
+          "path": "/v1/refund/payment-glitches",
+          "method": "GET",
+          "description": "Get payment glitches for refund"
+        },
+        {
+          "path": "/v1/refund/initiate-refund",
+          "method": "GET",
+          "description": "Initiate refunds"
+        },
+        {
+          "path": "/v1/refund/initiate-retry-refund",
+          "method": "GET",
+          "description": "Retry failed refunds"
+        },
+        {
+          "path": "/v1/refund/update-arn",
+          "method": "GET",
+          "description": "Update refund ARN"
+        },
+        {
+          "path": "/v1/refund/doorstep-cancellation-refund-update",
+          "method": "POST",
+          "description": "Update doorstep cancellation refund"
+        },
+        {
+          "path": "/v1/refund/amount",
+          "method": "GET",
+          "description": "Get refund amount"
+        },
+        {
+          "path": "/v1/refund/cart-order-refund",
+          "method": "POST",
+          "description": "Create cart order refund"
+        },
+        {
+          "path": "/v1/refund/retrigger",
+          "method": "POST",
+          "description": "Retrigger refund"
+        },
+        {
+          "path": "/v1/refund/miss-payment-refund",
+          "method": "POST",
+          "description": "Handle missed payment refund"
+        }
+      ],
+      "panel": [
+        {
+          "path": "/v1/panel/refund/create-refund",
+          "method": "POST",
+          "description": "Create refund from CSR panel",
+          "headers": [
+            "user_roles",
+            "user_name",
+            "entity"
+          ]
+        },
+        {
+          "path": "/v1/panel/refund-details",
+          "method": "GET",
+          "description": "Get refund details for user",
+          "queryParams": [
+            "userId",
+            "refundId",
+            "cartId",
+            "orderId",
+            "paymentId",
+            "timePeriod",
+            "phone",
+            "page",
+            "size",
+            "entityId"
+          ]
+        },
+        {
+          "path": "/v1/panel/payment/transactions",
+          "method": "GET",
+          "description": "Get payment transactions",
+          "queryParams": [
+            "userId",
+            "phone",
+            "paymentId",
+            "cartId",
+            "orderId",
+            "timePeriod",
+            "page",
+            "size",
+            "entityId"
+          ]
+        },
+        {
+          "path": "/v1/panel/approve/refund",
+          "method": "PUT",
+          "description": "Approve refund",
+          "headers": [
+            "user_roles",
+            "user_name",
+            "entity"
+          ]
+        },
+        {
+          "path": "/v1/panel/list-to-approve/refund",
+          "method": "GET",
+          "description": "List refunds to approve",
+          "queryParams": [
+            "status",
+            "page",
+            "size",
+            "entityId"
+          ]
+        },
+        {
+          "path": "/v1/panel/user/refunded/amount",
+          "method": "GET",
+          "description": "Get user refunded amount",
+          "queryParams": [
+            "userName",
+            "entityId"
+          ]
+        }
+      ],
+      "rtgs": [
+        {
+          "path": "/v1/rtgs/payment",
+          "method": "POST",
+          "description": "Create RTGS payment"
+        },
+        {
+          "path": "/v1/rtgs/payment/proofs",
+          "method": "POST",
+          "description": "Upload RTGS payment proofs"
+        },
+        {
+          "path": "/v1/rtgs/payment",
+          "method": "GET",
+          "description": "Get RTGS payment"
+        },
+        {
+          "path": "/v1/rtgs/pending-payment",
+          "method": "GET",
+          "description": "Get pending RTGS payments"
+        },
+        {
+          "path": "/v1/rtgs/payment/users",
+          "method": "GET",
+          "description": "Get RTGS payment users"
+        },
+        {
+          "path": "/v1/rtgs/payment",
+          "method": "PUT",
+          "description": "Update RTGS payment"
+        },
+        {
+          "path": "/v1/rtgs/payment/order",
+          "method": "PUT",
+          "description": "Update RTGS payment order"
+        },
+        {
+          "path": "/v1/rtgs/config",
+          "method": "POST",
+          "description": "Create RTGS config"
+        },
+        {
+          "path": "/v1/rtgs/config/latest",
+          "method": "GET",
+          "description": "Get latest RTGS config"
+        },
+        {
+          "path": "/v1/rtgs/config",
+          "method": "PUT",
+          "description": "Update RTGS config"
+        }
+      ],
+      "iciciQr": [
+        {
+          "path": "/v1/icici-qr/qr-pay",
+          "method": "POST",
+          "description": "Create ICICI QR payment"
+        },
+        {
+          "path": "/v1/icici-qr/b2b/qr-pay",
+          "method": "POST",
+          "description": "Create B2B ICICI QR payment"
+        },
+        {
+          "path": "/v1/icici-qr/callback",
+          "method": "POST",
+          "description": "ICICI QR payment callback",
+          "consumes": "text/plain"
+        },
+        {
+          "path": "/v1/icici-qr/callback/test",
+          "method": "POST",
+          "description": "ICICI QR payment callback test"
+        },
+        {
+          "path": "/v1/icici-qr/b2b/callback",
+          "method": "POST",
+          "description": "B2B ICICI QR payment callback",
+          "consumes": "text/plain"
+        },
+        {
+          "path": "/v1/icici-qr/transaction-status",
+          "method": "POST",
+          "description": "Get ICICI QR transaction status"
+        },
+        {
+          "path": "/v1/icici-qr/callback-status",
+          "method": "POST",
+          "description": "Get ICICI QR callback status"
+        },
+        {
+          "path": "/v1/icici-qr/refund",
+          "method": "POST",
+          "description": "ICICI QR refund"
+        },
+        {
+          "path": "/v1/icici-qr/b2b/refund",
+          "method": "POST",
+          "description": "B2B ICICI QR refund"
+        },
+        {
+          "path": "/v1/icici-qr/callback/20-min",
+          "method": "GET",
+          "description": "Process 20-minute callback"
+        },
+        {
+          "path": "/v1/icici-qr/callback/24-hours",
+          "method": "GET",
+          "description": "Process 24-hour callback"
+        }
+      ],
+      "paymentMethodConfig": [
+        {
+          "path": "/v1/payment/method/config/{id}",
+          "method": "GET",
+          "description": "Get payment method config by ID"
+        },
+        {
+          "path": "/v1/payment/method/config",
+          "method": "POST",
+          "description": "Create payment method config"
+        },
+        {
+          "path": "/v1/payment/method/config",
+          "method": "PUT",
+          "description": "Update payment method config"
+        },
+        {
+          "path": "/v1/payment/method/config/update-global-order",
+          "method": "POST",
+          "description": "Update global order for payment methods"
+        },
+        {
+          "path": "/v1/payment/method/config/update-eligible-payment-methods",
+          "method": "POST",
+          "description": "Update eligible payment methods"
+        }
+      ],
+      "razorpay": [
+        {
+          "path": "/v1/razorpay/order/details",
+          "method": "GET",
+          "description": "Get Razorpay order details"
+        }
+      ],
+      "razorpayX": [
+        {
+          "path": "/v1/referral/boarding",
+          "method": "POST",
+          "description": "RazorpayX referral boarding"
+        },
+        {
+          "path": "/v1/callback/rzpX",
+          "method": "POST",
+          "description": "RazorpayX callback"
+        }
+      ],
+      "maintenance": [
+        {
+          "path": "/v1/maintenance/remove-payment-refund-duplicates",
+          "method": "GET",
+          "description": "Remove duplicate payment refunds"
+        },
+        {
+          "path": "/v1/maintenance/remove-payment-cart-duplicates",
+          "method": "GET",
+          "description": "Remove duplicate payment cart records"
+        },
+        {
+          "path": "/v1/maintenance/create-payment-cart-for-pending-refunds",
+          "method": "GET",
+          "description": "Create payment cart for pending refunds"
+        },
+        {
+          "path": "/v1/maintenance/capture-authorized-payments",
+          "method": "GET",
+          "description": "Capture authorized payments"
+        },
+        {
+          "path": "/v1/maintenance/remove-pending-orders",
+          "method": "POST",
+          "description": "Remove pending orders"
+        },
+        {
+          "path": "/v1/maintenance/remove-pending-orders-v1",
+          "method": "GET",
+          "description": "Remove pending orders V1"
+        },
+        {
+          "path": "/v1/maintenance/set-cron-cache-key",
+          "method": "POST",
+          "description": "Set cron cache key"
+        }
+      ]
+    },
+    "v2": {
+      "payment": [
+        {
+          "path": "/v2/payment/callbackurl/rz",
+          "method": "POST",
+          "description": "Razorpay payment callback webhook V2"
+        },
+        {
+          "path": "/v2/payment/init-payment",
+          "method": "POST",
+          "description": "Initiate payment V2"
+        },
+        {
+          "path": "/v2/payment/payment-methods",
+          "method": "POST",
+          "description": "Get payment methods V2"
+        }
+      ]
+    },
+    "v3": {
+      "payment": [
+        {
+          "path": "/v3/payment/payment-methods",
+          "method": "POST",
+          "description": "Get payment methods V3",
+          "headers": [
+            "appVersion",
+            "lang",
+            "userId",
+            "platform"
+          ]
+        },
+        {
+          "path": "/v3/payment/payment-details",
+          "method": "POST",
+          "description": "Store payment details"
+        },
+        {
+          "path": "/v3/payment/update-payment-details",
+          "method": "POST",
+          "description": "Update payment details"
+        },
+        {
+          "path": "/v3/payment/get-payment-details-breakup",
+          "method": "POST",
+          "description": "Get payment details breakup"
+        },
+        {
+          "path": "/v3/payment/init-payment",
+          "method": "POST",
+          "description": "Initiate payment V3"
+        }
+      ]
+    },
+    "v4": {
+      "payment": [
+        {
+          "path": "/v4/payment/payment-methods",
+          "method": "POST",
+          "description": "Get payment methods V4"
+        },
+        {
+          "path": "/v4/payment/rz/token/callback",
+          "method": "POST",
+          "description": "Razorpay token callback"
+        },
+        {
+          "path": "/v4/payment/rz/customer",
+          "method": "POST",
+          "description": "Create Razorpay customer"
+        },
+        {
+          "path": "/v4/payment/methods/cache",
+          "method": "POST",
+          "description": "Cache payment methods for user",
+          "queryParams": [
+            "userId"
+          ]
+        },
+        {
+          "path": "/v4/payment/methods/cache",
+          "method": "GET",
+          "description": "Get cached payment methods",
+          "queryParams": [
+            "userId"
+          ]
+        },
+        {
+          "path": "/v4/payment/rz/create/customer",
+          "method": "POST",
+          "description": "Create Razorpay customer",
+          "queryParams": [
+            "userId"
+          ]
+        },
+        {
+          "path": "/v4/payment/methods/cache/all",
+          "method": "POST",
+          "description": "Cache payment methods for all users"
+        }
+      ]
+    },
+    "v5": {
+      "payment": [
+        {
+          "path": "/v5/payment/payment-methods",
+          "method": "POST",
+          "description": "Get payment methods V5"
+        },
+        {
+          "path": "/v5/payment/juspay/method/details",
+          "method": "POST",
+          "description": "Get Juspay method details"
+        },
+        {
+          "path": "/v5/payment/sync/juspay/order-status",
+          "method": "POST",
+          "description": "Sync Juspay order status"
+        },
+        {
+          "path": "/v5/payment/payment-details",
+          "method": "GET",
+          "description": "Get payment details",
+          "queryParams": [
+            "orderId"
+          ]
+        },
+        {
+          "path": "/v5/payment/bnpl/verify-otp",
+          "method": "POST",
+          "description": "Verify BNPL OTP"
+        },
+        {
+          "path": "/v5/payment/bnpl/resend-otp",
+          "method": "POST",
+          "description": "Resend BNPL OTP"
+        },
+        {
+          "path": "/v5/payment/methods/cache",
+          "method": "POST",
+          "description": "Cache payment methods V5",
+          "queryParams": [
+            "userId"
+          ]
+        },
+        {
+          "path": "/v5/payment/juspay-ab-flag",
+          "method": "POST",
+          "description": "Set Juspay AB flag"
+        },
+        {
+          "path": "/v5/payment/juspay/create/customer",
+          "method": "POST",
+          "description": "Create Juspay customer"
+        },
+        {
+          "path": "/v5/payment/juspay/customer",
+          "method": "GET",
+          "description": "Get Juspay customer",
+          "queryParams": [
+            "userId"
+          ]
+        },
+        {
+          "path": "/v5/payment/populate/userIds",
+          "method": "POST",
+          "description": "Populate user IDs"
+        },
+        {
+          "path": "/v5/payment/juspay/card/details",
+          "method": "GET",
+          "description": "Get Juspay card details"
+        },
+        {
+          "path": "/v5/payment/juspay/webhook/test",
+          "method": "POST",
+          "description": "Test Juspay webhook"
+        },
+        {
+          "path": "/v5/payment/method/remove",
+          "method": "POST",
+          "description": "Remove payment method"
+        },
+        {
+          "path": "/v5/payment/juspay/images",
+          "method": "POST",
+          "description": "Get Juspay images"
+        },
+        {
+          "path": "/v5/payment/methods/v2/cache",
+          "method": "POST",
+          "description": "Cache payment methods V2"
+        }
+      ]
+    }
+  }
+}
+
