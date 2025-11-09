@@ -1,28 +1,100 @@
 Question: how do we sync minimart orders ?
 
 
-🟦 SERVICE: UnknownService
-======================================================================
+📄 FILE: InventoryController.java
 
-📄 FILE: CartOrderPrivateController.java
+--- inventory-service | InventoryController | reverseUpdateSync | CODE | 1/1 ---
+    @PostMapping("/compensate-sync")
+    private ResponseEntity<?> reverseUpdateSync(@RequestBody InventoryDTO inventoryDTO) throws JsonProcessingException, InventoryException {
+        inventoryService.reverseUpdateSync(inventoryDTO);
+        return sendSuccessResponse(true);
 
---- CartOrderPrivateController | minimartOrderSync | CODE | 1/1 ---
-    @PostMapping(value = "/v1/minimart-order-sync")
-    public ResponseEntity<?> minimartOrderSync(@RequestBody OrderSyncRequestModel orderSyncRequestModel){
-        return new ResponseEntity<>(myOrderService.minimartOrderSync(orderSyncRequestModel), HttpStatus.OK);
+
+📄 FILE: ImsSyncController.java
+
+--- inventory-service | ImsSyncController | externalOrderDispatch | CODE | 1/1 ---
+    @PostMapping("external-order-dispatch")
+    private ResponseEntity<?> externalOrderDispatch(@RequestBody SyncDTO syncDTO,
+                                                    @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
+            syncDTO.setType("EXTERNAL-ORDER-DISPATCH");
+        if(isAsync)
+
+--- inventory-service | ImsSyncController | rvpSync | CODE | 1/1 ---
+    @PostMapping("rvp")
+    private ResponseEntity<?> rvpSync(@RequestBody SyncDTO syncDTO,
+                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        // Using same functionality of external order dispatch to sync RVP
+        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
+            syncDTO.setType("RVP");
+        if(isAsync)
+
+--- inventory-service | ImsSyncController | rtvSync | CODE | 1/1 ---
+    @PostMapping("rtv")
+    private ResponseEntity<?> rtvSync(@RequestBody RtvDTO rtvDTO,
+                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        // Using same functionality of external order dispatch to sync RVP
+        if(isAsync)
+
+--- inventory-service | ImsSyncController | cycleCountSync | CODE | 1/1 ---
+    @PostMapping("cycle-count")
+    private ResponseEntity<?> cycleCountSync(@RequestBody SyncDTO syncDTO,
+                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        // Using same functionality of external order dispatch to sync RVP
+//        log.error("Request recieved in cycle-count api {}", syncDTO);
+        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
+            syncDTO.setType("CYCLE_COUNT");
+        if(isAsync)
+
+
+📄 FILE: InventoryUpdateMapper.java
+
+--- inventory-service | InventoryUpdateMapper | updateInventory | CODE | 1/1 ---
+    public WarehouseSkuInventory updateInventory(WarehouseSkuInventory warehouseSkuInventory, SkuInventoryDTO skuInventoryDTO){
+        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()+skuInventoryDTO.getInventory());
+        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()+skuInventoryDTO.getInventory_sold());;
+        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()+skuInventoryDTO.getBtoc_sold());
+        warehouseSkuInventory.setBtobSold(warehouseSkuInventory.getBtobSold()+skuInventoryDTO.getBtob_sold());
+        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()+skuInventoryDTO.getStn_intransit_inventory());
+        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()+skuInventoryDTO.getVirtual_inventory());
+        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()+ skuInventoryDTO.getStn_intransit_order());
+        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()+skuInventoryDTO.getDelivered_inventory());
+        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()+skuInventoryDTO.getDamage());
+        warehouseSkuInventory.setModifiedDate(new Date());
+        return warehouseSkuInventory;
+
+--- inventory-service | InventoryUpdateMapper | revertInventory | CODE | 1/1 ---
+    public WarehouseSkuInventory revertInventory(WarehouseSkuInventory warehouseSkuInventory, SkuInventoryDTO skuInventoryDTO){
+        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()-skuInventoryDTO.getInventory());
+        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()-skuInventoryDTO.getInventory_sold());;
+        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()-skuInventoryDTO.getBtoc_sold());
+        warehouseSkuInventory.setBtobSold(warehouseSkuInventory.getBtobSold()-skuInventoryDTO.getBtob_sold());
+        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()-skuInventoryDTO.getStn_intransit_inventory());
+        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()-skuInventoryDTO.getVirtual_inventory());
+        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()- skuInventoryDTO.getStn_intransit_order());
+        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()-skuInventoryDTO.getDelivered_inventory());
+        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()-skuInventoryDTO.getDamage());
+        warehouseSkuInventory.setModifiedDate(new Date());
+        return warehouseSkuInventory;
+
+--- inventory-service | InventoryUpdateMapper | cacheUpdateInventory | CODE | 1/1 ---
+    public WarehouseSkuInventory cacheUpdateInventory(WarehouseSkuInventory warehouseSkuInventory, OmsSkuSyncDTO skuInventoryDTO){
+        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()+skuInventoryDTO.getInventory());
+        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()+skuInventoryDTO.getInventorySold());
+        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()+skuInventoryDTO.getBtocSold());
+        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()+skuInventoryDTO.getStnIntransitInventory());
+        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()+skuInventoryDTO.getVirtualInventory());
+        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()+ skuInventoryDTO.getStnIntransitInventoryOrder());
+        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()+skuInventoryDTO.getDeliveredInventory());
+        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()+skuInventoryDTO.getDamage());
+        warehouseSkuInventory.setLooseInventory(warehouseSkuInventory.getLooseInventory()+ skuInventoryDTO.getLooseInventory());
+        warehouseSkuInventory.setModifiedDate(new Date());
+        return warehouseSkuInventory;
 
 
 📄 FILE: InventoryPassbookServiceImpl.java
 
---- InventoryPassbookServiceImpl | updateFailedPassbookStatus | CODE | 1/1 ---
-	@Transactional(transactionManager = AppConstants.IMS_TRANSACTION_MANAGER_NAME)
-	public void updateFailedPassbookStatus() {
-		LocalDateTime targetDate = LocalDateTime.now().minusDays(AppConstants.INT_THREE);
-		Optional<InventoryPassbook> minInvoiceData = inventoryPassbookReadRepo.findFirstRecordByCreatedDateGreaterThanOrEqualTo(targetDate);
-		Long minId = minInvoiceData.isPresent() ? minInvoiceData.get().getId() : AppConstants.LONG_ZERO;
-		int totUpdated = inventoryPassbookRepository.updateFailedInvoiceStatus(PassbookInvoiceStatus.TO_BE_PICKED.getStatus(), minId);
-
---- InventoryPassbookServiceImpl | updatePendingInvoiceStatus | CODE | 1/1 ---
+--- inventory-service | InventoryPassbookServiceImpl | updatePendingInvoiceStatus | CODE | 1/1 ---
 	@Transactional(transactionManager = AppConstants.IMS_TRANSACTION_MANAGER_NAME)
 	public void updatePendingInvoiceStatus() {
 		LocalDateTime targetDate = LocalDateTime.now().minusDays(AppConstants.INT_FIVE);
@@ -30,25 +102,62 @@ Question: how do we sync minimart orders ?
 		Long minId = minInvoiceData.isPresent() ? minInvoiceData.get().getId() : AppConstants.LONG_ZERO;
 		int totUpdated = inventoryPassbookRepository.updatePendingInvoiceStatus(PassbookInvoiceStatus.TO_BE_PICKED.getStatus(), minId);
 
-
-📄 FILE: KafkaProducer.java
-
---- KafkaProducer | sendOrdersStatusUpdateTopic | CODE | 1/1 ---
-    @Async
-    @Override
-    public void sendOrdersStatusUpdateTopic(OrdersStatusUpdateEvent ordersStatusUpdateEvent) {
-        try {
-
---- KafkaProducer | sendOrderPlacedUserSMSCommunicationEvent | CODE | 1/1 ---
-    @Async
-    @Override
-    public void sendOrderPlacedUserSMSCommunicationEvent(OrderUpdateEventDetail orderUpdateEventDetail) {
-        try {
+--- inventory-service | InventoryPassbookServiceImpl | updateFailedPassbookStatus | CODE | 1/1 ---
+	@Transactional(transactionManager = AppConstants.IMS_TRANSACTION_MANAGER_NAME)
+	public void updateFailedPassbookStatus() {
+		LocalDateTime targetDate = LocalDateTime.now().minusDays(AppConstants.INT_THREE);
+		Optional<InventoryPassbook> minInvoiceData = inventoryPassbookReadRepo.findFirstRecordByCreatedDateGreaterThanOrEqualTo(targetDate);
+		Long minId = minInvoiceData.isPresent() ? minInvoiceData.get().getId() : AppConstants.LONG_ZERO;
+		int totUpdated = inventoryPassbookRepository.updateFailedInvoiceStatus(PassbookInvoiceStatus.TO_BE_PICKED.getStatus(), minId);
 
 
 📄 FILE: ImsSyncServiceImpl.java
 
---- ImsSyncServiceImpl | externalOrderDispatch | CODE | 1/1 ---
+--- inventory-service | ImsSyncServiceImpl | reconSync | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
+    public Object reconSync(SyncDTO syncDTO) throws InventoryException, JsonProcessingException {
+
+        inventorySyncHistoryRepo.findByTypeAndStnTypeAndRequestIdAndSkuAndWarehouseId(syncDTO.getType(),syncDTO.getSub_type(), syncDTO.getRequest_id(),syncDTO.getData().get(AppConstants.INT_ZERO).getSku_id(),syncDTO.getWarehouse_id());
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        for(SkuSyncDTO sku:syncDTO.getData()){
+            WarehouseSkuInventory warehouseSkuInventory = cacheService.get(syncDTO.getWarehouse_id(), sku.getSku_id());
+            int updates = warehouseSkuInventoryRepo.updateWarehouseInventory(syncDTO.getWarehouse_id(), sku.getSku_id(), sku.getInventory());
+            if(updates < AppConstants.INT_ONE)
+                throw new InventoryException("Error while update sku : "+sku.getSku_id());
+            logSyncInventoryHistory(syncDTO.getType(), sku.getInventory(),warehouseSkuInventory, syncDTO.getRequest_id(), syncDTO.getSub_type());
+            warehouseSkuInventory.setUpdateAvailableInv(utilityService.calculateUpdateAvailableInventory(sku.getInventory(), AppConstants.INT_ZERO, AppConstants.INT_ZERO));
+            warehouseSkuInventories.add(warehouseSkuInventory);
+        }
+
+        addDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
+
+        for (SkuSyncDTO sku:syncDTO.getData())
+            cacheService.updateInventoryCountCache(syncDTO.getWarehouse_id(), sku.getSku_id(),sku.getInventory());
+        return true;
+
+--- inventory-service | ImsSyncServiceImpl | logSyncInventoryHistory | CODE | 1/1 ---
+    private void logSyncInventoryHistory(String type, int requestedInventory, WarehouseSkuInventory warehouseSkuInventory, String requestId, String subType){
+        InventorySyncHistory history = new InventorySyncHistory();
+        history.setType(type);
+        history.setStnType(subType);
+        history.setRequestId(requestId);
+        history.setSku(warehouseSkuInventory.getSkuId());
+        history.setWarehouseId(warehouseSkuInventory.getWarehouseEntitiesId());
+
+        if (type.equals(AppConstants.TYPE_SYNC_DELIVER_ORDER)) {
+            history.setNewInventory(warehouseSkuInventory.getInventory());
+        } else {
+            history.setNewInventory(warehouseSkuInventory.getInventory() + requestedInventory);
+        }
+
+        history.setRequestedInventory(requestedInventory);
+        history.setPrevInventory(warehouseSkuInventory.getInventory());
+        history.setPrevInventorySold(warehouseSkuInventory.getInventorySold());
+        history.setPrevDamage(warehouseSkuInventory.getDamage());
+        inventorySyncHistoryRepo.saveAndFlush(history);
+
+--- inventory-service | ImsSyncServiceImpl | externalOrderDispatch | CODE | 1/1 ---
     @Override
     @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
     public Object externalOrderDispatch(SyncDTO syncDTO) throws InventoryException, JsonProcessingException {
@@ -76,67 +185,51 @@ Question: how do we sync minimart orders ?
             cacheService.updateInventoryCountCache(syncDTO.getWarehouse_id(), sku.getSku_id(),sku.getSku_quantity());
         return true;
 
---- ImsSyncServiceImpl | logSyncInventoryHistory | CODE | 1/1 ---
-    private void logSyncInventoryHistory(String type, int requestedInventory, WarehouseSkuInventory warehouseSkuInventory, String requestId, String subType){
-        InventorySyncHistory history = new InventorySyncHistory();
-        history.setType(type);
-        history.setStnType(subType);
-        history.setRequestId(requestId);
-        history.setSku(warehouseSkuInventory.getSkuId());
-        history.setWarehouseId(warehouseSkuInventory.getWarehouseEntitiesId());
-
-        if (type.equals(AppConstants.TYPE_SYNC_DELIVER_ORDER)) {
-            history.setNewInventory(warehouseSkuInventory.getInventory());
-        } else {
-            history.setNewInventory(warehouseSkuInventory.getInventory() + requestedInventory);
-        }
-
-        history.setRequestedInventory(requestedInventory);
-        history.setPrevInventory(warehouseSkuInventory.getInventory());
-        history.setPrevInventorySold(warehouseSkuInventory.getInventorySold());
-        history.setPrevDamage(warehouseSkuInventory.getDamage());
-        inventorySyncHistoryRepo.saveAndFlush(history);
-
---- ImsSyncServiceImpl | reconSync | CODE | 1/1 ---
-    @Override
-    @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
-    public Object reconSync(SyncDTO syncDTO) throws InventoryException, JsonProcessingException {
-
-        inventorySyncHistoryRepo.findByTypeAndStnTypeAndRequestIdAndSkuAndWarehouseId(syncDTO.getType(),syncDTO.getSub_type(), syncDTO.getRequest_id(),syncDTO.getData().get(AppConstants.INT_ZERO).getSku_id(),syncDTO.getWarehouse_id());
-        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
-        for(SkuSyncDTO sku:syncDTO.getData()){
-            WarehouseSkuInventory warehouseSkuInventory = cacheService.get(syncDTO.getWarehouse_id(), sku.getSku_id());
-            int updates = warehouseSkuInventoryRepo.updateWarehouseInventory(syncDTO.getWarehouse_id(), sku.getSku_id(), sku.getInventory());
-            if(updates < AppConstants.INT_ONE)
-                throw new InventoryException("Error while update sku : "+sku.getSku_id());
-            logSyncInventoryHistory(syncDTO.getType(), sku.getInventory(),warehouseSkuInventory, syncDTO.getRequest_id(), syncDTO.getSub_type());
-            warehouseSkuInventory.setUpdateAvailableInv(utilityService.calculateUpdateAvailableInventory(sku.getInventory(), AppConstants.INT_ZERO, AppConstants.INT_ZERO));
-            warehouseSkuInventories.add(warehouseSkuInventory);
-        }
-
-        addDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
-
-        for (SkuSyncDTO sku:syncDTO.getData())
-            cacheService.updateInventoryCountCache(syncDTO.getWarehouse_id(), sku.getSku_id(),sku.getInventory());
-        return true;
-
---- ImsSyncServiceImpl | updateAvailableInventory | CODE | 1/1 ---
+--- inventory-service | ImsSyncServiceImpl | updateAvailableInventory | CODE | 1/1 ---
     private void updateAvailableInventory(WarehouseSkuInventory warehouseSkuInventory, OmsSyncDTO syncDTO, OmsSkuSyncDTO sku) {
         if (syncDTO.getRequestType().toUpperCase().equals(OmsRequestTypes.INVENTORY_UPDATE.getValue())) {
 
 
+📄 FILE: CacheServiceImpl.java
+
+--- inventory-service | CacheServiceImpl | asyncUpdateInventoryCountCache | CODE | 1/1 ---
+    @Override
+    @Async
+    public void asyncUpdateInventoryCountCache(SyncDTO syncDTO, Boolean reSyncData) {
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        for (SkuSyncDTO sku : syncDTO.getData()) {
+            try {
+                if (AppConstants.IS_CACHE_ENABLED) {
+                    // If cache enable
+//            flushSku(warehouseId, skuId);
+                    Optional<WarehouseSkuInventory> entity = warehouseSkuInventoryReadRepo.findBySkuIdAndWarehouseEntitiesId(sku.getSku_id(), sku.getWarehouseId());
+                    if (entity.isPresent() && !reSyncData) {
+                        create(inventoryUpdateMapper.omsCacheUpdateInventory(entity.get(), sku));
+                    } else if (entity.isPresent() && reSyncData){
+                        create(entity.get());
+                    }
+
+                    entity.ifPresent(warehouseSkuInventories::add);
+                }
+            } catch (Exception ex) {
+                log.error("omsInventorySync - asyncUpdateInventoryCountCache while updating cache with SKU {}", sku);
+            }
+        }
+        asyncService.asyncAddDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
+
+
+📄 FILE: UtilityServiceImpl.java
+
+--- inventory-service | UtilityServiceImpl | postWarehouseExpiryUpdateStn | CODE | 1/1 ---
+    @Async
+    @Override
+    public void postWarehouseExpiryUpdateStn(SyncDTO stnHoldRequestDTO, int stnWarehouseId, Map<String, WarehouseSkuInventory> warehouseSkuInventoryMap) throws InventoryException {
+        try {
+
+
 📄 FILE: InventoryServiceImpl.java
 
---- InventoryServiceImpl | getInventoryHistoryByCenterAndDate | CODE | 1/1 ---
-    @Override
-    public List<InventoryHistory> getInventoryHistoryByCenterAndDate(Long inventoryCenterId, Date startDate, Date endDate) {
-
-        startDate = addTimeToDate(startDate,0,0,0);
-        endDate = addTimeToDate(endDate,23,59,59);
-
-        return inventoryHistoryRepo.findByInventoryCenterIdAndTypeAndSubTypeAndCreatedDate(inventoryCenterId,"minimart","request_create_ds",startDate,endDate);
-
---- InventoryServiceImpl | reverseUpdate | CODE | 1/1 ---
+--- inventory-service | InventoryServiceImpl | reverseUpdate | CODE | 1/1 ---
     @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
     @Override
     public void reverseUpdate(InventoryDTO inventoryDTO) throws InventoryException {
@@ -175,7 +268,7 @@ Question: how do we sync minimart orders ?
         utilityService.logUpdateRequest(inventoryDTO,map,"revert");
         imsSyncService.addDealExpiryStatusInQueue(warehouseSkuInventories, AppConstants.REVERSE_UPDATE);
 
---- InventoryServiceImpl | reverseUpdateSync | CODE | 1/1 ---
+--- inventory-service | InventoryServiceImpl | reverseUpdateSync | CODE | 1/1 ---
     @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
     @Override
     public void reverseUpdateSync(InventoryDTO inventoryDTO) throws InventoryException {
@@ -207,7 +300,276 @@ Question: how do we sync minimart orders ?
         utilityService.logUpdateRequest(inventoryDTO,map,"revert");
         imsSyncService.addDealExpiryStatusInQueue(warehouseSkuInventories,AppConstants.REVERSE_UPDATE);
 
---- InventoryServiceImpl | updateInventory | CODE | 6/7 ---
+--- inventory-service | InventoryServiceImpl | getInventoryHistoryByCenterAndDate | CODE | 1/1 ---
+    @Override
+    public List<InventoryHistory> getInventoryHistoryByCenterAndDate(Long inventoryCenterId, Date startDate, Date endDate) {
+
+        startDate = addTimeToDate(startDate,0,0,0);
+        endDate = addTimeToDate(endDate,23,59,59);
+
+        return inventoryHistoryRepo.findByInventoryCenterIdAndTypeAndSubTypeAndCreatedDate(inventoryCenterId,"minimart","request_create_ds",startDate,endDate);
+
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 1/7 ---
+    public List<UpdateInventoryResponseModel> updateInventory(UpdateInventoryRequestModel updateInventoryRequest) {
+        if ( ! inventoryUpdateManageRepo.countByRequestId(updateInventoryRequest.getRequestId()).equals(0L)) {
+            log.error("This Request Id : {} has been already processed",updateInventoryRequest.getRequestId());
+            throw new AlreadyProcessedException(String.format("This Request Id : %s has been already processed",updateInventoryRequest.getRequestId()));
+        }
+
+        SyncDTO syncDTO = new SyncDTO();
+        syncDTO.setRequest_id(generateRandomUUID().concat(updateInventoryRequest.getRequestId()));
+        syncDTO.setType(updateInventoryRequest.getRequestType().toUpperCase());
+        syncDTO.setRevertRequestId(updateInventoryRequest.getRevertRequestId());
+        syncDTO.setSub_type(updateInventoryRequest.getRequestSubType());
+
+        List<UpdateInventoryResponseModel> updateInventoryRequestResponse = new ArrayList<>();
+        TransactionTemplate transactionTemplate = new TransactionTemplate(imsTransactionManager);
+        transactionTemplate.execute(transactionStatus -> {
+
+            List<SkuSyncDTO> syncDTODataList = new ArrayList<>();
+            List<InventoryHistory> updatedInventoryManageHistoryList = new ArrayList<>();
+            List<InventoryPassbook> updateInventoryPassbookList = new ArrayList<>();
+            List<InventoryUpdateManage> updateInventoryUpdateManageList = new ArrayList<>();
+
+            List<String> skuIdList = updateInventoryRequest.getSkuQuantities().stream()
+                    .map(SkuQuantityModel::getSkuId)
+                    .collect(Collectors.toList());
+
+            List<Long> warehouseIds = updateInventoryRequest.getSkuQuantities().stream()
+                    .map(SkuQuantityModel::getWarehouseId)
+                    .collect(Collectors.toList());
+
+            List<InventoryCenter> inventoryCenterList = inventoryCenterRepo.findByWarehouseIdInAndType(warehouseIds, InventoryCenter.TYPE_WAREHOUSE);
+
+            if(ObjectUtils.isEmpty(inventoryCenterList)){
+                throw new BadRequestException("Inventory Center Id not available for any warehouseIds");
+            }
+
+            Map<Long, InventoryCenter> inventoryCenterMap = inventoryCenterList.stream()
+                    .collect(Collectors.toMap(InventoryCenter::getWarehouseId, Function.identity()));
+
+            List<Long> inventoryCenterIdList = inventoryCenterList.stream()
+                    .map(InventoryCenter::getId)
+                    .collect(Collectors.toList());
+
+            List<InventoryManage> inventoryManageList = inventoryManageRepo.findByInventoryCenterIdInAndSkuIdIn(inventoryCenterIdList, skuIdList);
+            if(ObjectUtils.isEmpty(inventoryManageList)){
+                log.error("No inventory manage found for requestId : {} ", updateInventoryRequest.getRequestId());
+            }
+
+            Map<String, Map<Long, InventoryManage>> skuInvCenterManageMap = inventoryManageList.stream()
+                    .collect(Collectors.groupingBy(InventoryManage::getSkuId,
+                            Collectors.toMap(InventoryManage::getInventoryCenterId, Function.identity())));
+
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 2/7 ---
+            }
+
+            Map<String, Map<Long, InventoryManage>> skuInvCenterManageMap = inventoryManageList.stream()
+                    .collect(Collectors.groupingBy(InventoryManage::getSkuId,
+                            Collectors.toMap(InventoryManage::getInventoryCenterId, Function.identity())));
+
+            boolean isPosUpdateRequest = AppConstants.POS_UPDATE.equals(updateInventoryRequest.getRequestSubType());
+            Map<Long, WarehouseWiseConfig> warehouseConfigMap = fetchWarehouseConfigsBulk();
+            
+            for (SkuQuantityModel skuQuantityModel : updateInventoryRequest.getSkuQuantities()) {
+
+                try {
+
+                    InventoryCenter existingInventoryCenterData = inventoryCenterMap.get(skuQuantityModel.getWarehouseId());
+                    if (ObjectUtils.isEmpty(existingInventoryCenterData)) {
+                        log.error("Inventory Center id does not exist for skuId = {} and warehouseId = {} for requestId : {}",
+                                skuQuantityModel.getSkuId(), skuQuantityModel.getWarehouseId(),updateInventoryRequest.getRequestId());
+                        continue;
+                    }
+
+                    InventoryManage inventoryManageExist = null ;
+                    try {
+                        inventoryManageExist = skuInvCenterManageMap.get(skuQuantityModel.getSkuId()).get(existingInventoryCenterData.getId());
+                        skuInvCenterManageMap.get(skuQuantityModel.getSkuId()).remove(existingInventoryCenterData.getId());
+                    } catch (Exception ex) {
+                        log.error("Inventory Manage not found for skuId = {} and inventory center Id = {} in requestId : {}",
+                                skuQuantityModel.getSkuId(),existingInventoryCenterData.getId(), updateInventoryRequest.getRequestId());
+                    }
+
+                    if (Objects.isNull(inventoryManageExist)) {
+                        inventoryManageExist = inventoryManageRepo.findByInventoryCenterIdAndSkuId(existingInventoryCenterData.getId(), skuQuantityModel.getSkuId());
+                    }
+
+                    if (Objects.isNull(inventoryManageExist) && !"loose".equalsIgnoreCase(updateInventoryRequest.getRequestSubType())) {
+                        if (skuQuantityModel.isUpsert()) {
+                            InventoryManage newInventoryManage = new InventoryManage();
+                            newInventoryManage.setInventoryCenterId(existingInventoryCenterData.getId());
+                            newInventoryManage.setSkuId(skuQuantityModel.getSkuId().toUpperCase());
+                            newInventoryManage.setInventory(0L);
+                            newInventoryManage.setOutInventory(0L);
+                            newInventoryManage.setHold(0L);
+                            newInventoryManage.setDamage(0L);
+                            newInventoryManage.setLost(0L);
+                            newInventoryManage.setWarehouseId(skuQuantityModel.getWarehouseId());
+                            newInventoryManage.setWmsLost(0L);
+                            newInventoryManage.setWmsExcess(0L);
+                            newInventoryManage.setIntransitInventory(0L);
+                            newInventoryManage.setRescheduleHold(0L);
+                            newInventoryManage.setNonSellableInventory(0L);
+                            newInventoryManage.setNonSellableShelfLifeInv(0L);
+
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 3/7 ---
+                            newInventoryManage.setWmsExcess(0L);
+                            newInventoryManage.setIntransitInventory(0L);
+                            newInventoryManage.setRescheduleHold(0L);
+                            newInventoryManage.setNonSellableInventory(0L);
+                            newInventoryManage.setNonSellableShelfLifeInv(0L);
+                            newInventoryManage.setLooseInventory(0D);
+                            inventoryManageExist = new InventoryManage(newInventoryManage);
+                        } else {
+                            log.error("Inventory Manage does not exist for skuId = {} and inventoryCenterId = {} for requestId : {}",
+                                    skuQuantityModel.getSkuId(), existingInventoryCenterData.getId(), updateInventoryRequest.getRequestId());
+                            continue;
+                        }
+                    }
+
+                    if (!Objects.isNull(inventoryManageExist)) {
+                        InventoryManage inventoryManage = new InventoryManage(inventoryManageExist);
+                        inventoryManage.setSkuId(skuQuantityModel.getSkuId().toUpperCase());
+                        inventoryManage.setWarehouseId(skuQuantityModel.getWarehouseId());
+
+                        if (skuQuantityModel.getInventoryWmsExcess() > 0 && skuQuantityModel.getInventoryWmsLost() > 0) {
+                            // both wmsExcess and wmsLost can't have value at the same time
+                            // not throwing error here might create inventory mismatch due to calculation error.
+                            log.error("Both wmsExcess:{} and wmsLost:{} can't have values at the same sku level.", skuQuantityModel.getInventoryWmsExcess(), skuQuantityModel.getInventoryWmsLost());
+                            throw new BadRequestException("Both wmsExcess and wmsLost can't have values at the same sku level.");
+                        } else if (skuQuantityModel.getInventoryWmsExcess() > 0 || skuQuantityModel.getInventoryWmsLost() > 0) {
+                            processInventoryAdjustments(inventoryManageExist, skuQuantityModel);
+                        }
+
+                        InventoryManage updatedInventoryManage = new InventoryManage(updateInventoryManage(skuQuantityModel, inventoryManage, isPosUpdateRequest, warehouseConfigMap));
+
+                        if (Objects.nonNull(updatedInventoryManage.getId())) {
+
+                            int update = inventoryManageRepo.updateInventoryManage(
+                                    updatedInventoryManage.getId(),
+                                    getDefaultLong(updatedInventoryManage.getInventory()) - getDefaultLong(inventoryManage.getInventory()),
+                                    getDefaultLong(skuQuantityModel.getOutInventory()),
+                                    getDefaultLong(skuQuantityModel.getInventoryHold()),
+                                    getDefaultLong(skuQuantityModel.getInventoryDamage()),
+                                    getDefaultLong(skuQuantityModel.getInventoryLost()),
+                                    getDefaultLong(updatedInventoryManage.getWmsLost()) - getDefaultLong(inventoryManage.getWmsLost()),
+                                    getDefaultDouble(skuQuantityModel.getLooseInventory()),
+                                    getDefaultLong(skuQuantityModel.getRescheduleHold()),
+                                    getDefaultLong(skuQuantityModel.getIntransitInventory()),
+                                    getDefaultLong(skuQuantityModel.getNonSellableInventory()),
+                                    updatedInventoryManage.getVersion(),
+                                    getDefaultLong(skuQuantityModel.getInventoryWmsExcess()),
+                                    getDefaultLong(skuQuantityModel.getNonSellableShelfLifeInv())
+                                    );
+
+                            if (update < INT_ONE) {
+
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 4/7 ---
+                                    getDefaultLong(skuQuantityModel.getInventoryWmsExcess()),
+                                    getDefaultLong(skuQuantityModel.getNonSellableShelfLifeInv())
+                                    );
+
+                            if (update < INT_ONE) {
+                                log.error("### Error while updating IMS DB. Throwing ObjectOptimisticLockingFailureException.");
+                                throw new ObjectOptimisticLockingFailureException("Error while updating IMS DB.", updatedInventoryManage);
+                            }
+                            updatedInventoryManage = inventoryManageRepo.findById(updatedInventoryManage.getId()).get();
+
+                        } else {
+                            inventoryManageRepo.saveAndFlush(updatedInventoryManage);
+                        }
+
+                        InventoryHistory inventoryManageHistoryUpdate = insertInventoryHistoryDataSet(
+                                updateInventoryRequest.getUpdatedBy(),
+                                String.valueOf(updateInventoryRequest.getRequestType()),
+                                updateInventoryRequest.getRequestSubType(),
+                                skuQuantityModel.getComments(),
+                                updateInventoryRequest.getReferenceId(),
+                                inventoryManage,
+                                updatedInventoryManage);
+                        updatedInventoryManageHistoryList.add(inventoryManageHistoryUpdate);
+
+                        InventoryPassbook inventoryPassbookUpdate = insertInventoryPassbookDataSet(
+                                skuQuantityModel.getBuyingPrice(),
+                                skuQuantityModel.getComments(),
+                                skuQuantityModel.getProcess(),
+                                skuQuantityModel.getCreatedType(),
+                                String.valueOf(updateInventoryRequest.getUpdatedBy()),
+                                skuQuantityModel.getTransactionType(),
+                                Objects.isNull(updateInventoryRequest.getRevertRequestId()) ? skuQuantityModel.getTransactionSubType() : "Revert ".concat(skuQuantityModel.getTransactionSubType()),
+                                updateInventoryRequest.getReferenceId(),
+                                inventoryManage, updatedInventoryManage);
+                        DTOUtils.updatePassbookDateToCurrentTimeIfNotExists(inventoryPassbookUpdate);
+                        updateInventoryPassbookList.add(inventoryPassbookUpdate);
+
+                        SkuSyncDTO skuSyncDTO = new SkuSyncDTO();
+                        skuSyncDTO.setBuying_price((float) skuQuantityModel.getBuyingPrice());
+                        skuSyncDTO.setSku_id(skuQuantityModel.getSkuId().toUpperCase());
+                        skuSyncDTO.setInventory(Objects.isNull(skuQuantityModel.getOmsInventory()) ? Math.toIntExact(skuQuantityModel.getAvailableInventory()) : Math.toIntExact(skuQuantityModel.getOmsInventory()));
+                        skuSyncDTO.setWarehouseId(Math.toIntExact(skuQuantityModel.getWarehouseId()));
+                        skuSyncDTO.setImsHistoryId(generateRandomUUID().concat(updateInventoryRequest.getRequestId()));
+                        if (!ObjectUtils.isEmpty(skuQuantityModel.getLooseInventory())) {
+                            skuSyncDTO.setLooseInventory(updatedInventoryManage.getLooseInventory());
+                        }
+                        if (Objects.equals(syncDTO.getType().toUpperCase(), REQUEST_TYPE_STN)) {
+                            skuSyncDTO.setIntransitInventory((int) skuQuantityModel.getIntransitInventory());
+                        }
+
+
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 5/7 ---
+                        }
+                        if (Objects.equals(syncDTO.getType().toUpperCase(), REQUEST_TYPE_STN)) {
+                            skuSyncDTO.setIntransitInventory((int) skuQuantityModel.getIntransitInventory());
+                        }
+
+                        syncDTODataList.add(skuSyncDTO);
+
+                        InventoryUpdateManage inventoryUpdateManage = new InventoryUpdateManage();
+                        inventoryUpdateManage.setRequestId(updateInventoryRequest.getRequestId());
+//                        inventoryUpdateManage.setRevertRequestId(updateInventoryRequest.getRevertRequestId());
+                        updateInventoryUpdateManageList.add(inventoryUpdateManage);
+
+                        UpdateInventoryResponseModel updateInventoryResponseModel = mapToBulkReconSaveResponseModel(updatedInventoryManage);
+                        updateInventoryRequestResponse.add(updateInventoryResponseModel);
+
+                    } else if ("loose".equalsIgnoreCase(updateInventoryRequest.getRequestSubType())) {
+                        InventoryManage updatedInventoryManage =
+                            createInventoryManage(skuQuantityModel);
+                        updatedInventoryManage.setInventoryCenterId(
+                            existingInventoryCenterData.getId());
+                        inventoryManageRepo.save(updatedInventoryManage);
+
+                        InventoryHistory insertInventoryHistory =
+                            createInventoryHistory(updatedInventoryManage, updateInventoryRequest,
+                                skuQuantityModel);
+                        inventoryHistoryRepo.save(insertInventoryHistory);
+
+                        SkuSyncDTO skuSyncDTO = new SkuSyncDTO();
+                        skuSyncDTO.setBuying_price((float) skuQuantityModel.getBuyingPrice());
+                        skuSyncDTO.setSku_id(skuQuantityModel.getSkuId().toUpperCase());
+                        skuSyncDTO.setInventory(
+                            Objects.isNull(skuQuantityModel.getOmsInventory()) ? Math.toIntExact(
+                                skuQuantityModel.getAvailableInventory())
+                                : Math.toIntExact(skuQuantityModel.getOmsInventory()));
+                        skuSyncDTO.setWarehouseId(skuQuantityModel.getWarehouseId().intValue());
+                        skuSyncDTO.setImsHistoryId(String.valueOf(insertInventoryHistory.getId()));
+                        if (!ObjectUtils.isEmpty(skuQuantityModel.getLooseInventory())) {
+                            skuSyncDTO.setLooseInventory(
+                                updatedInventoryManage.getLooseInventory());
+                        }
+                        syncDTODataList.add(skuSyncDTO);
+
+                        InventoryUpdateManage inventoryUpdateManage = new InventoryUpdateManage();
+                        inventoryUpdateManage.setRequestId(updateInventoryRequest.getRequestId());
+                        inventoryUpdateManageRepo.save(inventoryUpdateManage);
+
+                        InventoryPassbook inventoryPassbookUpdate =
+                            createInventoryPassbook(updatedInventoryManage, updateInventoryRequest,
+                                skuQuantityModel);
+                        DTOUtils.updatePassbookDateToCurrentTimeIfNotExists(
+
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 6/7 ---
 
                         InventoryPassbook inventoryPassbookUpdate =
                             createInventoryPassbook(updatedInventoryManage, updateInventoryRequest,
@@ -259,47 +621,71 @@ Question: how do we sync minimart orders ?
             return null;
         });
 
+--- inventory-service | InventoryServiceImpl | updateInventory | CODE | 7/7 ---
 
-📄 FILE: ImsSyncController.java
+                throw new RuntimeException(String.format("Error occurred while syncing inventory in ims and oms with request id %s . ErrorMsg: %s ", updateInventoryRequest.getRequestId(),e.getMessage()));
+            }
+            return null;
+        });
 
---- ImsSyncController | rvpSync | CODE | 1/1 ---
-    @PostMapping("rvp")
-    private ResponseEntity<?> rvpSync(@RequestBody SyncDTO syncDTO,
-                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
-        // Using same functionality of external order dispatch to sync RVP
-        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
-            syncDTO.setType("RVP");
-        if(isAsync)
-
---- ImsSyncController | externalOrderDispatch | CODE | 1/1 ---
-    @PostMapping("external-order-dispatch")
-    private ResponseEntity<?> externalOrderDispatch(@RequestBody SyncDTO syncDTO,
-                                                    @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
-        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
-            syncDTO.setType("EXTERNAL-ORDER-DISPATCH");
-        if(isAsync)
-
---- ImsSyncController | rtvSync | CODE | 1/1 ---
-    @PostMapping("rtv")
-    private ResponseEntity<?> rtvSync(@RequestBody RtvDTO rtvDTO,
-                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
-        // Using same functionality of external order dispatch to sync RVP
-        if(isAsync)
-
---- ImsSyncController | cycleCountSync | CODE | 1/1 ---
-    @PostMapping("cycle-count")
-    private ResponseEntity<?> cycleCountSync(@RequestBody SyncDTO syncDTO,
-                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
-        // Using same functionality of external order dispatch to sync RVP
-//        log.error("Request recieved in cycle-count api {}", syncDTO);
-        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
-            syncDTO.setType("CYCLE_COUNT");
-        if(isAsync)
+        return updateInventoryRequestResponse;
 
 
 📄 FILE: PaymentServiceImplV3.java
 
---- PaymentServiceImplV3 | paymentDetailsBreakUp | CODE | 2/2 ---
+--- payment-service | PaymentServiceImplV3 | paymentDetailsBreakUp | CODE | 1/2 ---
+    @Override
+    public List<OrderPaymentBreakUp> paymentDetailsBreakUp(
+            Set<Long> orderIds) {
+
+        OrderDetailsGenericRequestModel requestModel = new OrderDetailsGenericRequestModel();
+
+        // Simplify filter and additionalRequiredData creation
+        requestModel.setFilter(Collections.singletonMap(FilterTypeEnums.INCLUDE,
+                Collections.singletonMap(FilterValueEnums.ORDER_IDS, orderIds)));
+        requestModel.setAdditionalRequiredData(Map.of(
+                AdditionalRequiredDataEnums.ORDER_DISCOUNTING_DETAILS, true,
+                AdditionalRequiredDataEnums.ORDER_CART_DETAILS, true
+        ));
+        requestModel.setCustomFilter(Collections.emptyMap());
+
+        List<OrderDetailsResponseModel> orderDetails =
+                Optional.ofNullable(orderServiceClient.getOrderDetailsGeneric("invoice_discounting_view", requestModel).getBody())
+                        .map(OrderDetailsGenericResponseModel::getData)
+                        .orElseThrow(() -> new RuntimeException("Order details not found"));
+
+        if (orderDetails.isEmpty()) {
+            throw new RuntimeException("Order details not found");
+        }
+
+        List<PaymentInitDetailsEntity> paymentInitDetailsEntities =
+                Optional.of(paymentInitDetailsRepository
+                                .findByOrderIdIn(
+                                        orderDetails.stream().map(OrderDetailsResponseModel::getOrderDetails)
+                                                .map(OrderDetailsModel::getId).collect(Collectors.toSet())))
+                        .orElseThrow(() -> new RuntimeException("Payment details not found"));
+
+
+        Map<Long, List<PaymentInitDetailsEntity>> paymentInitDetailsEntityMap =
+                paymentInitDetailsEntities.stream().collect(Collectors
+                        .groupingBy(PaymentInitDetailsEntity::getOrderId));
+
+        List<OrderPaymentBreakUp> responseModel = new ArrayList<>();
+
+        for (OrderDetailsResponseModel orderDetailsResponseModel : orderDetails) {
+            OrderDetailsModel orderDetail = orderDetailsResponseModel.getOrderDetails();
+
+            List<PaymentInitDetailsEntity> orderPaymentDetail = paymentInitDetailsEntityMap
+                    .getOrDefault(orderDetail.getId(), Collections.emptyList());
+
+            OrderPaymentBreakUp martOrderPayment = new OrderPaymentBreakUp();
+            martOrderPayment.setOrderId(orderDetail.getId());
+            martOrderPayment.setAmount(orderDetail.getAmount());
+            martOrderPayment.setBilledAmount(orderDetail.getBilledAmount());
+            martOrderPayment.setDiscountAmount(orderDetail.getDiscountAmount());
+            martOrderPayment.setOrderDiscountModels(Objects.nonNull(orderDetailsResponseModel.getOrderDiscountingDetails())
+
+--- payment-service | PaymentServiceImplV3 | paymentDetailsBreakUp | CODE | 2/2 ---
             martOrderPayment.setOrderId(orderDetail.getId());
             martOrderPayment.setAmount(orderDetail.getAmount());
             martOrderPayment.setBilledAmount(orderDetail.getBilledAmount());
@@ -343,221 +729,31 @@ Question: how do we sync minimart orders ?
         return responseModel;
 
 
-📄 FILE: ExpressDeliveryServiceImpl.java
+📄 FILE: JusPayXServiceImpl.java
 
---- ExpressDeliveryServiceImpl | syncOrdersToIms | CODE | 1/1 ---
-    private void syncOrdersToIms(List<DealLevelPromotion> cartItems, long warehouseId) {
-        List<Long> orderIds = cartItems.stream().filter(cartItem ->
-                cartItem.getDeliveryType().equalsIgnoreCase(DeliveryType.EXPRESS.name()))
-                .map(DealLevelPromotion::getOrderPKId).collect(Collectors.toList());
-        OrderPushToImsRequest orderPushToImsRequest = new OrderPushToImsRequest();
-        orderPushToImsRequest.setWarehouseId(warehouseId);
-        orderPushToImsRequest.setOrderIds(orderIds);
-        orderPushToImsRequest.setDeliveryType(DeliveryType.EXPRESS.name());
+--- payment-service | JusPayXServiceImpl | synchronousOrderStatusCall | CODE | 1/1 ---
+    @Override
+    public JuspayWebhookRequestModel synchronousOrderStatusCall(String orderId, Boolean eventRequired) {
         try {
-
-
-📄 FILE: MyOrderServiceImpl.java
-
---- MyOrderServiceImpl | minimartOrderSync | CODE | 1/2 ---
-    public OrderSyncResponseModel minimartOrderSync(OrderSyncRequestModel orderSyncRequestModel) {
-
-        List<UserOrderSyncModel> userOrderSyncModelList = orderSyncRequestModel.getUserOrderSyncModelList();
-        
-        List<String> posOrderIds = userOrderSyncModelList.stream()
-                .map(UserOrderSyncModel::getPosOrderId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-        
-        List<String> acquiredLocks = new ArrayList<>();
-        try {
-            for (String posOrderId : posOrderIds.stream().sorted().collect(Collectors.toList())) {
-                String lockKey = MINIMART_ORDER_SYNC_LOCK + posOrderId;
-                acquireLock(lockKey, posOrderId);
-                acquiredLocks.add(lockKey);
+            JuspayWebhookRequestModel juspayWebhookRequestModel = JuspayWebhookRequestModel.builder()
+                    .eventName(JuspayWebhookEvents.ORDER_SUCCEEDED.name())
+                    .content(JuspayWebhookContentModel.builder()
+                            .order(juspayXFeignClientWrapper.getJuspayOrder(orderId))
+                            .build())
+                    .build();
+            if(eventRequired) {
+                juspayWebhook(juspayWebhookRequestModel,false);
             }
+            return juspayWebhookRequestModel;
         } catch (Exception e) {
-            // Release all acquired locks if any lock acquisition fails
-            releaseLocks(acquiredLocks);
-            throw e;
+            log.error("Error in synchronous order status call, ex : {} for order_id : {}", e.getMessage(), orderId);
         }
-
-        OrderSyncResponseModel orderSyncResponseModel = new OrderSyncResponseModel();
-        Map<String, List<OrderDealMappingModel>> posOrderOmsOrderMap = new HashMap<>();
-        Map<String, String> ordersSyncStatusMap = new HashMap<>();
-
-        List<String> posOrderIdList = userOrderSyncModelList.stream()
-                .map(UserOrderSyncModel::getPosOrderId)
-                .collect(Collectors.toList());
-
-        List<POSOrderMapping> posOrderMappingList = posOrderMappingRepository.findByPosOrderIdIn(posOrderIdList);
-
-        Set<String> posOrderIdSet = posOrderMappingList.stream()
-                .map(POSOrderMapping::getPosOrderId)
-                .collect(Collectors.toSet());
-
-        List<UserOrderSyncModel> existingUserOrderSyncModelList = userOrderSyncModelList.stream()
-                .filter(userOrderSyncModel -> posOrderIdSet.contains(userOrderSyncModel.getPosOrderId()))
-                .collect(Collectors.toList());
-
-        Map<String, List<POSOrderMapping>> posOrderMappingMap = posOrderMappingList.stream()
-                .collect(Collectors.groupingBy(POSOrderMapping::getPosOrderId));
-
-        posOrderIdSet.clear();
-
-        for(UserOrderSyncModel userOrderSyncModel : existingUserOrderSyncModelList) {
-            List<POSOrderMapping> posOrderMappings = posOrderMappingMap.get(userOrderSyncModel.getPosOrderId());
-
-            List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
-
-
-📄 FILE: InventoryUpdateMapper.java
-
---- InventoryUpdateMapper | updateInventory | CODE | 1/1 ---
-    public WarehouseSkuInventory updateInventory(WarehouseSkuInventory warehouseSkuInventory, SkuInventoryDTO skuInventoryDTO){
-        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()+skuInventoryDTO.getInventory());
-        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()+skuInventoryDTO.getInventory_sold());;
-        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()+skuInventoryDTO.getBtoc_sold());
-        warehouseSkuInventory.setBtobSold(warehouseSkuInventory.getBtobSold()+skuInventoryDTO.getBtob_sold());
-        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()+skuInventoryDTO.getStn_intransit_inventory());
-        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()+skuInventoryDTO.getVirtual_inventory());
-        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()+ skuInventoryDTO.getStn_intransit_order());
-        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()+skuInventoryDTO.getDelivered_inventory());
-        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()+skuInventoryDTO.getDamage());
-        warehouseSkuInventory.setModifiedDate(new Date());
-        return warehouseSkuInventory;
-
---- InventoryUpdateMapper | revertInventory | CODE | 1/1 ---
-    public WarehouseSkuInventory revertInventory(WarehouseSkuInventory warehouseSkuInventory, SkuInventoryDTO skuInventoryDTO){
-        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()-skuInventoryDTO.getInventory());
-        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()-skuInventoryDTO.getInventory_sold());;
-        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()-skuInventoryDTO.getBtoc_sold());
-        warehouseSkuInventory.setBtobSold(warehouseSkuInventory.getBtobSold()-skuInventoryDTO.getBtob_sold());
-        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()-skuInventoryDTO.getStn_intransit_inventory());
-        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()-skuInventoryDTO.getVirtual_inventory());
-        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()- skuInventoryDTO.getStn_intransit_order());
-        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()-skuInventoryDTO.getDelivered_inventory());
-        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()-skuInventoryDTO.getDamage());
-        warehouseSkuInventory.setModifiedDate(new Date());
-        return warehouseSkuInventory;
-
---- InventoryUpdateMapper | cacheUpdateInventory | CODE | 1/1 ---
-    public WarehouseSkuInventory cacheUpdateInventory(WarehouseSkuInventory warehouseSkuInventory, OmsSkuSyncDTO skuInventoryDTO){
-        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()+skuInventoryDTO.getInventory());
-        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()+skuInventoryDTO.getInventorySold());
-        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()+skuInventoryDTO.getBtocSold());
-        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()+skuInventoryDTO.getStnIntransitInventory());
-        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()+skuInventoryDTO.getVirtualInventory());
-        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()+ skuInventoryDTO.getStnIntransitInventoryOrder());
-        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()+skuInventoryDTO.getDeliveredInventory());
-        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()+skuInventoryDTO.getDamage());
-        warehouseSkuInventory.setLooseInventory(warehouseSkuInventory.getLooseInventory()+ skuInventoryDTO.getLooseInventory());
-        warehouseSkuInventory.setModifiedDate(new Date());
-        return warehouseSkuInventory;
-
-
-📄 FILE: CacheServiceImpl.java
-
---- CacheServiceImpl | asyncUpdateInventoryCountCache | CODE | 1/1 ---
-    @Override
-    @Async
-    public void asyncUpdateInventoryCountCache(SyncDTO syncDTO, Boolean reSyncData) {
-        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
-        for (SkuSyncDTO sku : syncDTO.getData()) {
-            try {
-                if (AppConstants.IS_CACHE_ENABLED) {
-                    // If cache enable
-//            flushSku(warehouseId, skuId);
-                    Optional<WarehouseSkuInventory> entity = warehouseSkuInventoryReadRepo.findBySkuIdAndWarehouseEntitiesId(sku.getSku_id(), sku.getWarehouseId());
-                    if (entity.isPresent() && !reSyncData) {
-                        create(inventoryUpdateMapper.omsCacheUpdateInventory(entity.get(), sku));
-                    } else if (entity.isPresent() && reSyncData){
-                        create(entity.get());
-                    }
-
-                    entity.ifPresent(warehouseSkuInventories::add);
-                }
-            } catch (Exception ex) {
-                log.error("omsInventorySync - asyncUpdateInventoryCountCache while updating cache with SKU {}", sku);
-            }
-        }
-        asyncService.asyncAddDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
-
-
-📄 FILE: InventoryController.java
-
---- InventoryController | reverseUpdateSync | CODE | 1/1 ---
-    @PostMapping("/compensate-sync")
-    private ResponseEntity<?> reverseUpdateSync(@RequestBody InventoryDTO inventoryDTO) throws JsonProcessingException, InventoryException {
-        inventoryService.reverseUpdateSync(inventoryDTO);
-        return sendSuccessResponse(true);
-
-
-📄 FILE: EtaServiceImpl.java
-
---- EtaServiceImpl | updateOrderStatusWidgetCacheAsync | CODE | 1/1 ---
-    @Async
-    public CompletableFuture<Void> updateOrderStatusWidgetCacheAsync(List<OrderStatusWidgetCacheUpdateModel> orderStatusWidgetCacheUpdateModelList) {
-        orderServiceClient.updateOrderStatusWidgetCache(orderStatusWidgetCacheUpdateModelList);
-        return CompletableFuture.completedFuture(null);
-
-
-📄 FILE: UtilityServiceImpl.java
-
---- UtilityServiceImpl | postWarehouseExpiryUpdateStn | CODE | 1/1 ---
-    @Async
-    @Override
-    public void postWarehouseExpiryUpdateStn(SyncDTO stnHoldRequestDTO, int stnWarehouseId, Map<String, WarehouseSkuInventory> warehouseSkuInventoryMap) throws InventoryException {
-        try {
-
-
-📄 FILE: ExpressDeliveryServiceImplTest.java
-
---- ExpressDeliveryServiceImplTest | testOrderSyncException | TEST | 1/1 ---
-    @Test
-    public void testOrderSyncException() throws Exception {
-        // We need to access the private syncOrdersToIms method
-        Method syncOrdersToImsMethod = ExpressDeliveryServiceImpl.class.getDeclaredMethod(
-            "syncOrdersToIms", List.class, long.class);
-        syncOrdersToImsMethod.setAccessible(true);
-        
-        // Create test data
-        List<DealLevelPromotion> cartItems = new ArrayList<>();
-        DealLevelPromotion item1 = new DealLevelPromotion();
-        item1.setDeliveryType(DeliveryType.EXPRESS.name());
-        item1.setOrderPKId(101L);
-        
-        DealLevelPromotion item2 = new DealLevelPromotion();
-        item2.setDeliveryType(DeliveryType.EXPRESS.name());
-        item2.setOrderPKId(102L);
-        
-        cartItems.add(item1);
-        cartItems.add(item2);
-        
-        // Mock the orderServiceClient to throw an exception
-        when(orderServiceClient.syncOrderService(any()))
-            .thenThrow(new RuntimeException("Sync Failed"));
-        
-        // Invoke the private method
-        syncOrdersToImsMethod.invoke(expressDeliveryService, cartItems, 1001L);
-        
-        // Verify that orderServiceClient was called with an OrderPushToImsRequest 
-        // containing the correct order IDs and warehouse ID
-        ArgumentCaptor<OrderPushToImsRequest> requestCaptor = ArgumentCaptor.forClass(OrderPushToImsRequest.class);
-        verify(orderServiceClient).syncOrderService(requestCaptor.capture());
-        
-        OrderPushToImsRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(Long.valueOf(1001L), capturedRequest.getWarehouseId());
-        assertEquals(DeliveryType.EXPRESS.name(), capturedRequest.getDeliveryType());
-        assertEquals(2, capturedRequest.getOrderIds().size());
-        assertTrue(capturedRequest.getOrderIds().contains(101L));
-        assertTrue(capturedRequest.getOrderIds().contains(102L));
+        return null;
 
 
 📄 FILE: V1UserPhoneCartIdTest.java
 
---- V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 1/2 ---
+--- cart-service | V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 1/2 ---
     @Test
     public void testFetchEtaForOrders_IndividualOrderParseException() throws Exception {
         // Arrange
@@ -609,10 +805,22 @@ Question: how do we sync minimart orders ?
         assertEquals(3, result.size());  // All entries are included in the result map
         assertTrue(result.containsKey(101L));  // Order 101 has a valid date
 
+--- cart-service | V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 2/2 ---
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals(3, result.size());  // All entries are included in the result map
+        assertTrue(result.containsKey(101L));  // Order 101 has a valid date
+        assertTrue(result.containsKey(102L));  // Order 102 is included but with empty string
+        assertTrue(result.containsKey(CART_LEVEL_ETA));  // Cart level ETA included
+        
+        // Verify method was called with expected parameters
+        verify(spyEtaService).fetchEtaForOrders(orderIds);
+
 
 📄 FILE: MyOrderServiceImplTest.java
 
---- MyOrderServiceImplTest | createTestOrders | TEST | 1/1 ---
+--- cart-service | MyOrderServiceImplTest | createTestOrders | TEST | 1/1 ---
     private List<Order> createTestOrders() {
         List<Order> orders = new ArrayList<>();
 
@@ -651,23 +859,191 @@ Question: how do we sync minimart orders ?
         return orders;
 
 
-📄 FILE: JusPayXServiceImpl.java
+📄 FILE: ExpressDeliveryServiceImplTest.java
 
---- JusPayXServiceImpl | synchronousOrderStatusCall | CODE | 1/1 ---
-    @Override
-    public JuspayWebhookRequestModel synchronousOrderStatusCall(String orderId, Boolean eventRequired) {
+--- cart-service | ExpressDeliveryServiceImplTest | testOrderSyncException | TEST | 1/1 ---
+    @Test
+    public void testOrderSyncException() throws Exception {
+        // We need to access the private syncOrdersToIms method
+        Method syncOrdersToImsMethod = ExpressDeliveryServiceImpl.class.getDeclaredMethod(
+            "syncOrdersToIms", List.class, long.class);
+        syncOrdersToImsMethod.setAccessible(true);
+        
+        // Create test data
+        List<DealLevelPromotion> cartItems = new ArrayList<>();
+        DealLevelPromotion item1 = new DealLevelPromotion();
+        item1.setDeliveryType(DeliveryType.EXPRESS.name());
+        item1.setOrderPKId(101L);
+        
+        DealLevelPromotion item2 = new DealLevelPromotion();
+        item2.setDeliveryType(DeliveryType.EXPRESS.name());
+        item2.setOrderPKId(102L);
+        
+        cartItems.add(item1);
+        cartItems.add(item2);
+        
+        // Mock the orderServiceClient to throw an exception
+        when(orderServiceClient.syncOrderService(any()))
+            .thenThrow(new RuntimeException("Sync Failed"));
+        
+        // Invoke the private method
+        syncOrdersToImsMethod.invoke(expressDeliveryService, cartItems, 1001L);
+        
+        // Verify that orderServiceClient was called with an OrderPushToImsRequest 
+        // containing the correct order IDs and warehouse ID
+        ArgumentCaptor<OrderPushToImsRequest> requestCaptor = ArgumentCaptor.forClass(OrderPushToImsRequest.class);
+        verify(orderServiceClient).syncOrderService(requestCaptor.capture());
+        
+        OrderPushToImsRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(Long.valueOf(1001L), capturedRequest.getWarehouseId());
+        assertEquals(DeliveryType.EXPRESS.name(), capturedRequest.getDeliveryType());
+        assertEquals(2, capturedRequest.getOrderIds().size());
+        assertTrue(capturedRequest.getOrderIds().contains(101L));
+        assertTrue(capturedRequest.getOrderIds().contains(102L));
+
+
+📄 FILE: CartOrderPrivateController.java
+
+--- cart-service | CartOrderPrivateController | minimartOrderSync | CODE | 1/1 ---
+    @PostMapping(value = "/v1/minimart-order-sync")
+    public ResponseEntity<?> minimartOrderSync(@RequestBody OrderSyncRequestModel orderSyncRequestModel){
+        return new ResponseEntity<>(myOrderService.minimartOrderSync(orderSyncRequestModel), HttpStatus.OK);
+
+
+📄 FILE: ExpressDeliveryServiceImpl.java
+
+--- cart-service | ExpressDeliveryServiceImpl | syncOrdersToIms | CODE | 1/1 ---
+    private void syncOrdersToIms(List<DealLevelPromotion> cartItems, long warehouseId) {
+        List<Long> orderIds = cartItems.stream().filter(cartItem ->
+                cartItem.getDeliveryType().equalsIgnoreCase(DeliveryType.EXPRESS.name()))
+                .map(DealLevelPromotion::getOrderPKId).collect(Collectors.toList());
+        OrderPushToImsRequest orderPushToImsRequest = new OrderPushToImsRequest();
+        orderPushToImsRequest.setWarehouseId(warehouseId);
+        orderPushToImsRequest.setOrderIds(orderIds);
+        orderPushToImsRequest.setDeliveryType(DeliveryType.EXPRESS.name());
         try {
-            JuspayWebhookRequestModel juspayWebhookRequestModel = JuspayWebhookRequestModel.builder()
-                    .eventName(JuspayWebhookEvents.ORDER_SUCCEEDED.name())
-                    .content(JuspayWebhookContentModel.builder()
-                            .order(juspayXFeignClientWrapper.getJuspayOrder(orderId))
-                            .build())
-                    .build();
-            if(eventRequired) {
-                juspayWebhook(juspayWebhookRequestModel,false);
+
+
+📄 FILE: MyOrderServiceImpl.java
+
+--- cart-service | MyOrderServiceImpl | minimartOrderSync | CODE | 1/2 ---
+    public OrderSyncResponseModel minimartOrderSync(OrderSyncRequestModel orderSyncRequestModel) {
+
+        List<UserOrderSyncModel> userOrderSyncModelList = orderSyncRequestModel.getUserOrderSyncModelList();
+        
+        List<String> posOrderIds = userOrderSyncModelList.stream()
+                .map(UserOrderSyncModel::getPosOrderId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        List<String> acquiredLocks = new ArrayList<>();
+        try {
+            for (String posOrderId : posOrderIds.stream().sorted().collect(Collectors.toList())) {
+                String lockKey = MINIMART_ORDER_SYNC_LOCK + posOrderId;
+                acquireLock(lockKey, posOrderId);
+                acquiredLocks.add(lockKey);
             }
-            return juspayWebhookRequestModel;
         } catch (Exception e) {
-            log.error("Error in synchronous order status call, ex : {} for order_id : {}", e.getMessage(), orderId);
+            // Release all acquired locks if any lock acquisition fails
+            releaseLocks(acquiredLocks);
+            throw e;
         }
-        return null;
+
+        OrderSyncResponseModel orderSyncResponseModel = new OrderSyncResponseModel();
+        Map<String, List<OrderDealMappingModel>> posOrderOmsOrderMap = new HashMap<>();
+        Map<String, String> ordersSyncStatusMap = new HashMap<>();
+
+        List<String> posOrderIdList = userOrderSyncModelList.stream()
+                .map(UserOrderSyncModel::getPosOrderId)
+                .collect(Collectors.toList());
+
+        List<POSOrderMapping> posOrderMappingList = posOrderMappingRepository.findByPosOrderIdIn(posOrderIdList);
+
+        Set<String> posOrderIdSet = posOrderMappingList.stream()
+                .map(POSOrderMapping::getPosOrderId)
+                .collect(Collectors.toSet());
+
+        List<UserOrderSyncModel> existingUserOrderSyncModelList = userOrderSyncModelList.stream()
+                .filter(userOrderSyncModel -> posOrderIdSet.contains(userOrderSyncModel.getPosOrderId()))
+                .collect(Collectors.toList());
+
+        Map<String, List<POSOrderMapping>> posOrderMappingMap = posOrderMappingList.stream()
+                .collect(Collectors.groupingBy(POSOrderMapping::getPosOrderId));
+
+        posOrderIdSet.clear();
+
+        for(UserOrderSyncModel userOrderSyncModel : existingUserOrderSyncModelList) {
+            List<POSOrderMapping> posOrderMappings = posOrderMappingMap.get(userOrderSyncModel.getPosOrderId());
+
+            List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
+
+--- cart-service | MyOrderServiceImpl | minimartOrderSync | CODE | 2/2 ---
+
+        for(UserOrderSyncModel userOrderSyncModel : existingUserOrderSyncModelList) {
+            List<POSOrderMapping> posOrderMappings = posOrderMappingMap.get(userOrderSyncModel.getPosOrderId());
+
+            List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
+                    userOrderSyncModel.getOfferIdOrderSummaryModelMap());
+
+            if(!ObjectUtils.isEmpty(orderDealMappingModelList)) {
+                posOrderIdSet.add(userOrderSyncModel.getPosOrderId());
+                posOrderOmsOrderMap.put(userOrderSyncModel.getPosOrderId(), orderDealMappingModelList);
+            }
+        }
+
+        userOrderSyncModelList = userOrderSyncModelList.stream()
+                .filter(userOrderSyncModel -> !posOrderIdSet.contains(userOrderSyncModel.getPosOrderId()))
+                .collect(Collectors.toList());
+
+        for (UserOrderSyncModel userOrderSyncModel : userOrderSyncModelList) {
+
+            UserInfoModel userInfoModel = userOrderSyncModel.getUserInfoModel();
+            try {
+                UserCacheModel userCacheModel = userService.getUser(userInfoModel);
+
+                /** userCacheModel and userInfoModel pincode can be different if user is present in db already*/
+                Long userAddressId = userAddressService.getUserAddress(userCacheModel).getId();
+
+                List<OrderDealMappingModel> orderDealMappingModelList = userOrderService.syncOrders(userCacheModel,
+                        userOrderSyncModel,
+                        userAddressId);
+
+                posOrderOmsOrderMap.put(userOrderSyncModel.getPosOrderId(), orderDealMappingModelList);
+            } catch (Exception e) {
+//                chatServiceClient.sendEmailToMultiple(CommonUtils.prepareEmailRequestModel(EmailSubject.MINIMART_ORDER_SYNC.getValue(), String.format("userOrderSyncModel : %s, Exception : %s", userOrderSyncModel, e)));
+                ordersSyncStatusMap.put(userOrderSyncModel.getPosOrderId(), e.getMessage());
+                log.error("Something went wrong in saving order : {}, Exception : {}", userOrderSyncModel, e.getMessage());
+            }
+        }
+        orderSyncResponseModel.setPosOrderOmsOrderMap(posOrderOmsOrderMap);
+        posOrderOmsOrderMap.keySet().forEach(posOrderId -> ordersSyncStatusMap.put(posOrderId, "Synced Successfully"));
+        orderSyncResponseModel.setOrdersSyncStatusMap(ordersSyncStatusMap);
+
+        releaseLocks(acquiredLocks);
+
+        return orderSyncResponseModel;
+
+
+📄 FILE: EtaServiceImpl.java
+
+--- cart-service | EtaServiceImpl | updateOrderStatusWidgetCacheAsync | CODE | 1/1 ---
+    @Async
+    public CompletableFuture<Void> updateOrderStatusWidgetCacheAsync(List<OrderStatusWidgetCacheUpdateModel> orderStatusWidgetCacheUpdateModelList) {
+        orderServiceClient.updateOrderStatusWidgetCache(orderStatusWidgetCacheUpdateModelList);
+        return CompletableFuture.completedFuture(null);
+
+
+📄 FILE: KafkaProducer.java
+
+--- cart-service | KafkaProducer | sendOrdersStatusUpdateTopic | CODE | 1/1 ---
+    @Async
+    @Override
+    public void sendOrdersStatusUpdateTopic(OrdersStatusUpdateEvent ordersStatusUpdateEvent) {
+        try {
+
+--- cart-service | KafkaProducer | sendOrderPlacedUserSMSCommunicationEvent | CODE | 1/1 ---
+    @Async
+    @Override
+    public void sendOrderPlacedUserSMSCommunicationEvent(OrderUpdateEventDetail orderUpdateEventDetail) {
+        try {

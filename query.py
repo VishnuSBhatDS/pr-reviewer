@@ -23,13 +23,25 @@ def load_vectorstore(db_path):
 
 def search_vectorstore(vectordb, question, k_code=50, k_test=10):
     """Perform similarity searches (code + test) on a single vectorstore."""
-    results = {"service": vectordb.service_name, "code": [], "test": []}
+    service_name = getattr(vectordb, "service_name", os.path.basename(vectordb._persist_directory))
+    results = {"service": service_name, "code": [], "test": []}
+
+    def tag_with_service(docs):
+        """Ensure each doc has metadata['service'] for later method expansion."""
+        for d in docs:
+            d.metadata["service"] = service_name
+        return docs
+
     try:
-        results["code"] = vectordb.similarity_search(question, k=k_code, filter={"type": "code"})
-        results["test"] = vectordb.similarity_search(question, k=k_test, filter={"type": "test"})
+        code_docs = vectordb.similarity_search(question, k=k_code, filter={"type": "code"})
+        test_docs = vectordb.similarity_search(question, k=k_test, filter={"type": "test"})
+        results["code"] = tag_with_service(code_docs)
+        results["test"] = tag_with_service(test_docs)
     except Exception as e:
-        print(f"⚠️ Search failed in {vectordb.service_name}: {e}")
+        print(f"⚠️ Search failed in {service_name}: {e}")
+
     return results
+
 
 
 def rerank_globally(search_results, question, embeddings, top_k_final=50):
@@ -66,7 +78,7 @@ def rerank_globally(search_results, question, embeddings, top_k_final=50):
 
 def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs", top_k_final: int = 40) -> str:
     """
-    🔍 Multi-repo intelligent query with global reranking.
+    🔍 Multi-repo intelligent query with global reranking and method completion.
     Groups results by service → file → method.
     """
     db_paths = get_vectorstore_paths(base_chroma_path)
@@ -116,9 +128,93 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
     # === 3️⃣ Global semantic reranking ===
     top_docs = rerank_globally(search_results, question, embeddings, top_k_final=top_k_final)
 
-    # === 4️⃣ Group by service ===
-    grouped_by_service = defaultdict(lambda: defaultdict(list))
+        # === 4️⃣ Preview top reranked docs ===
+    print("\n🔍 Top reranked docs (preview):")
+    for i, doc in enumerate(top_docs[:10]):
+        meta = doc.metadata
+        service = (
+            meta.get("serviceName")
+            or meta.get("service")
+            or getattr(doc, "service_name", "UnknownService")
+        )
+        file = meta.get("file", meta.get("filename", "UnknownFile"))
+        class_name = meta.get("class", meta.get("classname", "NoClass"))
+        method = meta.get("method", meta.get("function", "NoMethod"))
+        # snippet = doc.page_content[:300].replace("\n", " ")  # compact preview
+        # print(f"{i+1:02d}. 🧩 {service} | {file} | {class_name}.{method}")
+        # print(f"    {snippet}...\n")
+
+    # === 4️⃣ Build set of (service, file, class, method) keys for selected docs ===
+    picked_methods = set()
     for doc in top_docs:
+        service = (
+            doc.metadata.get("serviceName")
+            or doc.metadata.get("service")
+            or getattr(doc, "service_name", "UnknownService")
+        )
+        key = (
+            service,
+            doc.metadata.get("file"),
+            doc.metadata.get("class"),
+            doc.metadata.get("method"),
+        )
+        picked_methods.add(key)
+
+        # === 4.5️⃣ Method Completion: fetch all chunks of selected methods ===
+    print(f"🔄 Expanding {len(picked_methods)} selected methods for full context...\n")
+    expanded_docs = []
+
+    def normalize(meta: dict, service: str):
+        """Normalize metadata for comparison."""
+        def first_nonempty(*keys):
+            for k in keys:
+                if meta.get(k):
+                    return meta.get(k)
+            return None
+
+        return (
+            service.strip().lower(),
+            (first_nonempty("file", "filename", "filepath", "path") or "").strip().lower(),
+            (first_nonempty("class", "classname", "class_name") or "").strip().lower(),
+            (first_nonempty("method", "function", "func_name", "function_name") or "").strip().lower(),
+        )
+
+    # Normalize picked methods (the ones we want full chunks for)
+    normalized_methods = {
+        normalize({
+            "file": k[1],
+            "class": k[2],
+            "method": k[3]
+        }, k[0]) for k in picked_methods
+    }
+
+    for vs in vectorstores:
+        service = getattr(vs, "service_name", None)
+        if not service:
+            continue
+
+        raw = vs.get(include=["documents", "metadatas"])
+        all_docs = []
+        for c, m in zip(raw["documents"], raw["metadatas"]):
+            m.setdefault("service", service)
+            all_docs.append(Document(page_content=c, metadata=m))
+
+        for doc in all_docs:
+            key = normalize(doc.metadata, service)
+            # ✅ exact match only (service + file + class + method)
+            if key in normalized_methods:
+                expanded_docs.append(doc)
+
+    # fallback: if nothing expanded, still include top reranked docs
+    if not expanded_docs:
+        print("⚠️ No exact matches found — using top reranked docs instead.\n")
+        expanded_docs = top_docs
+    else:
+        print(f"✅ Expanded to {len(expanded_docs)} chunks from exact method matches.\n")
+
+    # === 5️⃣ Group by service and file ===
+    grouped_by_service = defaultdict(lambda: defaultdict(list))
+    for doc in expanded_docs:
         service = (
             doc.metadata.get("serviceName")
             or doc.metadata.get("service")
@@ -132,10 +228,9 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
         for docs in service_docs.values():
             docs.sort(key=lambda d: d.metadata.get("label", "0"))
 
-    # === 5️⃣ Build output ===
+    # === 6️⃣ Build final context output ===
     context_parts = []
     for service, files in grouped_by_service.items():
-        context_parts.append(f"\n🟦 SERVICE: {service}\n" + "=" * 70)
         for file, docs in files.items():
             seen = set()
             context_parts.append(f"\n📄 FILE: {file}\n")
@@ -146,7 +241,8 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
                 seen.add(key)
                 section_type = "TEST" if doc.metadata.get("type") == "test" else "CODE"
                 context_parts.append(
-                    f"--- {doc.metadata.get('class', 'NoClass')} | "
+                    f"--- {doc.metadata.get('service', 'NoService')} | "
+                    f"{doc.metadata.get('class', 'NoClass')} | "
                     f"{doc.metadata.get('method', 'NoMethod')} | "
                     f"{section_type} | {doc.metadata.get('label', 'NoLabel')} ---\n"
                     f"{doc.page_content}\n"
@@ -154,11 +250,11 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
 
     context = "\n".join(context_parts)
 
-    # === 6️⃣ Save output ===
+    # === 7️⃣ Save output ===
     with open("result.txt", "w", encoding="utf-8") as f:
         f.write(f"Question: {question}\n\n{context}")
 
-    print(f"\n✅ Final results written to result.txt ({len(top_docs)} relevant chunks)\n")
+    print(f"\n✅ Final results written to result.txt ({len(expanded_docs)} chunks total)\n")
     return context
 
 
