@@ -2,11 +2,12 @@ import os
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from config import embeddings
+from collections import Counter
 
 def query_service_info(question: str, chroma_db_path="./chroma_dbs/service_info", top_k=10, output_file="service_info.txt"):
     """
     Query the single Chroma DB containing multiple services.
-    Saves results into a text file.
+    Saves results into a text file and prints top services.
     """
     if not os.path.exists(chroma_db_path):
         raise FileNotFoundError(f"Chroma DB path does not exist: {chroma_db_path}")
@@ -23,9 +24,17 @@ def query_service_info(question: str, chroma_db_path="./chroma_dbs/service_info"
         service = doc.metadata.get("serviceName", "UnknownService")
         service_docs.setdefault(service, []).append(doc)
 
+    # Select top 2 services based on number of matched docs
+    top_services_counter = Counter({k: len(v) for k, v in service_docs.items()})
+    top_services = [s for s, _ in top_services_counter.most_common(2)]
+
+    # Print top services
+    print(f"🏆 Top services for your query: {', '.join(top_services)}\n")
+
     # Build output text
     output_lines = [f"Question: {question}\n", "="*80 + "\n"]
-    for service, docs in service_docs.items():
+    for service in top_services:
+        docs = service_docs[service]
         output_lines.append(f"🟦 SERVICE: {service}\n")
         output_lines.append("-"*60 + "\n")
         for doc in docs:
