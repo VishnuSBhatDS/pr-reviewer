@@ -6,60 +6,74 @@ Question: how do we sync minimart orders ?
 
 ------------------------------------------------------------
 
-📄 Section: parent
+📄 Section: apiEndpoints
 {
-  "serviceName": "inventory-service",
-  "serviceId": "inventory-service",
-  "version": "0.0.1-SNAPSHOT",
-  "description": "Core inventory management service responsible for tracking, updating, and synchronizing warehouse-SKU inventory across multiple systems including IMS (Inventory Management System) and OMS (Order Management System). Handles inventory operations, cart validation, reconciliation, passbook management, and real-time inventory synchronization."
-}
-
-
-📄 Section: useCases
-{
-  "useCases": [
-    "Get inventory count for SKUs across warehouses",
-    "Update inventory when orders are placed or cancelled",
-    "Validate cart items for availability before checkout",
-    "Sync inventory changes from IMS system (STN, GRN, RTV, etc.)",
-    "Sync inventory updates to/from OMS system",
-    "Track inventory passbook entries for audit and reconciliation",
-    "Bulk upload inventory data via CSV/Excel files",
-    "Configure minimum quantity thresholds at category or SKU-warehouse level",
-    "Handle inward inventory operations for stock receipt",
-    "Manage inventory hold for stock transfers",
-    "Track and expire deals/offers based on inventory status",
-    "Generate inventory mismatch reports",
-    "Flush and refresh inventory cache",
-    "Get inventory history for specific time periods",
-    "Manage user-warehouse access mappings"
-  ]
-}
-
-
-📄 Section: functionalDescriptions
-{
-  "functionalDescriptions": [
-    "Manages warehouse-SKU inventory with real-time tracking of available, sold, intransit, hold, damage, and virtual inventory quantities",
-    "Provides cart and order validation to check inventory availability before order placement",
-    "Synchronizes inventory data with IMS (Inventory Management System) for STN, GRN, RTV, RVP, cycle count, and reconciliation operations",
-    "Synchronizes inventory updates with OMS (Order Management System) for order processing and fulfillment",
-    "Maintains inventory passbook for audit trail and reconciliation of all inventory transactions",
-    "Handles inward inventory operations including single, multi, and bulk file uploads (CSV/Excel)",
-    "Manages inventory configuration including category-level and SKU-warehouse level minimum quantity settings",
-    "Tracks deal and offer expiry status and updates inventory accordingly",
-    "Provides inventory mismatch reporting and correction capabilities",
-    "Implements Redis-based caching for high-performance inventory lookups with warehouse-level cache control",
-    "Supports multiple warehouse types: Spoke, Super Spoke, Hub, Mega Spoke, Marketplace, B2B, B2C",
-    "Handles inventory hold operations for STN (Stock Transfer Note) processing",
-    "Manages loose inventory conversion and non-sellable inventory tracking",
-    "Provides idempotency support for inventory update operations to prevent duplicate processing",
-    "Implements compensation and reverse update mechanisms for failure recovery",
-    "Tracks inventory history and provides audit capabilities",
-    "Manages user-warehouse mappings for access control",
-    "Supports async processing via SQS and Kafka for high-throughput inventory operations",
-    "Provides inventory verification and cache validation utilities",
-    "Handles invoice attachment and status management for inventory passbook entries"
+  "apiEndpoints": [
+    "/inventory/get-sku-count",
+    "/inventory/get-sku-inventory-detail",
+    "/inventory/order-create/get-sku-detail",
+    "/inventory/insert",
+    "/inventory/update",
+    "/inventory/update-sold",
+    "/inventory/cancel-update",
+    "/inventory/compensate-failure",
+    "/inventory/get-sku-detail",
+    "/inventory/enable-warehouse-cache",
+    "/inventory/enable-warehouse-cache-bulk",
+    "/inventory/cart-validation",
+    "/inventory/order-validation",
+    "/inventory/verify-cache",
+    "/inventory/compensate-sync",
+    "/inventory/get-inv",
+    "/inventory/get-sku-inventory",
+    "/inventory/get-sku-inv",
+    "/inventory/config/category-min-qty",
+    "/inventory/config/sku-warehouse/min-qty",
+    "/inventory/config/sku-warehouse/file",
+    "/inventory/config/download-template",
+    "/inventory/multi-sku-inventory",
+    "/inventory/warehouse-sku-inventory",
+    "/inventory/sku-inventory-list",
+    "/inventory/inward-inventory",
+    "/inventory/inward-inventory-multi",
+    "/inventory/inward-inventory-bulk",
+    "/inventory/inward-inventory-revert",
+    "/inventory/update-inventory",
+    "/inventory/revert-update-inventory",
+    "/inventory/warehouses-sku-inventory",
+    "/inventory/ims-history",
+    "/inventory/validation",
+    "/inventory/inventory-mismatch-report",
+    "/inventory/inventorySold",
+    "/sync/passbook",
+    "/sync/save-passbook-entry",
+    "/sync/save-passbook-entries",
+    "/sync/recon",
+    "/sync/damage",
+    "/sync/external-order-dispatch",
+    "/sync/grn",
+    "/sync/stn",
+    "/sync/rvp",
+    "/sync/rtv",
+    "/sync/cycle-count",
+    "/sync/stn-hold-inventory",
+    "/sync/compensate-stn-hold-inventory",
+    "/sync/oms-update",
+    "/sync/oms-revert-update",
+    "/sync/warehouse-sku-inventory",
+    "/sync/reset-min-qty",
+    "/warehouse/{id}",
+    "/user-warehouses",
+    "/utility/enable-verify-reset",
+    "/utility/flush-cache",
+    "/utility/expire-offer",
+    "/utility/index-active-deals",
+    "/inventory-passbook/passbook",
+    "/inventory-passbook/attach-invoice-details",
+    "/inventory-passbook/update-pending-invoices-scheduled",
+    "/inventory-passbook/update-failed-invoices-scheduled",
+    "/inventory-passbook/attach-invoice-details-scheduled",
+    "/inventory-passbook/old-entries"
   ]
 }
 
@@ -138,84 +152,115 @@ Question: how do we sync minimart orders ?
 }
 
 
-📄 Section: apiEndpoints
+📄 Section: functionalDescriptions
 {
-  "apiEndpoints": [
-    "/inventory/get-sku-count",
-    "/inventory/get-sku-inventory-detail",
-    "/inventory/order-create/get-sku-detail",
-    "/inventory/insert",
-    "/inventory/update",
-    "/inventory/update-sold",
-    "/inventory/cancel-update",
-    "/inventory/compensate-failure",
-    "/inventory/get-sku-detail",
-    "/inventory/enable-warehouse-cache",
-    "/inventory/enable-warehouse-cache-bulk",
-    "/inventory/cart-validation",
-    "/inventory/order-validation",
-    "/inventory/verify-cache",
-    "/inventory/compensate-sync",
-    "/inventory/get-inv",
-    "/inventory/get-sku-inventory",
-    "/inventory/get-sku-inv",
-    "/inventory/config/category-min-qty",
-    "/inventory/config/sku-warehouse/min-qty",
-    "/inventory/config/sku-warehouse/file",
-    "/inventory/config/download-template",
-    "/inventory/multi-sku-inventory",
-    "/inventory/warehouse-sku-inventory",
-    "/inventory/sku-inventory-list",
-    "/inventory/inward-inventory",
-    "/inventory/inward-inventory-multi",
-    "/inventory/inward-inventory-bulk",
-    "/inventory/inward-inventory-revert",
-    "/inventory/update-inventory",
-    "/inventory/revert-update-inventory",
-    "/inventory/warehouses-sku-inventory",
-    "/inventory/ims-history",
-    "/inventory/validation",
-    "/inventory/inventory-mismatch-report",
-    "/inventory/inventorySold",
-    "/sync/passbook",
-    "/sync/save-passbook-entry",
-    "/sync/save-passbook-entries",
-    "/sync/recon",
-    "/sync/damage",
-    "/sync/external-order-dispatch",
-    "/sync/grn",
-    "/sync/stn",
-    "/sync/rvp",
-    "/sync/rtv",
-    "/sync/cycle-count",
-    "/sync/stn-hold-inventory",
-    "/sync/compensate-stn-hold-inventory",
-    "/sync/oms-update",
-    "/sync/oms-revert-update",
-    "/sync/warehouse-sku-inventory",
-    "/sync/reset-min-qty",
-    "/warehouse/{id}",
-    "/user-warehouses",
-    "/utility/enable-verify-reset",
-    "/utility/flush-cache",
-    "/utility/expire-offer",
-    "/utility/index-active-deals",
-    "/inventory-passbook/passbook",
-    "/inventory-passbook/attach-invoice-details",
-    "/inventory-passbook/update-pending-invoices-scheduled",
-    "/inventory-passbook/update-failed-invoices-scheduled",
-    "/inventory-passbook/attach-invoice-details-scheduled",
-    "/inventory-passbook/old-entries"
+  "functionalDescriptions": [
+    "Manages warehouse-SKU inventory with real-time tracking of available, sold, intransit, hold, damage, and virtual inventory quantities",
+    "Provides cart and order validation to check inventory availability before order placement",
+    "Synchronizes inventory data with IMS (Inventory Management System) for STN, GRN, RTV, RVP, cycle count, and reconciliation operations",
+    "Synchronizes inventory updates with OMS (Order Management System) for order processing and fulfillment",
+    "Maintains inventory passbook for audit trail and reconciliation of all inventory transactions",
+    "Handles inward inventory operations including single, multi, and bulk file uploads (CSV/Excel)",
+    "Manages inventory configuration including category-level and SKU-warehouse level minimum quantity settings",
+    "Tracks deal and offer expiry status and updates inventory accordingly",
+    "Provides inventory mismatch reporting and correction capabilities",
+    "Implements Redis-based caching for high-performance inventory lookups with warehouse-level cache control",
+    "Supports multiple warehouse types: Spoke, Super Spoke, Hub, Mega Spoke, Marketplace, B2B, B2C",
+    "Handles inventory hold operations for STN (Stock Transfer Note) processing",
+    "Manages loose inventory conversion and non-sellable inventory tracking",
+    "Provides idempotency support for inventory update operations to prevent duplicate processing",
+    "Implements compensation and reverse update mechanisms for failure recovery",
+    "Tracks inventory history and provides audit capabilities",
+    "Manages user-warehouse mappings for access control",
+    "Supports async processing via SQS and Kafka for high-throughput inventory operations",
+    "Provides inventory verification and cache validation utilities",
+    "Handles invoice attachment and status management for inventory passbook entries"
   ]
 }
 
 
-📄 Section: messageQueues
+📄 Section: useCases
 {
-  "messageQueues": [
-    "sqs-sync-queue",
-    "kafka-inventory-updates",
-    "kafka-deal-expiry"
+  "useCases": [
+    "Get inventory count for SKUs across warehouses",
+    "Update inventory when orders are placed or cancelled",
+    "Validate cart items for availability before checkout",
+    "Sync inventory changes from IMS system (STN, GRN, RTV, etc.)",
+    "Sync inventory updates to/from OMS system",
+    "Track inventory passbook entries for audit and reconciliation",
+    "Bulk upload inventory data via CSV/Excel files",
+    "Configure minimum quantity thresholds at category or SKU-warehouse level",
+    "Handle inward inventory operations for stock receipt",
+    "Manage inventory hold for stock transfers",
+    "Track and expire deals/offers based on inventory status",
+    "Generate inventory mismatch reports",
+    "Flush and refresh inventory cache",
+    "Get inventory history for specific time periods",
+    "Manage user-warehouse access mappings"
+  ]
+}
+
+
+📄 Section: parent
+{
+  "serviceName": "inventory-service",
+  "serviceId": "inventory-service",
+  "version": "0.0.1-SNAPSHOT",
+  "description": "Core inventory management service responsible for tracking, updating, and synchronizing warehouse-SKU inventory across multiple systems including IMS (Inventory Management System) and OMS (Order Management System). Handles inventory operations, cart validation, reconciliation, passbook management, and real-time inventory synchronization."
+}
+
+
+🟦 SERVICE: pricing-service
+
+------------------------------------------------------------
+
+📄 Section: core_responsibilities
+{
+  "core_responsibilities": [
+    "Product price management and calculations",
+    "Deal and offer pricing with location-based variations",
+    "Time-based future and instant price updates",
+    "Bargaining and price negotiation workflows",
+    "Buying price promotions and promo management",
+    "Price caching and Redis-based price retrieval",
+    "Bulk price updates via Excel/CSV imports",
+    "Combo pricing and bundle offers",
+    "Inventory-based pricing decisions",
+    "Location-specific pricing (cluster, city, warehouse levels)"
+  ]
+}
+
+
+📄 Section: parent
+{
+  "service_name": "pricing-service",
+  "service_type": "backend_microservice",
+  "primary_domain": "pricing_and_offers",
+  "description": "Comprehensive pricing management service for DealShare e-commerce platform. Handles product pricing calculations, deal prices, offer clusters, time-based pricing, bargaining functionality, buying price promotions, location-based pricing across clusters/cities/warehouses, inventory integration, and price cache management. Manages MRP (Maximum Retail Price), SP (Selling Price), BP (Buying Price), and WABP (Weighted Average Buying Price) with bulk operations support."
+}
+
+
+📄 Section: use_cases
+{
+  "use_cases": [
+    "Calculate product price for user location and rank",
+    "Update MRP/SP/BP/WABP for products in bulk",
+    "Manage location-specific deal pricing",
+    "Handle bargaining conversations and price negotiations",
+    "Apply buying price promotions and discounts",
+    "Schedule future price changes",
+    "Execute instant price updates",
+    "Manage cluster-based offer pricing",
+    "Calculate combo and bundle prices",
+    "Sync SKU prices across systems",
+    "Import/export pricing via Excel templates",
+    "Cache and retrieve prices from Redis",
+    "Handle time-based pricing with FHRD (First Hour Rush Deal)",
+    "Manage featured deals and gold deals pricing",
+    "Price chop offer management",
+    "Inventory-aware pricing decisions",
+    "Location-based margin calculations",
+    "Promotion approval workflows"
   ]
 }
 
@@ -229,93 +274,6 @@ Question: how do we sync minimart orders ?
   "description": {
     "functional": "The Payment Service is a comprehensive microservice responsible for managing the entire payment lifecycle in an e-commerce platform. It handles payment initiation, processing, verification, and refunds across multiple payment gateways (Razorpay, Paytm, Juspay) and payment methods (UPI, Cards, Wallets, Net Banking, COD, BNPL). The service integrates with cart and order services to process payments for customer orders, manages delivery fee calculations and refunds, and provides payment method configuration and caching. It supports complex refund workflows including order cancellation refunds, late payment refunds, and partial refunds with approval mechanisms. The service also handles payment gateway webhooks, batch processing for refunds, scheduled jobs for payment reconciliation, and provides dashboard APIs for customer support representatives to manage payments and refunds.",
     "technical": "Built on Spring Boot 2.1.4 with Java 11, the Payment Service follows a microservices architecture with RESTful APIs (versioned V1-V5). It uses JPA/Hibernate for data persistence with MySQL database, implementing BigDecimal for precise monetary calculations. The service employs design patterns including Strategy Pattern for payment processors (AuthorizedPaymentProcessor, CapturedPaymentProcessor, PaidOrderProcessor) and Factory Pattern for payment method services (CardPaymentMethodService, UPIIDPaymentMethodService, WalletPaymentMethodService). It integrates with external services via Feign clients (CartService, OrderService, UserService, DeliveryService, ChatService) and uses Kafka for asynchronous event processing. The service implements caching with Redis and Caffeine for payment methods and static data, uses Spring Batch for batch refund processing, and includes schedulers for background tasks. It supports multiple payment gateways through adapter pattern, handles webhook callbacks, implements retry mechanisms for failed operations, and provides comprehensive error handling and validation. The service uses JWT authentication, implements role-based access control for refund operations, and includes monitoring with New Relic, Datadog, and Elastic APM."
-  }
-}
-
-
-📄 Section: batchJobs
-{
-  "batchJobs": [
-    "AddDeliveryFee",
-    "OrderEntityProcessor",
-    "PaymentRefundWriter"
-  ]
-}
-
-
-📄 Section: relatedServices
-{
-  "relatedServices": {
-    "cart-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "Cart information retrieval",
-        "Delivery fee calculation",
-        "Cart order mapping",
-        "Centralized delivery fee check",
-        "Delivery fee collection update"
-      ]
-    },
-    "order-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "Order status updates",
-        "Order details retrieval",
-        "Order placement"
-      ]
-    },
-    "user-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "User information retrieval",
-        "User preferences",
-        "User addresses"
-      ]
-    },
-    "delivery-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "Delivery system callbacks",
-        "Delivery fee updates"
-      ]
-    },
-    "chat-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "Email notifications",
-        "SMS communications",
-        "Order update events"
-      ]
-    },
-    "ingestion-service": {
-      "integration": "Kafka Events",
-      "operations": [
-        "Third-party event tracking (AppsFlyer, CleverTap)",
-        "Cart refund events",
-        "Payment events"
-      ]
-    },
-    "static-data-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "Static payment method data",
-        "Bank information",
-        "Payment icons"
-      ]
-    },
-    "scheme-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "Payment schemes",
-        "Offers"
-      ]
-    },
-    "dsd-service": {
-      "integration": "Feign Client",
-      "operations": [
-        "DSD related operations"
-      ]
-    }
   }
 }
 

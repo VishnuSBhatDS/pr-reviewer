@@ -119,10 +119,11 @@ def embed_multiple_info_files(file_paths, chroma_db_path="./chroma_dbs/service_i
 
 if __name__ == "__main__":
     # Example single file embedding
-    embed_single_info_file("../info_jsons/inventory-service.json")
+    # embed_single_info_file("../info_jsons/inventory-service.json")
 
     # Example multi-file embedding
-    # embed_multiple_info_files([
-    #     "../info_jsons/cart-service.json",
-    #     "../info_jsons/payment-service.json"
-    # ])
+    embed_multiple_info_files([
+        "../info_jsons/item-service.json",
+        "../info_jsons/deal-index-service.json",
+        "../info_jsons/pricing-service.json"
+    ])

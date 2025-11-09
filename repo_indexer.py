@@ -120,21 +120,21 @@ def index_multiple_repos(repo_configs, base_chroma_path="./chroma_dbs"):
 
 
 if __name__ == "__main__":
-    repo_configs = [
-        {
-            "repo_url": "https://github.com/VishnuSBhatDS/cart-service.git",
-            "branch": "master",
-            "db_name": "cart-service"
-        },
-        {
-            "repo_url": "https://github.com/VishnuSBhatDS/chat-service.git",
-            "branch": "main",
-            "db_name": "chat-service"
-        }
-    ]
+    # repo_configs = [
+    #     {
+    #         "repo_url": "https://github.com/VishnuSBhatDS/cart-service.git",
+    #         "branch": "master",
+    #         "db_name": "cart-service"
+    #     },
+    #     {
+    #         "repo_url": "https://github.com/VishnuSBhatDS/chat-service.git",
+    #         "branch": "main",
+    #         "db_name": "chat-service"
+    #     }
+    # ]
     index_repo(
-        repo_url="https://github.com/VishnuSBhatDS/payment-service.git",
+        repo_url="https://github.com/VishnuSBhatDS/inventory-service.git",
         branch="master",
-        db_name="payment-service",
+        db_name="inventory-service",
         base_chroma_path="./chroma_dbs"
     )

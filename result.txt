@@ -1,433 +1,303 @@
 Question: how do we sync minimart orders ?
 
 
-🟦 SERVICE: payment-service
+🟦 SERVICE: UnknownService
 ======================================================================
 
-📄 FILE: OrderProvider.java
+📄 FILE: CartOrderPrivateController.java
 
---- OrderProvider | getUpdateOrderModel | TEST | 1/1 ---
-    public static UpdateOrderModel getUpdateOrderModel(){
-        UpdateOrderModel updateOrderModel = new UpdateOrderModel();
-        updateOrderModel.setCartId(Long.valueOf(TEST_CART_ID));
-        updateOrderModel.setTotalCartAmount(BigDecimal.TEN);
-        updateOrderModel.setPlatform("platform");
-        updateOrderModel.setEntityId(TEST_PAYMENT_ENTITY_ID);
-        return updateOrderModel;
+--- CartOrderPrivateController | minimartOrderSync | CODE | 1/1 ---
+    @PostMapping(value = "/v1/minimart-order-sync")
+    public ResponseEntity<?> minimartOrderSync(@RequestBody OrderSyncRequestModel orderSyncRequestModel){
+        return new ResponseEntity<>(myOrderService.minimartOrderSync(orderSyncRequestModel), HttpStatus.OK);
 
 
-📄 FILE: PaymentServiceV5ImplTest.java
+📄 FILE: InventoryPassbookServiceImpl.java
 
---- PaymentServiceV5ImplTest | verifyTransactionSorting | TEST | 1/1 ---
-    @Test
-    void verifyTransactionSorting() {
-        // Create multiple payment entities with different dates to test sorting
-        List<PaymentEntity> dateOrderedPayments = new ArrayList<>();
-        
-        // Create payments with different dates using fixed base date
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(2023, Calendar.JANUARY, 10, 12, 0, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        
-        for (int i = 0; i < 3; i++) {
-            PaymentEntity payment = new PaymentEntity();
-            payment.setId(i);
-            payment.setUserId(1L);
-            payment.setCartId(100L + i);
-            payment.setTotalAmount(BigDecimal.valueOf(1000));
-            payment.setStatus("CHARGED");
-            payment.setPaymentId("pay_" + i);
-            
-            // Set different dates - each payment is one day earlier than the previous
-            Calendar paymentCalendar = (Calendar) calendar.clone();
-            paymentCalendar.add(Calendar.DAY_OF_MONTH, -i);
-            payment.setCreatedDate(paymentCalendar.getTime());
-            
-            dateOrderedPayments.add(payment);
-        }
+--- InventoryPassbookServiceImpl | updateFailedPassbookStatus | CODE | 1/1 ---
+	@Transactional(transactionManager = AppConstants.IMS_TRANSACTION_MANAGER_NAME)
+	public void updateFailedPassbookStatus() {
+		LocalDateTime targetDate = LocalDateTime.now().minusDays(AppConstants.INT_THREE);
+		Optional<InventoryPassbook> minInvoiceData = inventoryPassbookReadRepo.findFirstRecordByCreatedDateGreaterThanOrEqualTo(targetDate);
+		Long minId = minInvoiceData.isPresent() ? minInvoiceData.get().getId() : AppConstants.LONG_ZERO;
+		int totUpdated = inventoryPassbookRepository.updateFailedInvoiceStatus(PassbookInvoiceStatus.TO_BE_PICKED.getStatus(), minId);
 
-        // Mocking repository responses
-        when(paymentRepo.findAllByUserIdAndUptoXDaysOldAndEntityId(1L, 30, "entity1")).thenReturn(Optional.of(dateOrderedPayments));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(userEntity));
-        when(cartServiceClient.getTransactionsModule(1L, null, "", "30")).thenReturn(Collections.emptyList());
+--- InventoryPassbookServiceImpl | updatePendingInvoiceStatus | CODE | 1/1 ---
+	@Transactional(transactionManager = AppConstants.IMS_TRANSACTION_MANAGER_NAME)
+	public void updatePendingInvoiceStatus() {
+		LocalDateTime targetDate = LocalDateTime.now().minusDays(AppConstants.INT_FIVE);
+		Optional<InventoryPassbook> minInvoiceData = inventoryPassbookReadRepo.findFirstRecordByCreatedDateGreaterThanOrEqualTo(targetDate);
+		Long minId = minInvoiceData.isPresent() ? minInvoiceData.get().getId() : AppConstants.LONG_ZERO;
+		int totUpdated = inventoryPassbookRepository.updatePendingInvoiceStatus(PassbookInvoiceStatus.TO_BE_PICKED.getStatus(), minId);
 
-        // Execute
-        UserTransactionResponseModel response = paymentServiceV5.getUserTransactions(1L, null, 30, null, null, null, 0, 10, "entity1");
 
-        // Verify sorting order (if implemented)
-        List<UserTransactionModel> transactions = response.getTransactions();
-        assertNotNull(transactions);
-        assertEquals(3, transactions.size());
-        
-        // Verify transactions are ordered by date if sorting is implemented
-        // If not explicitly implemented in the service, this might not be a valid check
-        // and should be modified based on actual expected behavior
-        if (transactions.size() > 1) {
+📄 FILE: KafkaProducer.java
 
---- PaymentServiceV5ImplTest | getUserTransactionsWithPagination | TEST | 1/2 ---
-    @Test
-    void getUserTransactionsWithPagination() {
-        // Create multiple payment entities to test pagination with fixed dates
-        List<PaymentEntity> multiplePayments = new ArrayList<>();
-        Calendar cal = Calendar.getInstance();
-        cal.set(2023, Calendar.JANUARY, 1, 12, 0, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        
-        for (int i = 0; i < 25; i++) {
-            PaymentEntity payment = new PaymentEntity();
-            payment.setId(i);
-            payment.setUserId(1L);
-            payment.setCartId(100L + i);
-            payment.setTotalAmount(BigDecimal.valueOf(1000 + i));
-            payment.setStatus("CHARGED");
-            payment.setPaymentId("pay_" + i);
-            
-            // Set different dates but with consistent format
-            Calendar paymentCal = (Calendar) cal.clone();
-            paymentCal.add(Calendar.DAY_OF_MONTH, -i);
-            payment.setCreatedDate(paymentCal.getTime());
-            multiplePayments.add(payment);
-        }
-
-        // Mocking repository responses
-        when(paymentRepo.findAllByUserIdAndUptoXDaysOldAndEntityId(1L, 30, "entity1")).thenReturn(Optional.of(multiplePayments));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(userEntity));
-        when(cartServiceClient.getTransactionsModule(1L, null, "", "30")).thenReturn(Collections.emptyList());
-
-        // Execute with page 0, size 10
-        UserTransactionResponseModel responsePage0 = paymentServiceV5.getUserTransactions(1L, null, 30, null, null, null, 0, 10, "entity1");
-
-        // Verify page 0
-        assertNotNull(responsePage0);
-        assertEquals(10, responsePage0.getTransactions().size());
-        assertEquals(3, (int) responsePage0.getTotalPages());
-        assertEquals(0, (int) responsePage0.getCurrentPage());
-
-        // Execute with page 1, size 10
-        UserTransactionResponseModel responsePage1 = paymentServiceV5.getUserTransactions(1L, null, 30, null, null, null, 1, 10, "entity1");
-
-        // Verify page 1
-        assertNotNull(responsePage1);
-        assertEquals(10, responsePage1.getTransactions().size());
-        assertEquals(3, (int) responsePage1.getTotalPages());
-        assertEquals(1, (int) responsePage1.getCurrentPage());
-
-        // Execute with page 2, size 10
-        UserTransactionResponseModel responsePage2 = paymentServiceV5.getUserTransactions(1L, null, 30, null, null, null, 2, 10, "entity1");
-
-
---- PaymentServiceV5ImplTest | getUserTransactionsWithWalletTransactions | TEST | 1/2 ---
-    @Test
-    void getUserTransactionsWithWalletTransactions() {
-        // Mocking repository responses with no payment entities
-        when(paymentRepo.findAllByUserIdAndUptoXDaysOldAndEntityId(1L, 30, "entity1")).thenReturn(Optional.of(Collections.emptyList()));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(userEntity));
-        
-        // Create a map to store order ID to cart ID mappings for verification
-        Map<Long, Long> orderToCartMap = new HashMap<>();
-        
-        // Multiple wallet transactions
-        List<TransactionsModelDTO> multipleWalletTxns = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
-            Long orderId = 200L + i;
-            Long cartId = 300L + i;
-            
-            TransactionsModelDTO txn = new TransactionsModelDTO();
-            txn.setOrderId(orderId);
-            txn.setAmount(100F * i);
-            txn.setType("Credit");
-            txn.setStatus("Active");
-            txn.setDate("0" + (i+1) + " Jan 2023");
-            multipleWalletTxns.add(txn);
-            
-            // Store mapping for verification
-            orderToCartMap.put(orderId, cartId);
-            
-            // Mock cart order mappings with matching order IDs
-            CartOrdersMapping mapping = new CartOrdersMapping();
-            mapping.setCartId(cartId);
-            mapping.setOrderId(orderId);
-            when(cartOrderMappingRepository.findByOrderId(orderId)).thenReturn(Optional.of(mapping));
-        }
-        
-        when(cartServiceClient.getTransactionsModule(1L, null, "", "30")).thenReturn(multipleWalletTxns);
-
-        // Execute
-        UserTransactionResponseModel response = paymentServiceV5.getUserTransactions(1L, null, 30, null, null, null, 0, 10, "entity1");
-
-        // Verify
-        assertNotNull(response);
-        assertEquals(5, response.getTransactions().size());
-        assertEquals(1, (int) response.getTotalPages());
-        
-        // Check wallet transactions are properly formatted - validating each transaction
-        for (UserTransactionModel walletTxn : response.getTransactions()) {
-
---- PaymentServiceV5ImplTest | getUserTransactionsWithPagination | TEST | 2/2 ---
-        assertEquals(1, (int) responsePage1.getCurrentPage());
-
-        // Execute with page 2, size 10
-        UserTransactionResponseModel responsePage2 = paymentServiceV5.getUserTransactions(1L, null, 30, null, null, null, 2, 10, "entity1");
-
-        // Verify page 2
-        assertNotNull(responsePage2);
-        assertEquals(5, responsePage2.getTransactions().size());
-        assertEquals(3, (int) responsePage2.getTotalPages());
-        assertEquals(2, (int) responsePage2.getCurrentPage());
-
-
-📄 FILE: CreateJuspayOrderTest.java
-
---- CreateJuspayOrderTest | juspayApiCallError | TEST | 1/1 ---
-    @DisplayName("Juspay Create order error")
-    @Test
-    void juspayApiCallError() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        when(juspayXFeignClientWrapper.createJuspayOrder(JuspayProvider.getJuspayCreateOrderRequestModel(),LocalDate.now().format(formatter)))
-                .thenThrow(JuspayCreateOrderException.class);
-
-        Exception actualException = assertThrows(JuspayCreateOrderException.class, () -> {
-            jusPayXService.createJuspayOrder(OrderProvider.getUpdateOrderModel(), PaymentProvider.getUserPaymentMethodsEntity(),
-                    TEST_JUSPAY_CUST_ID, "appsFlyerId", "deviceId", "advertisingId", "instanceId");
-        });
-
-        assertEquals("Exception while juspay create order", actualException.getMessage());
-
---- CreateJuspayOrderTest | positiveCase | TEST | 1/1 ---
-    @DisplayName("Juspay Order created")
-    @Test
-    void positiveCase() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        when(juspayXFeignClientWrapper.createJuspayOrder(JuspayProvider.getJuspayCreateOrderRequestModel(), LocalDate.now().format(formatter)))
-                .thenReturn(JuspayProvider.getJuspayCreateOrderResponseModel());
-
-        JuspayCreateOrderResponseModel juspayCreateOrderResponseModel = jusPayXService.
-                createJuspayOrder(OrderProvider.getUpdateOrderModel(), PaymentProvider.getUserPaymentMethodsEntity(),
-                        TEST_JUSPAY_CUST_ID, "appsFlyerId", "deviceId","advertisingId", "instanceId");
-
-        assert (juspayCreateOrderResponseModel).equals(JuspayProvider.getJuspayCreateOrderResponseModel());
-
-
-📄 FILE: SynchronousOrderStatusTest.java
-
---- SynchronousOrderStatusTest | orderStatusCallError | TEST | 1/1 ---
-    @DisplayName("Error in order status call")
-    @Test
-    void orderStatusCallError(){
-        when(juspayXFeignClientWrapper.getJuspayOrder(TEST_JUSPAY_ORDER_ID)).thenThrow(ValidationException.class);
-        assertThat(jusPayXService.synchronousOrderStatusCall(TEST_JUSPAY_ORDER_ID,false)).isNull();
-
---- SynchronousOrderStatusTest | positiveCase | TEST | 1/1 ---
-    @DisplayName("Positive Case")
-    @Test
-    void positiveCase(){
-        juspayWebhookOrderModel.setStatus("CHARGED");
-        when(juspayXFeignClientWrapper.getJuspayOrder(TEST_JUSPAY_ORDER_ID))
-                .thenReturn(juspayWebhookOrderModel);
-        when(cartServiceClient.getCartOrderDetails(Long.valueOf(TEST_CART_ID)))
-                .thenReturn(new ResponseEntity<>(OrderProvider.getCartOrderDetailsResponseModel(),HttpStatus.OK));
-        JuspayWebhookRequestModel juspayWebhookRequestModel = jusPayXService.
-                synchronousOrderStatusCall(TEST_JUSPAY_ORDER_ID,true);
-
-        JuspayWebhookRequestModel expectedJuspayWebhookRequestModel = JuspayProvider.getJuspayWebhookRequestModel();
-        expectedJuspayWebhookRequestModel.getContent().getOrder().setStatus("CHARGED");
-
-        assertThat(juspayWebhookRequestModel).isEqualTo(expectedJuspayWebhookRequestModel);
-
-
-📄 FILE: UpdatePaymentMethodConfigTest.java
-
---- UpdatePaymentMethodConfigTest | updateGlobalOrder | TEST | 1/1 ---
-    @DisplayName("Update Global Order For All Entries")
-    @Test
-    void updateGlobalOrder(){
-
-        when(paymentMethodConfigRepo.findAll()).thenReturn(Collections.singletonList(paymentMethodConfigEntity));
-        paymentMethodConfigService.updateGlobalOrderForAllEntries(Collections.singletonList("COD"));
-
-        verify(paymentMethodConfigRepo,times(1)).saveAll(any());
-
-
-📄 FILE: PaymentServiceImplV5Test.java
-
---- PaymentServiceImplV5Test | setUp | TEST | 1/1 ---
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        updateOrderModel = new UpdateOrderModel();
-        paymentMethodsRequestModel = new PaymentMethodsRequestModel();
-        paymentMethodsRequestModel.setUpdateOrderModel(updateOrderModel);
-
-
-📄 FILE: JuspayXFeignClientWrapper.java
-
---- JuspayXFeignClientWrapper | getJuspayOrder | CODE | 1/1 ---
-    public JuspayWebhookOrderModel getJuspayOrder(String orderId){
-        return juspayXFeignClient.getJuspayOrder(juspayMerchantId,orderId);
-
-
-📄 FILE: PrivatePaymentController.java
-
---- PrivatePaymentController | orderStatusUpdate | CODE | 1/1 ---
-    @ApiOperation(value = "Was created when rz callback mechanism was broken as a fallback.")
-    @Deprecated
-    @GetMapping(value = "/payment/order-status-update")
-    public ResponseEntity<?> orderStatusUpdate(@RequestParam(value = "date" , required = false ) String date) {
-        if(ObjectUtils.isEmpty(date)){
-            date = CommonUtils.getCurrentDate();
-        }
-        return new ResponseEntity<>("OK", HttpStatus.OK);
-
-
-📄 FILE: PaymentMethodConfigController.java
-
---- PaymentMethodConfigController | updateGlobalOrderForAllEntries | CODE | 1/1 ---
-    @PostMapping("/update-global-order")
-    public ResponseEntity<Void> updateGlobalOrderForAllEntries(@RequestBody List<String> globalOrder){
-        paymentMethodConfigService.updateGlobalOrderForAllEntries(globalOrder);
-        return new ResponseEntity<>(HttpStatus.OK);
-
-
-📄 FILE: PaymentControllerV5.java
-
---- PaymentControllerV5 | synchronousOrderStatus | CODE | 1/1 ---
-    @PostMapping(value = "/sync/juspay/order-status")
-    public ResponseEntity<?> synchronousOrderStatus(@RequestParam(value = "orderId") String orderId,
-                                                    @RequestHeader(name = "userId", required = false) Long headerUserId, HttpServletRequest request) {
-        Long tokenUserId = commonUtils.getFinalValidUserId(request, headerUserId);
-        Long userId = jusPayXService.getUserIdFromJuspayOrderId(orderId);
-        if(!tokenUserId.equals(userId)){
-            throw new BadRequestException("OrderId doesn't belong to this user", HttpStatus.BAD_REQUEST);
-        }
-        return new ResponseEntity<>(jusPayXService.synchronousOrderStatusCall(orderId, true),HttpStatus.OK);
-
-
-📄 FILE: DeploymentStartupHook.java
-
---- DeploymentStartupHook | ListenDeploymentStartUpHook | CODE | 1/1 ---
-    @EventListener(ApplicationReadyEvent.class)
-    public void ListenDeploymentStartUpHook() {
-        cacheService.set("pending-orders-cron-process", false,30000L);
-        cacheService.set("pending-orders-refund-cron-process", false,30000L);
-
-
-📄 FILE: RefundBatchConfig.java
-
---- RefundBatchConfig | batchRefunds | CODE | 1/1 ---
-    @Bean
-    public Job batchRefunds(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory,
-                            ItemReader<OrderEntity> orderEntityItemReader, ItemProcessor<OrderEntity, PaymentRefundInfoEntity> orderEntityProcessor,
-                            ItemWriter<PaymentRefundInfoEntity> paymentRefundWriter, ItemWriteListener<PaymentRefundInfoEntity> addDeliveryFeeListenerImpl) throws Exception {
-
-        Step step = stepBuilderFactory.get("refund-for-cancel-order-step")
-                .<OrderEntity, PaymentRefundInfoEntity>chunk(100)
-                .reader(orderEntityItemReader)
-                .processor(orderEntityProcessor)
-                .writer(paymentRefundWriter)
-                .listener(addDeliveryFeeListenerImpl)
-                .faultTolerant()
-                .skip(Exception.class)
-                .skip(SQLException.class)
-                .skip(UncategorizedSQLException.class)
-                .skipLimit(Integer.MAX_VALUE)
-                .build();
-        return jobBuilderFactory.get("refund-for-cancellations").incrementer(new RunIdIncrementer()).start(step).build();
-
---- RefundBatchConfig | orderEntityItemReader | CODE | 1/1 ---
-    @Bean
-    public ItemReader<OrderEntity> orderEntityItemReader(DataSource dataSource) {
-        log.info("Starting Reader: " + new Date());
-
-        final boolean[] firstTime = {true};
-        return new JdbcCursorItemReaderBuilder<OrderEntity>()
-
-
-📄 FILE: KafkaService.java
-
---- KafkaService | sendOrdersStatusUpdateTopic | CODE | 1/1 ---
-  public void sendOrdersStatusUpdateTopic(OrdersStatusUpdateEvent ordersStatusUpdateEvent) {
-    try {
-
---- KafkaService | sendOrderPlacedSMSCommunicationEvent | CODE | 1/1 ---
-  public void sendOrderPlacedSMSCommunicationEvent(OrderUpdateEventDetail orderUpdateEventDetail) {
-    try {
-
-
-📄 FILE: RazorPayPaymentServiceImplV2.java
-
---- RazorPayPaymentServiceImplV2 | getRazorPayOrderId | CODE | 1/1 ---
+--- KafkaProducer | sendOrdersStatusUpdateTopic | CODE | 1/1 ---
+    @Async
     @Override
-    public Order getRazorPayOrderId(UpdateOrderModel orderModel) throws RazorpayException {
-        log.info("Payment initiation process - Razorpay order id generation of Rs. {} for cartId : {} and userId : {}", orderModel.getTotalCartAmount(), orderModel.getCartId(), orderModel.getUserId());
-        RazorpayClient razorpayClient = new RazorpayClient(key, rzSecretKey);
+    public void sendOrdersStatusUpdateTopic(OrdersStatusUpdateEvent ordersStatusUpdateEvent) {
+        try {
+
+--- KafkaProducer | sendOrderPlacedUserSMSCommunicationEvent | CODE | 1/1 ---
+    @Async
+    @Override
+    public void sendOrderPlacedUserSMSCommunicationEvent(OrderUpdateEventDetail orderUpdateEventDetail) {
         try {
 
 
-📄 FILE: PaymentServiceImplV3.java
+📄 FILE: ImsSyncServiceImpl.java
 
---- PaymentServiceImplV3 | createJuspayDirectOtpTransaction | CODE | 1/1 ---
-    private JuspayTxnResponse createJuspayDirectOtpTransaction(UpdateOrderModel updateOrderModel){
-        JuspayCreateTxnRequestModel juspayCreateTxnRequestModel = new JuspayCreateTxnRequestModel();
-        juspayCreateTxnRequestModel.setFormat("json");
-        juspayCreateTxnRequestModel.setPaymentMethod(LAZYPAY.name());
-        juspayCreateTxnRequestModel.setOrderId(updateOrderModel.getPaymentId());
-        juspayCreateTxnRequestModel.setMerchantId(juspayMerchantId);
-        juspayCreateTxnRequestModel.setRedirectAfterPayment("true");
-        juspayCreateTxnRequestModel.setPaymentMethodType(PaymentV3Constants.WALLET.name());
-        juspayCreateTxnRequestModel.setAuthType("OTP");
-        return jusPayXService.createJuspayTransaction(juspayCreateTxnRequestModel);
-
---- PaymentServiceImplV3 | paymentDetailsBreakUp | CODE | 1/2 ---
+--- ImsSyncServiceImpl | externalOrderDispatch | CODE | 1/1 ---
     @Override
-    public List<OrderPaymentBreakUp> paymentDetailsBreakUp(
-            Set<Long> orderIds) {
+    @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
+    public Object externalOrderDispatch(SyncDTO syncDTO) throws InventoryException, JsonProcessingException {
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        // needs to validate warehouseId and sku list is not empty
+        for (SkuSyncDTO sku:syncDTO.getData()){
+            WarehouseSkuInventory warehouseSkuInventory = cacheService.get(syncDTO.getWarehouse_id(), sku.getSku_id(),true);
+            int updates = 0;
+            if(sku.getLooseInventory() != null)
+                updates = warehouseSkuInventoryRepo.updateWarehouseInventoryWithLoose(syncDTO.getWarehouse_id(), sku.getSku_id(), sku.getSku_quantity(), sku.getLooseInventory());
+            else
+                updates = warehouseSkuInventoryRepo.updateWarehouseInventory(syncDTO.getWarehouse_id(), sku.getSku_id(), sku.getSku_quantity());
+            if(updates < AppConstants.INT_ONE) {
+                cacheService.flushSku(syncDTO.getWarehouse_id(), sku.getSku_id());
+                throw new InventoryException("Error while update sku : " + sku.getSku_id());
+            }
+            logSyncInventoryHistory(syncDTO.getType(), sku.getSku_quantity(),warehouseSkuInventory, syncDTO.getRequest_id(), syncDTO.getSub_type());
+            if(!syncDTO.getSub_type().equals("pos_update"))
+                warehouseSkuInventory.setUpdateAvailableInv(utilityService.calculateUpdateAvailableInventory(sku.getSku_quantity(), AppConstants.INT_ZERO, AppConstants.INT_ZERO));
+            warehouseSkuInventories.add(warehouseSkuInventory);
+        }
+        addDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
 
-        OrderDetailsGenericRequestModel requestModel = new OrderDetailsGenericRequestModel();
+        for (SkuSyncDTO sku:syncDTO.getData())
+            cacheService.updateInventoryCountCache(syncDTO.getWarehouse_id(), sku.getSku_id(),sku.getSku_quantity());
+        return true;
 
-        // Simplify filter and additionalRequiredData creation
-        requestModel.setFilter(Collections.singletonMap(FilterTypeEnums.INCLUDE,
-                Collections.singletonMap(FilterValueEnums.ORDER_IDS, orderIds)));
-        requestModel.setAdditionalRequiredData(Map.of(
-                AdditionalRequiredDataEnums.ORDER_DISCOUNTING_DETAILS, true,
-                AdditionalRequiredDataEnums.ORDER_CART_DETAILS, true
-        ));
-        requestModel.setCustomFilter(Collections.emptyMap());
+--- ImsSyncServiceImpl | logSyncInventoryHistory | CODE | 1/1 ---
+    private void logSyncInventoryHistory(String type, int requestedInventory, WarehouseSkuInventory warehouseSkuInventory, String requestId, String subType){
+        InventorySyncHistory history = new InventorySyncHistory();
+        history.setType(type);
+        history.setStnType(subType);
+        history.setRequestId(requestId);
+        history.setSku(warehouseSkuInventory.getSkuId());
+        history.setWarehouseId(warehouseSkuInventory.getWarehouseEntitiesId());
 
-        List<OrderDetailsResponseModel> orderDetails =
-                Optional.ofNullable(orderServiceClient.getOrderDetailsGeneric("invoice_discounting_view", requestModel).getBody())
-                        .map(OrderDetailsGenericResponseModel::getData)
-                        .orElseThrow(() -> new RuntimeException("Order details not found"));
-
-        if (orderDetails.isEmpty()) {
-            throw new RuntimeException("Order details not found");
+        if (type.equals(AppConstants.TYPE_SYNC_DELIVER_ORDER)) {
+            history.setNewInventory(warehouseSkuInventory.getInventory());
+        } else {
+            history.setNewInventory(warehouseSkuInventory.getInventory() + requestedInventory);
         }
 
-        List<PaymentInitDetailsEntity> paymentInitDetailsEntities =
-                Optional.of(paymentInitDetailsRepository
-                                .findByOrderIdIn(
-                                        orderDetails.stream().map(OrderDetailsResponseModel::getOrderDetails)
-                                                .map(OrderDetailsModel::getId).collect(Collectors.toSet())))
-                        .orElseThrow(() -> new RuntimeException("Payment details not found"));
+        history.setRequestedInventory(requestedInventory);
+        history.setPrevInventory(warehouseSkuInventory.getInventory());
+        history.setPrevInventorySold(warehouseSkuInventory.getInventorySold());
+        history.setPrevDamage(warehouseSkuInventory.getDamage());
+        inventorySyncHistoryRepo.saveAndFlush(history);
+
+--- ImsSyncServiceImpl | reconSync | CODE | 1/1 ---
+    @Override
+    @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
+    public Object reconSync(SyncDTO syncDTO) throws InventoryException, JsonProcessingException {
+
+        inventorySyncHistoryRepo.findByTypeAndStnTypeAndRequestIdAndSkuAndWarehouseId(syncDTO.getType(),syncDTO.getSub_type(), syncDTO.getRequest_id(),syncDTO.getData().get(AppConstants.INT_ZERO).getSku_id(),syncDTO.getWarehouse_id());
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        for(SkuSyncDTO sku:syncDTO.getData()){
+            WarehouseSkuInventory warehouseSkuInventory = cacheService.get(syncDTO.getWarehouse_id(), sku.getSku_id());
+            int updates = warehouseSkuInventoryRepo.updateWarehouseInventory(syncDTO.getWarehouse_id(), sku.getSku_id(), sku.getInventory());
+            if(updates < AppConstants.INT_ONE)
+                throw new InventoryException("Error while update sku : "+sku.getSku_id());
+            logSyncInventoryHistory(syncDTO.getType(), sku.getInventory(),warehouseSkuInventory, syncDTO.getRequest_id(), syncDTO.getSub_type());
+            warehouseSkuInventory.setUpdateAvailableInv(utilityService.calculateUpdateAvailableInventory(sku.getInventory(), AppConstants.INT_ZERO, AppConstants.INT_ZERO));
+            warehouseSkuInventories.add(warehouseSkuInventory);
+        }
+
+        addDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
+
+        for (SkuSyncDTO sku:syncDTO.getData())
+            cacheService.updateInventoryCountCache(syncDTO.getWarehouse_id(), sku.getSku_id(),sku.getInventory());
+        return true;
+
+--- ImsSyncServiceImpl | updateAvailableInventory | CODE | 1/1 ---
+    private void updateAvailableInventory(WarehouseSkuInventory warehouseSkuInventory, OmsSyncDTO syncDTO, OmsSkuSyncDTO sku) {
+        if (syncDTO.getRequestType().toUpperCase().equals(OmsRequestTypes.INVENTORY_UPDATE.getValue())) {
 
 
-        Map<Long, List<PaymentInitDetailsEntity>> paymentInitDetailsEntityMap =
-                paymentInitDetailsEntities.stream().collect(Collectors
-                        .groupingBy(PaymentInitDetailsEntity::getOrderId));
+📄 FILE: InventoryServiceImpl.java
 
-        List<OrderPaymentBreakUp> responseModel = new ArrayList<>();
+--- InventoryServiceImpl | getInventoryHistoryByCenterAndDate | CODE | 1/1 ---
+    @Override
+    public List<InventoryHistory> getInventoryHistoryByCenterAndDate(Long inventoryCenterId, Date startDate, Date endDate) {
 
-        for (OrderDetailsResponseModel orderDetailsResponseModel : orderDetails) {
-            OrderDetailsModel orderDetail = orderDetailsResponseModel.getOrderDetails();
+        startDate = addTimeToDate(startDate,0,0,0);
+        endDate = addTimeToDate(endDate,23,59,59);
 
-            List<PaymentInitDetailsEntity> orderPaymentDetail = paymentInitDetailsEntityMap
-                    .getOrDefault(orderDetail.getId(), Collections.emptyList());
+        return inventoryHistoryRepo.findByInventoryCenterIdAndTypeAndSubTypeAndCreatedDate(inventoryCenterId,"minimart","request_create_ds",startDate,endDate);
 
-            OrderPaymentBreakUp martOrderPayment = new OrderPaymentBreakUp();
-            martOrderPayment.setOrderId(orderDetail.getId());
-            martOrderPayment.setAmount(orderDetail.getAmount());
-            martOrderPayment.setBilledAmount(orderDetail.getBilledAmount());
-            martOrderPayment.setDiscountAmount(orderDetail.getDiscountAmount());
-            martOrderPayment.setOrderDiscountModels(Objects.nonNull(orderDetailsResponseModel.getOrderDiscountingDetails())
+--- InventoryServiceImpl | reverseUpdate | CODE | 1/1 ---
+    @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
+    @Override
+    public void reverseUpdate(InventoryDTO inventoryDTO) throws InventoryException {
+        Map<String,WarehouseSkuInventory> map = new HashMap<>();
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        try {
+            for (SkuInventoryDTO skuInventory: inventoryDTO.getSkuList()){
+                WarehouseSkuInventory warehouseSkuInventory = cacheService.get(skuInventory.getWarehouse_entities_id(), skuInventory.getSku_id(), true);
+                warehouseSkuInventory.setUpdateAvailableInv(-(utilityService.calculateUpdateAvailableInventory(skuInventory.getInventory() + skuInventory.getVirtual_inventory(),skuInventory.getStn_intransit_order() , skuInventory.getInventory_sold())));
+
+                warehouseSkuInventories.add(warehouseSkuInventory);
+                map.put(skuInventory.getWarehouse_entities_id()+skuInventory.getSku_id(),cacheService.get(skuInventory.getWarehouse_entities_id(), skuInventory.getSku_id(), true));
+                warehouseSkuInventoryRepo.reverseUpdateSoldInventory(skuInventory.getWarehouse_entities_id(), skuInventory.getSku_id(), skuInventory.getInventory(), skuInventory.getInventory_sold(), skuInventory.getBtoc_sold(), skuInventory.getBtob_sold() ,
+                        skuInventory.getStn_intransit_inventory(), skuInventory.getVirtual_inventory() , skuInventory.getStn_intransit_order() , skuInventory.getDelivered_inventory() , skuInventory.getDamage());
+            }
+
+            for (SkuInventoryDTO skuInventory: inventoryDTO.getSkuList())
+                cacheService.revertUpdate(skuInventory);
+
+        } catch (Exception e) {
+            Map<String, String> sendEmailMap = new HashMap<>();
+            sendEmailMap.put(AppConstants.TO, AppConstants.EMAIL);
+            sendEmailMap.put(AppConstants.SUBJECT, "Inventory compensate Api failed Alert");
+            try {
+                e.printStackTrace();
+                sendEmailMap.put(AppConstants.CONTENT, "Error occurred in Inventory compensate api, payload =:  " + mapper.writeValueAsString(inventoryDTO));
+                chatServiceClient.sendEmail(sendEmailMap);
+                sendEmailMap.put(AppConstants.SUBJECT, "Inventory compensate error detail ");
+                sendEmailMap.put(AppConstants.CONTENT, getPrintStackTrace(e));
+                chatServiceClient.sendEmail(sendEmailMap);
+            } catch (JsonProcessingException ex) {
+                ex.printStackTrace();
+            }
+            throw new InventoryException("Inventory compensate Api failed");
+        }
+        utilityService.logUpdateRequest(inventoryDTO,map,"revert");
+        imsSyncService.addDealExpiryStatusInQueue(warehouseSkuInventories, AppConstants.REVERSE_UPDATE);
+
+--- InventoryServiceImpl | reverseUpdateSync | CODE | 1/1 ---
+    @Transactional(transactionManager = "transactionManager", rollbackFor = {Exception.class, InventoryException.class})
+    @Override
+    public void reverseUpdateSync(InventoryDTO inventoryDTO) throws InventoryException {
+        Map<String,WarehouseSkuInventory> map = new HashMap<>();
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        try{
+            for (SkuInventoryDTO skuInventory: inventoryDTO.getSkuList()){
+                WarehouseSkuInventory warehouseSkuInventory = cacheService.get(skuInventory.getWarehouse_entities_id(), skuInventory.getSku_id(), true);
+                warehouseSkuInventory.setUpdateAvailableInv(utilityService.calculateUpdateAvailableInventory(skuInventory.getInventory() + skuInventory.getVirtual_inventory(),skuInventory.getStn_intransit_order() , skuInventory.getInventory_sold()));
+
+                warehouseSkuInventories.add(warehouseSkuInventory);
+
+                map.put(skuInventory.getWarehouse_entities_id()+skuInventory.getSku_id(),cacheService.get(skuInventory.getWarehouse_entities_id(), skuInventory.getSku_id(), true));
+                warehouseSkuInventoryRepo.reverseUpdateSoldInventory(skuInventory.getWarehouse_entities_id(), skuInventory.getSku_id(), skuInventory.getInventory(), skuInventory.getInventory_sold(), skuInventory.getBtoc_sold(), skuInventory.getBtob_sold() ,
+                        skuInventory.getStn_intransit_inventory(), skuInventory.getVirtual_inventory() , skuInventory.getStn_intransit_order() , skuInventory.getDelivered_inventory() , skuInventory.getDamage());
+            }
+            warehouseSkuInventoryRepo.flush();
+            for (SkuInventoryDTO skuInventory: inventoryDTO.getSkuList())
+                cacheService.revertUpdate(skuInventory);
+
+    } catch (Exception e) {
+            Map<String, String> sendEmailMap = new HashMap<>();
+            sendEmailMap.put(AppConstants.TO, AppConstants.EMAIL);
+            sendEmailMap.put(AppConstants.SUBJECT, "Inventory compensate error detail ");
+            e.printStackTrace();
+            sendEmailMap.put(AppConstants.CONTENT, getPrintStackTrace(e));
+            chatServiceClient.sendEmail(sendEmailMap);
+        }
+        utilityService.logUpdateRequest(inventoryDTO,map,"revert");
+        imsSyncService.addDealExpiryStatusInQueue(warehouseSkuInventories,AppConstants.REVERSE_UPDATE);
+
+--- InventoryServiceImpl | updateInventory | CODE | 6/7 ---
+
+                        InventoryPassbook inventoryPassbookUpdate =
+                            createInventoryPassbook(updatedInventoryManage, updateInventoryRequest,
+                                skuQuantityModel);
+                        DTOUtils.updatePassbookDateToCurrentTimeIfNotExists(
+                            inventoryPassbookUpdate);
+                        inventoryPassbookService.savePassbookData(inventoryPassbookUpdate);
+
+                    }
+                    else {
+                        throw new BadRequestException("Sku not found");
+                    }
+                } catch (Exception ex) {
+                    throw ex;
+                }
+            }
+
+            inventoryHistoryRepo.saveAll(updatedInventoryManageHistoryList);
+            inventoryPassbookRepo.saveAll(updateInventoryPassbookList);
+            inventoryUpdateManageRepo.saveAll(updateInventoryUpdateManageList);
+            syncDTO.setData(syncDTODataList);
+
+            try {
+
+                // OMS SYNC
+                if (Objects.isNull(updateInventoryRequest.getIsAsync())) {
+                    updateInventoryRequest.setIsAsync(Boolean.FALSE);
+                }
+                if (updateInventoryRequest.getIsAsync()) {
+                    inventoryUpdateSqsPublisher.sendMessage(objectMapper.writeValueAsString(syncDTO), updateInventoryRequest.getSkuQuantities().size() > UPDATE_INV_COMPRESSION_LIMIT);
+                } else {
+                    imsSyncService.omsInventorySync(syncDTO);
+                }
+
+            } catch (Exception e) {
+                log.error("Error occurred while syncing inventory in ims and oms with request id {} . ErrorMsg: {} ", updateInventoryRequest.getRequestId(),e.getMessage());
+
+                // reSync cache data in case of rollback
+                cacheService.asyncUpdateInventoryCountCache(syncDTO, Boolean.TRUE);
+
+                try {
+                    log.error("This payload failed in oms update process: " +objectMapper.writeValueAsString(updateInventoryRequest));
+                } catch (JsonProcessingException ex) {
+                    log.error("Object mapper failed. This payload failed in oms update process: {}", updateInventoryRequest);
+                }
+
+                throw new RuntimeException(String.format("Error occurred while syncing inventory in ims and oms with request id %s . ErrorMsg: %s ", updateInventoryRequest.getRequestId(),e.getMessage()));
+            }
+            return null;
+        });
+
+
+📄 FILE: ImsSyncController.java
+
+--- ImsSyncController | rvpSync | CODE | 1/1 ---
+    @PostMapping("rvp")
+    private ResponseEntity<?> rvpSync(@RequestBody SyncDTO syncDTO,
+                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        // Using same functionality of external order dispatch to sync RVP
+        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
+            syncDTO.setType("RVP");
+        if(isAsync)
+
+--- ImsSyncController | externalOrderDispatch | CODE | 1/1 ---
+    @PostMapping("external-order-dispatch")
+    private ResponseEntity<?> externalOrderDispatch(@RequestBody SyncDTO syncDTO,
+                                                    @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
+            syncDTO.setType("EXTERNAL-ORDER-DISPATCH");
+        if(isAsync)
+
+--- ImsSyncController | rtvSync | CODE | 1/1 ---
+    @PostMapping("rtv")
+    private ResponseEntity<?> rtvSync(@RequestBody RtvDTO rtvDTO,
+                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        // Using same functionality of external order dispatch to sync RVP
+        if(isAsync)
+
+--- ImsSyncController | cycleCountSync | CODE | 1/1 ---
+    @PostMapping("cycle-count")
+    private ResponseEntity<?> cycleCountSync(@RequestBody SyncDTO syncDTO,
+                                      @RequestParam(value = "isAsync", defaultValue = "0", required = false) boolean isAsync) throws InventoryException, JsonProcessingException {
+        // Using same functionality of external order dispatch to sync RVP
+//        log.error("Request recieved in cycle-count api {}", syncDTO);
+        if(!Optional.ofNullable(syncDTO.getType()).isPresent())
+            syncDTO.setType("CYCLE_COUNT");
+        if(isAsync)
+
+
+📄 FILE: PaymentServiceImplV3.java
 
 --- PaymentServiceImplV3 | paymentDetailsBreakUp | CODE | 2/2 ---
             martOrderPayment.setOrderId(orderDetail.getId());
@@ -473,284 +343,315 @@ Question: how do we sync minimart orders ?
         return responseModel;
 
 
-📄 FILE: PaymentServiceImplV2.java
+📄 FILE: ExpressDeliveryServiceImpl.java
 
---- PaymentServiceImplV2 | placeOrder | CODE | 1/1 ---
+--- ExpressDeliveryServiceImpl | syncOrdersToIms | CODE | 1/1 ---
+    private void syncOrdersToIms(List<DealLevelPromotion> cartItems, long warehouseId) {
+        List<Long> orderIds = cartItems.stream().filter(cartItem ->
+                cartItem.getDeliveryType().equalsIgnoreCase(DeliveryType.EXPRESS.name()))
+                .map(DealLevelPromotion::getOrderPKId).collect(Collectors.toList());
+        OrderPushToImsRequest orderPushToImsRequest = new OrderPushToImsRequest();
+        orderPushToImsRequest.setWarehouseId(warehouseId);
+        orderPushToImsRequest.setOrderIds(orderIds);
+        orderPushToImsRequest.setDeliveryType(DeliveryType.EXPRESS.name());
+        try {
+
+
+📄 FILE: MyOrderServiceImpl.java
+
+--- MyOrderServiceImpl | minimartOrderSync | CODE | 1/2 ---
+    public OrderSyncResponseModel minimartOrderSync(OrderSyncRequestModel orderSyncRequestModel) {
+
+        List<UserOrderSyncModel> userOrderSyncModelList = orderSyncRequestModel.getUserOrderSyncModelList();
+        
+        List<String> posOrderIds = userOrderSyncModelList.stream()
+                .map(UserOrderSyncModel::getPosOrderId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        List<String> acquiredLocks = new ArrayList<>();
+        try {
+            for (String posOrderId : posOrderIds.stream().sorted().collect(Collectors.toList())) {
+                String lockKey = MINIMART_ORDER_SYNC_LOCK + posOrderId;
+                acquireLock(lockKey, posOrderId);
+                acquiredLocks.add(lockKey);
+            }
+        } catch (Exception e) {
+            // Release all acquired locks if any lock acquisition fails
+            releaseLocks(acquiredLocks);
+            throw e;
+        }
+
+        OrderSyncResponseModel orderSyncResponseModel = new OrderSyncResponseModel();
+        Map<String, List<OrderDealMappingModel>> posOrderOmsOrderMap = new HashMap<>();
+        Map<String, String> ordersSyncStatusMap = new HashMap<>();
+
+        List<String> posOrderIdList = userOrderSyncModelList.stream()
+                .map(UserOrderSyncModel::getPosOrderId)
+                .collect(Collectors.toList());
+
+        List<POSOrderMapping> posOrderMappingList = posOrderMappingRepository.findByPosOrderIdIn(posOrderIdList);
+
+        Set<String> posOrderIdSet = posOrderMappingList.stream()
+                .map(POSOrderMapping::getPosOrderId)
+                .collect(Collectors.toSet());
+
+        List<UserOrderSyncModel> existingUserOrderSyncModelList = userOrderSyncModelList.stream()
+                .filter(userOrderSyncModel -> posOrderIdSet.contains(userOrderSyncModel.getPosOrderId()))
+                .collect(Collectors.toList());
+
+        Map<String, List<POSOrderMapping>> posOrderMappingMap = posOrderMappingList.stream()
+                .collect(Collectors.groupingBy(POSOrderMapping::getPosOrderId));
+
+        posOrderIdSet.clear();
+
+        for(UserOrderSyncModel userOrderSyncModel : existingUserOrderSyncModelList) {
+            List<POSOrderMapping> posOrderMappings = posOrderMappingMap.get(userOrderSyncModel.getPosOrderId());
+
+            List<OrderDealMappingModel> orderDealMappingModelList = getOrderDealMappingForExistingOrder(posOrderMappings,
+
+
+📄 FILE: InventoryUpdateMapper.java
+
+--- InventoryUpdateMapper | updateInventory | CODE | 1/1 ---
+    public WarehouseSkuInventory updateInventory(WarehouseSkuInventory warehouseSkuInventory, SkuInventoryDTO skuInventoryDTO){
+        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()+skuInventoryDTO.getInventory());
+        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()+skuInventoryDTO.getInventory_sold());;
+        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()+skuInventoryDTO.getBtoc_sold());
+        warehouseSkuInventory.setBtobSold(warehouseSkuInventory.getBtobSold()+skuInventoryDTO.getBtob_sold());
+        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()+skuInventoryDTO.getStn_intransit_inventory());
+        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()+skuInventoryDTO.getVirtual_inventory());
+        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()+ skuInventoryDTO.getStn_intransit_order());
+        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()+skuInventoryDTO.getDelivered_inventory());
+        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()+skuInventoryDTO.getDamage());
+        warehouseSkuInventory.setModifiedDate(new Date());
+        return warehouseSkuInventory;
+
+--- InventoryUpdateMapper | revertInventory | CODE | 1/1 ---
+    public WarehouseSkuInventory revertInventory(WarehouseSkuInventory warehouseSkuInventory, SkuInventoryDTO skuInventoryDTO){
+        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()-skuInventoryDTO.getInventory());
+        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()-skuInventoryDTO.getInventory_sold());;
+        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()-skuInventoryDTO.getBtoc_sold());
+        warehouseSkuInventory.setBtobSold(warehouseSkuInventory.getBtobSold()-skuInventoryDTO.getBtob_sold());
+        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()-skuInventoryDTO.getStn_intransit_inventory());
+        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()-skuInventoryDTO.getVirtual_inventory());
+        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()- skuInventoryDTO.getStn_intransit_order());
+        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()-skuInventoryDTO.getDelivered_inventory());
+        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()-skuInventoryDTO.getDamage());
+        warehouseSkuInventory.setModifiedDate(new Date());
+        return warehouseSkuInventory;
+
+--- InventoryUpdateMapper | cacheUpdateInventory | CODE | 1/1 ---
+    public WarehouseSkuInventory cacheUpdateInventory(WarehouseSkuInventory warehouseSkuInventory, OmsSkuSyncDTO skuInventoryDTO){
+        warehouseSkuInventory.setInventory(warehouseSkuInventory.getInventory()+skuInventoryDTO.getInventory());
+        warehouseSkuInventory.setInventorySold(warehouseSkuInventory.getInventorySold()+skuInventoryDTO.getInventorySold());
+        warehouseSkuInventory.setBtocSold(warehouseSkuInventory.getBtocSold()+skuInventoryDTO.getBtocSold());
+        warehouseSkuInventory.setStnIntransitInventory(warehouseSkuInventory.getStnIntransitInventory()+skuInventoryDTO.getStnIntransitInventory());
+        warehouseSkuInventory.setVirtualInventory(warehouseSkuInventory.getVirtualInventory()+skuInventoryDTO.getVirtualInventory());
+        warehouseSkuInventory.setStnIntransitOrder(warehouseSkuInventory.getStnIntransitOrder()+ skuInventoryDTO.getStnIntransitInventoryOrder());
+        warehouseSkuInventory.setDeliveredInventory(warehouseSkuInventory.getDeliveredInventory()+skuInventoryDTO.getDeliveredInventory());
+        warehouseSkuInventory.setDamage(warehouseSkuInventory.getDamage()+skuInventoryDTO.getDamage());
+        warehouseSkuInventory.setLooseInventory(warehouseSkuInventory.getLooseInventory()+ skuInventoryDTO.getLooseInventory());
+        warehouseSkuInventory.setModifiedDate(new Date());
+        return warehouseSkuInventory;
+
+
+📄 FILE: CacheServiceImpl.java
+
+--- CacheServiceImpl | asyncUpdateInventoryCountCache | CODE | 1/1 ---
     @Override
-    public Optional<UpdateOrderModel> placeOrder(UpdateOrderModel orderModel, String authKey, Integer palId,String appsFlyerId, String deviceId,String advertisingId) {
-        log.info("payment initiation process - place order process started for cartId : {} and userId : {}", orderModel.getCartId(), orderModel.getUserId());
-        log.error("Cart-Service Request  for place order {}", orderModel);
-        Object responseEntityBody = null;
-        try {
-            ResponseEntity<?> responseEntity = cartServiceClient.placeOrder(orderModel, authKey, orderModel.getUserId(), palId, deviceId,appsFlyerId,orderModel.getPlatform(),advertisingId);
-            responseEntityBody = responseEntity.getBody();
-            if (responseEntity.getStatusCode().value() == 204 || responseEntityBody == null) {
-                log.warn("No order is created for cart id : {}", orderModel.getCartId());
-                return Optional.empty();
+    @Async
+    public void asyncUpdateInventoryCountCache(SyncDTO syncDTO, Boolean reSyncData) {
+        List<WarehouseSkuInventory> warehouseSkuInventories = new ArrayList<>();
+        for (SkuSyncDTO sku : syncDTO.getData()) {
+            try {
+                if (AppConstants.IS_CACHE_ENABLED) {
+                    // If cache enable
+//            flushSku(warehouseId, skuId);
+                    Optional<WarehouseSkuInventory> entity = warehouseSkuInventoryReadRepo.findBySkuIdAndWarehouseEntitiesId(sku.getSku_id(), sku.getWarehouseId());
+                    if (entity.isPresent() && !reSyncData) {
+                        create(inventoryUpdateMapper.omsCacheUpdateInventory(entity.get(), sku));
+                    } else if (entity.isPresent() && reSyncData){
+                        create(entity.get());
+                    }
+
+                    entity.ifPresent(warehouseSkuInventories::add);
+                }
+            } catch (Exception ex) {
+                log.error("omsInventorySync - asyncUpdateInventoryCountCache while updating cache with SKU {}", sku);
             }
-        } catch (FeignException e) {
-            log.error("Unable to place order for cart id : {} , response content {}", orderModel.getCartId(), e.toString());
-            return Optional.empty();
         }
+        asyncService.asyncAddDealExpiryStatusInQueue(warehouseSkuInventories, syncDTO.getType());
 
-        try {
+
+📄 FILE: InventoryController.java
+
+--- InventoryController | reverseUpdateSync | CODE | 1/1 ---
+    @PostMapping("/compensate-sync")
+    private ResponseEntity<?> reverseUpdateSync(@RequestBody InventoryDTO inventoryDTO) throws JsonProcessingException, InventoryException {
+        inventoryService.reverseUpdateSync(inventoryDTO);
+        return sendSuccessResponse(true);
 
 
-📄 FILE: MaintenanceServiceImpl.java
+📄 FILE: EtaServiceImpl.java
 
---- MaintenanceServiceImpl | setCronRunCacheKey | CODE | 1/1 ---
-    public void setCronRunCacheKey(Boolean flag) {
-        cacheService.set("pending-orders-cron-process", flag,30000L);
+--- EtaServiceImpl | updateOrderStatusWidgetCacheAsync | CODE | 1/1 ---
+    @Async
+    public CompletableFuture<Void> updateOrderStatusWidgetCacheAsync(List<OrderStatusWidgetCacheUpdateModel> orderStatusWidgetCacheUpdateModelList) {
+        orderServiceClient.updateOrderStatusWidgetCache(orderStatusWidgetCacheUpdateModelList);
+        return CompletableFuture.completedFuture(null);
 
---- MaintenanceServiceImpl | checkIfPaymentReceived | CODE | 1/1 ---
-    private JuspayWebhookRequestModel checkIfPaymentReceived(String orderId) {
-        JuspayWebhookRequestModel juspaySynchronousOrderModel = jusPayXService.synchronousOrderStatusCall(orderId, false);
-        if (Objects.isNull(juspaySynchronousOrderModel) ||
-                Objects.isNull(juspaySynchronousOrderModel.getContent()) ||
-                Objects.isNull(juspaySynchronousOrderModel.getContent().getOrder())) {
-            return null;
-        }
 
-        JuspayWebhookOrderModel juspayOrder = juspaySynchronousOrderModel.getContent().getOrder();
-        if (!orderId.equals(juspayOrder.getOrderId()) ||
-                !CHARGED_PAYMENT_STATUS.equalsIgnoreCase(juspayOrder.getStatus())) {
-            return null;
-        }
+📄 FILE: UtilityServiceImpl.java
 
-        return juspaySynchronousOrderModel;
-
---- MaintenanceServiceImpl | cancelOrder | CODE | 1/1 ---
-    private void cancelOrder(OrderEntity y,Optional<UserEntity> userData,Set<Long> cartIdsToMarkProcessed,Optional<CartOrdersMapping> optMapping,List<String> result){
-        if (postPaymentUpdateHelper.cancelOrder(y, userData.get().getAuthKey())) {
-            cartIdsToMarkProcessed.add(optMapping.get().getCartId());
-            OrderHistoryEntity orderHistoryEntity = new OrderHistoryEntity(y, "remove-pending-order-cron");
-            orderHistoryRepo.save(orderHistoryEntity);
-            result.add(y.getOrderId());
-            y.setStatus("discarded");
-            y.setPaymentStatus("PAYMENT_FAILED");
-            orderRepo.save(y);
-            return ;
-        }
-        asyncService.discardFailedCancellationsOrdOrders(y);
-
---- MaintenanceServiceImpl | removePendingOrders | CODE | 1/4 ---
-    @Transactional
+--- UtilityServiceImpl | postWarehouseExpiryUpdateStn | CODE | 1/1 ---
+    @Async
     @Override
-    @Async
-    public void removePendingOrders() {
-        int threadCount = 5;
-        Object isCronRunning =  cacheService.get("pending-orders-cron-process");
-        Boolean isRunning = (Boolean)isCronRunning;
-        if (Boolean.TRUE.equals(isRunning)) {
-            return;
-        }
-        cacheService.set("pending-orders-cron-process", true,30000L);
-
+    public void postWarehouseExpiryUpdateStn(SyncDTO stnHoldRequestDTO, int stnWarehouseId, Map<String, WarehouseSkuInventory> warehouseSkuInventoryMap) throws InventoryException {
         try {
-            TimeZone.setDefault(TimeZone.getTimeZone("IST"));
-
-            List<OrderEntity> orderEntities = orderRepo.findPendingOrdersForCancellationUsingLock("PAYTM", "pending", ORDERS_OLDER_THAN_MINUTES);
-            if (orderEntities == null || orderEntities.isEmpty()) {
-                cacheService.set("pending-orders-cron-process", false,30000L);
-                log.error("removePendingOrders cron No pending orders present.");
-                return;
-            }
-
-            log.error("removePendingOrders cron count {}", orderEntities.size());
-            List<Long> orderIds = orderEntities.stream().map(OrderEntity::getId).collect(Collectors.toList());
-            List<CartOrdersMapping> cartOrdersMappings = cartOrderMappingRepository.findAllByOrderIds(orderIds).get();
-
-            // get distinct cartIds
-            ExecutorService paymentExecutor = Executors.newFixedThreadPool(threadCount);
-            List<String> cartIds = cartOrdersMappings.stream().map(cartOrdersMapping -> cartOrdersMapping.getCartId().toString()).distinct().collect(Collectors.toList());
-            Map<String, JuspayWebhookRequestModel> juspaySynchronousOrderModelMap = new ConcurrentHashMap<>(); // this is map to store info for cartIds for which payment is charged
-            List<Future<?>> juspayFutures = new ArrayList<>();
-
-            for (String cartId : cartIds) {
-                juspayFutures.add(paymentExecutor.submit(() -> {
-                    try {
-                        JuspayWebhookRequestModel model = checkIfPaymentReceived(AppConstants.ORDER_PREFIX + cartId);
-                        if (model != null) {
-                            juspaySynchronousOrderModelMap.put(cartId, model);
-                        }
-                    } catch (Exception e) {
-                        log.error("removePendingOrders cron Error checking payment for cartId: {} message {}", cartId, e.getMessage());
-                    }
-                }));
-            }
-
-            for (Future<?> f : juspayFutures) {
-                try {
-                    f.get();
-                } catch (Exception e) {
-                    log.error("removePendingOrders cron Error in parallel payment check {}", e.getMessage());
-
---- MaintenanceServiceImpl | removePendingOrders | CODE | 2/4 ---
-            for (Future<?> f : juspayFutures) {
-                try {
-                    f.get();
-                } catch (Exception e) {
-                    log.error("removePendingOrders cron Error in parallel payment check {}", e.getMessage());
-                }
-            }
-            paymentExecutor.shutdown();
-            log.error("removePendingOrders cron paymentExecutor completed {} juspaySynchronousOrderModelMap {}", juspayFutures.size(), juspaySynchronousOrderModelMap);
-
-            Set<Long> webHookCalledCartIds = ConcurrentHashMap.newKeySet(); // to call webhook process for every cartId only once
-            Set<Long> cartIdsToMarkProcessed = ConcurrentHashMap.newKeySet();
-            List<String> result = Collections.synchronizedList(new ArrayList<>());
-
-            // Group orders by cartId
-            Map<Long, List<OrderEntity>> cartIdToOrdersMap = orderEntities.stream()
-                    .collect(Collectors.groupingBy(order ->
-                            cartOrdersMappings.stream()
-                                    .filter(m -> m.getOrderId().equals(order.getId()))
-                                    .map(CartOrdersMapping::getCartId)
-                                    .findFirst()
-                                    .orElse(0L)
-                    ));
-
-            ExecutorService orderExecutor = Executors.newFixedThreadPool(threadCount);
-            List<Future<?>> futures = new ArrayList<>();
-
-            for (Map.Entry<Long, List<OrderEntity>> entry : cartIdToOrdersMap.entrySet()) {
-                List<OrderEntity> ordersInCart = entry.getValue();
-
-                // Submit one task per cartId → ensures sequential processing within a cart
-                futures.add(orderExecutor.submit(() -> {
-                    for (OrderEntity y : ordersInCart) {
-                        try {
-                            Long userId = y.getUserId();
-                            Optional<UserEntity> userData = userRepository.findById(userId);
-                            if (userData.isEmpty()) {
-                                log.error("removePendingOrders cron User not found " + userId);
-                                return;
-                            }
-
-                            Optional<CartOrdersMapping> optMapping = cartOrdersMappings.stream().filter(cartOrdersMapping -> cartOrdersMapping.getOrderId().equals(y.getId())).findAny();
-                            if (optMapping.isEmpty()) {
-                                log.error("removePendingOrders cron Cart order mapping not present for order : " + y.getId());
-                                OrderHistoryEntity orderHistoryEntity = new OrderHistoryEntity(y, "remove-pending-order-cron");
-                                orderHistoryRepo.save(orderHistoryEntity);
-                                if (postPaymentUpdateHelper.cancelOrder(y, userData.get().getAuthKey())) {
-                                    result.add(y.getOrderId());
-                                    orderRepo.setStatusAndPaymentStatus("discarded", "PAYMENT_FAILED", y.getId());
-                                } else {
-
---- MaintenanceServiceImpl | removePendingOrders | CODE | 3/4 ---
-                                orderHistoryRepo.save(orderHistoryEntity);
-                                if (postPaymentUpdateHelper.cancelOrder(y, userData.get().getAuthKey())) {
-                                    result.add(y.getOrderId());
-                                    orderRepo.setStatusAndPaymentStatus("discarded", "PAYMENT_FAILED", y.getId());
-                                } else {
-                                    Optional<OrderEntity> orderData = orderRepo.findById(y.getId());
-                                    if (orderData.isPresent() && orderData.get().getStatus().equalsIgnoreCase(OrderStatus.CANCEL.status)) {
-                                        result.add(y.getOrderId());
-                                        orderRepo.setStatusAndPaymentStatus("discarded", "PAYMENT_FAILED", y.getId());
-                                    }
-                                }
-                                return;
-                            }
-
-                            // check if current time is more than 30 minute of order creation
-                            boolean isOrderMoreThen30MinOldPending =
-                                    (new Date().getTime() - y.getOrderDate().getTime()) >= (30 * 60 * 1000);
-                            // this means payment is received for this cartId
-                            if (!isOrderMoreThen30MinOldPending && juspaySynchronousOrderModelMap.containsKey(optMapping.get().getCartId().toString())) {
-                                if (webHookCalledCartIds.contains(optMapping.get().getCartId())) {
-                                    return;
-                                }
-                                log.error("removePendingOrders cron Not discarding orders in cron as payment is received for this order :{} for cartId :{} ", y.getId(), optMapping.get().getCartId());
-                                JuspayWebhookRequestModel juspaySynchronousOrderModel = juspaySynchronousOrderModelMap.get(optMapping.get().getCartId().toString());
-                                jusPayXService.juspayWebhook(juspaySynchronousOrderModel, true);
-                                webHookCalledCartIds.add(optMapping.get().getCartId());
-                                return;
-                            }
-                            cancelOrder(y, userData, cartIdsToMarkProcessed, optMapping, result);
-                        } catch (Exception e) {
-                            log.error("removePendingOrders cron  Error while discarding order : {} with exception {} in payment service", y.getId(), e.getMessage(), e);
-                        }
-                    }
-                }));
-            }
-
-            for (Future<?> f : futures) {
-                try {
-                    f.get();
-                } catch (Exception e) {
-                    log.error("removePendingOrders cron Error in parallel cart processing {}", e.getMessage());
-                }
-            }
-            log.error("removePendingOrders cron paymentExecutor completed {} cartIdsToMarkProcessed {}", futures.size(), cartIdsToMarkProcessed);
-            orderExecutor.shutdown();
-
-            List<CartEntity> cartList = cartRepository.findAllById(cartIdsToMarkProcessed);
-            cartList.forEach(cart -> cart.setCartStatus("PROCESSED"));
-            cartRepository.saveAll(cartList);
-        }finally {
-
---- MaintenanceServiceImpl | removePendingOrders | CODE | 4/4 ---
-
-            List<CartEntity> cartList = cartRepository.findAllById(cartIdsToMarkProcessed);
-            cartList.forEach(cart -> cart.setCartStatus("PROCESSED"));
-            cartRepository.saveAll(cartList);
-        }finally {
-            cacheService.set("pending-orders-cron-process", false,30000L);
-        }
-
-        log.error("removePendingOrders cron completed");
 
 
-📄 FILE: AsyncServiceImpl.java
+📄 FILE: ExpressDeliveryServiceImplTest.java
 
---- AsyncServiceImpl | asyncCreateRefundsForCancelledOrders | CODE | 1/1 ---
-    @Trace(async = true)
-    @Async
-    public void asyncCreateRefundsForCancelledOrders(Token newRelicToken) throws JobParametersInvalidException, JobExecutionAlreadyRunningException, JobRestartException, JobInstanceAlreadyCompleteException {
-        Object isCronRunning =  cacheService.get("pending-orders-refund-cron-process");
+--- ExpressDeliveryServiceImplTest | testOrderSyncException | TEST | 1/1 ---
+    @Test
+    public void testOrderSyncException() throws Exception {
+        // We need to access the private syncOrdersToIms method
+        Method syncOrdersToImsMethod = ExpressDeliveryServiceImpl.class.getDeclaredMethod(
+            "syncOrdersToIms", List.class, long.class);
+        syncOrdersToImsMethod.setAccessible(true);
+        
+        // Create test data
+        List<DealLevelPromotion> cartItems = new ArrayList<>();
+        DealLevelPromotion item1 = new DealLevelPromotion();
+        item1.setDeliveryType(DeliveryType.EXPRESS.name());
+        item1.setOrderPKId(101L);
+        
+        DealLevelPromotion item2 = new DealLevelPromotion();
+        item2.setDeliveryType(DeliveryType.EXPRESS.name());
+        item2.setOrderPKId(102L);
+        
+        cartItems.add(item1);
+        cartItems.add(item2);
+        
+        // Mock the orderServiceClient to throw an exception
+        when(orderServiceClient.syncOrderService(any()))
+            .thenThrow(new RuntimeException("Sync Failed"));
+        
+        // Invoke the private method
+        syncOrdersToImsMethod.invoke(expressDeliveryService, cartItems, 1001L);
+        
+        // Verify that orderServiceClient was called with an OrderPushToImsRequest 
+        // containing the correct order IDs and warehouse ID
+        ArgumentCaptor<OrderPushToImsRequest> requestCaptor = ArgumentCaptor.forClass(OrderPushToImsRequest.class);
+        verify(orderServiceClient).syncOrderService(requestCaptor.capture());
+        
+        OrderPushToImsRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(Long.valueOf(1001L), capturedRequest.getWarehouseId());
+        assertEquals(DeliveryType.EXPRESS.name(), capturedRequest.getDeliveryType());
+        assertEquals(2, capturedRequest.getOrderIds().size());
+        assertTrue(capturedRequest.getOrderIds().contains(101L));
+        assertTrue(capturedRequest.getOrderIds().contains(102L));
 
-        Boolean isRunning = (Boolean)isCronRunning;
-        if(Boolean.TRUE.equals(isRunning)) {
-            return;
-        }
-        log.error("Setting cacheKey for  cancelled orders");
-        cacheService.set("pending-orders-refund-cron-process", true,30000L);
 
-        newRelicToken.link();
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addLong("refund-for-cancellations",System.currentTimeMillis()).toJobParameters();
-        JobExecution jobExecution = jobLauncher.run(job, jobParameters);
+📄 FILE: V1UserPhoneCartIdTest.java
 
-        List<Throwable> allFailureExceptions = jobExecution.getAllFailureExceptions();
-        for (Throwable failureException : allFailureExceptions) {
-            log.error("createRefundsForCancelledOrders failureException ", failureException);
-        }
-        newRelicToken.linkAndExpire();
-        log.error("UnSetting cacheKey for  cancelled orders");
-        cacheService.set("pending-orders-refund-cron-process", false,30000L);
+--- V1UserPhoneCartIdTest | testFetchEtaForOrders_IndividualOrderParseException | TEST | 1/2 ---
+    @Test
+    public void testFetchEtaForOrders_IndividualOrderParseException() throws Exception {
+        // Arrange
+        List<Long> orderIds = Arrays.asList(101L, 102L);
+        
+        // Create warehouse delivery ETAs
+        List<WarehouseDeliveryEtaEntity> etaEntities = new ArrayList<>();
+        
+        // Create ETA for order 101 (with valid date)
+        WarehouseDeliveryEtaEntity eta1 = new WarehouseDeliveryEtaEntity();
+        eta1.setId(1L);
+        eta1.setOrderId(101L);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Date deliveryDate1 = sdf.parse("2025-01-01");
+        eta1.setDeliveryDate(deliveryDate1);
+        
+        // Create ETA for order 102 
+        WarehouseDeliveryEtaEntity eta2 = new WarehouseDeliveryEtaEntity();
+        eta2.setId(2L);
+        eta2.setOrderId(102L);
+        Date deliveryDate2 = sdf.parse("2025-01-02"); // Use a valid date, we'll mock the exception
+        eta2.setDeliveryDate(deliveryDate2);
+        
+        etaEntities.add(eta1);
+        etaEntities.add(eta2);
+        
+        // Mock repository response
+        when(warehouseEtaDeliveryRepository.findAllByOrderIdInOrderByDeliveryDateDesc(orderIds))
+            .thenReturn(Optional.of(etaEntities));
+        
+        // Create a partial mock of EtaServiceImpl to capture and validate the calls
+        EtaServiceImpl spyEtaService = spy(new EtaServiceImpl());
+        ReflectionTestUtils.setField(spyEtaService, "warehouseEtaDeliveryRepository", warehouseEtaDeliveryRepository);
+        
+        // Make order 101 format successfully
+        doReturn("01 January, 2025").when(spyEtaService).fetchEtaForOrder(101L);
+        
+        // Make order 102 format throw exception - return empty string instead of null
+        doReturn("").when(spyEtaService).fetchEtaForOrder(102L);
+        
+        // Make cart level ETA format successfully
+        doReturn("01 January, 2025").when(spyEtaService).fetchEtaForOrder(CART_LEVEL_ETA);
+        
+        // Act
+        Map<Long, String> result = spyEtaService.fetchEtaForOrders(orderIds);
+        
+        // Assert
+        assertNotNull(result);
+        assertEquals(3, result.size());  // All entries are included in the result map
+        assertTrue(result.containsKey(101L));  // Order 101 has a valid date
 
---- AsyncServiceImpl | discardFailedCancellationsOrdOrders | CODE | 1/1 ---
-    @Async
-    public void discardFailedCancellationsOrdOrders(OrderEntity order) {
-        CompletableFuture.runAsync(
 
+📄 FILE: MyOrderServiceImplTest.java
 
-📄 FILE: RefundServiceImpl.java
+--- MyOrderServiceImplTest | createTestOrders | TEST | 1/1 ---
+    private List<Order> createTestOrders() {
+        List<Order> orders = new ArrayList<>();
 
---- RefundServiceImpl | updateOrdersRefundDone | CODE | 1/1 ---
-    private void updateOrdersRefundDone(List<Long> orderIds) {
-        List<OrderEntity> orderEntities = orderRepo.findByIdIn(orderIds);
-        orderEntities.stream().
-            forEach(orderEntity -> orderEntity.setPaymentStatus(PaymentOrderStatus.REFUND_DONE.toString()));
-        orderRepo.saveAll(orderEntities);
+        Order order1 = new Order();
+        order1.setId(1L);
+        order1.setOrderId("ORDER001");
+        order1.setOfferId("OFFER001");
+        order1.setOrderStatus("delivered");
+        order1.setOrderType("normal");
+        order1.setSource("B2C");
+        order1.setPhone(phoneNumber);
+        order1.setAmount(100.00);
+        order1.setBilledAmount(100.00);
+        order1.setQuantity(1L);
+        order1.setPaymentType("COD");
+        order1.setPaymentStatus("COMPLETED");
+        order1.setOrderDate(new Date());
+        orders.add(order1);
+
+        Order order2 = new Order();
+        order2.setId(2L);
+        order2.setOrderId("ORDER002");
+        order2.setOfferId("OFFER002");
+        order2.setOrderStatus("cancelled");
+        order2.setOrderType("normal");
+        order2.setSource("B2C");
+        order2.setPhone(phoneNumber);
+        order2.setAmount(200.00);
+        order2.setBilledAmount(200.00);
+        order2.setQuantity(1L);
+        order2.setPaymentType("COD");
+        order2.setPaymentStatus("CANCELLED");
+        order2.setOrderDate(new Date());
+        orders.add(order2);
+
+        return orders;
 
 
 📄 FILE: JusPayXServiceImpl.java
-
---- JusPayXServiceImpl | createJuspayOrder | CODE | 1/1 ---
-    @Override
-    public JuspayCreateOrderResponseModel createJuspayOrder(UpdateOrderModel orderModel, UserPaymentMethodsEntity userPaymentMethodsEntity, String custId,String appsFlyerId,String deviceId,String advertisingId, String instanceId) throws JuspayCreateOrderException {
-        try {
 
 --- JusPayXServiceImpl | synchronousOrderStatusCall | CODE | 1/1 ---
     @Override
@@ -770,440 +671,3 @@ Question: how do we sync minimart orders ?
             log.error("Error in synchronous order status call, ex : {} for order_id : {}", e.getMessage(), orderId);
         }
         return null;
-
---- JusPayXServiceImpl | getJuspayWebhookOrderModel | CODE | 1/1 ---
-    private JuspayWebhookOrderModel getJuspayWebhookOrderModel(JuspayWebhookRequestModel juspayRequestModel, String eventName, Boolean orderStatusCheckRequired) {
-        try {
-            if (Objects.isNull(juspayRequestModel.getContent())) {
-                log.error("Juspay webhook content is missing for event: {}", eventName);
-                return null;
-            }
-            JuspayWebhookOrderModel juspayRequestOrder = juspayRequestModel.getContent().getOrder();
-            if (Objects.isNull(juspayRequestOrder)) {
-                log.error("Order details are missing in the Juspay webhook payload for event: {}", eventName);
-                return null;
-            }
-            if(!orderStatusCheckRequired){
-                return juspayRequestOrder;
-            }
-            JuspayWebhookRequestModel juspaySynchronousOrderModel = synchronousOrderStatusCall(juspayRequestOrder.getOrderId(), false);
-            if(Objects.isNull(juspaySynchronousOrderModel)){
-                log.error("Juspay webhook synchronous call for Order ID: {} has an error", juspayRequestOrder.getOrderId());
-                return null;
-            }
-            if (Objects.isNull(juspaySynchronousOrderModel.getContent())) {
-                log.error("Juspay webhook content is missing in synchronous call for Order ID: {}", juspayRequestOrder.getOrderId());
-                return null;
-            }
-            JuspayWebhookOrderModel juspayOrder = juspaySynchronousOrderModel.getContent().getOrder();
-            if (Objects.isNull(juspayOrder)) {
-                log.error("Order details are missing in the Juspay synchronous response for event: {}", eventName);
-                return null;
-            }
-            if (!juspayOrder.getOrderId().equals(juspayRequestOrder.getOrderId())) {
-                log.error("Order ID mismatch: request Order ID = {}, synchronous Order ID = {}", juspayRequestOrder.getOrderId(), juspayOrder.getOrderId());
-                return null;
-            }
-            return juspayOrder;
-        } catch (Exception e) {
-            log.error("Error in getJuspayWebhookOrderModel for event: {} and payload : {}. Error: ", eventName,juspayRequestModel, e);
-        }
-        return null;
-
---- JusPayXServiceImpl | handleOrderSucceededEvent | CODE | 1/1 ---
-    private void handleOrderSucceededEvent(JuspayWebhookOrderModel juspayOrder, JuspayWebhookRequestModel juspayRequestModel) {
-
-        log.error("handle Order Success event request  juspayOrder {}, juspayRequestModel : {}", juspayOrder, juspayRequestModel);
-        if (!CHARGED_PAYMENT_STATUS.equalsIgnoreCase(juspayOrder.getStatus())) {
-//            log.error("Order status is not CHARGED: {} for cart : {}", juspayOrder.getStatus(), juspayOrder.getUdf2());
-            return;
-        }
-        try {
-
---- JusPayXServiceImpl | captureOrders | CODE | 1/1 ---
-    private void captureOrders(JuspayWebhookOrderModel juspayWebhookOrderModel, PaymentEntity paymentEntity, JuspayCustomParameters juspayCustomParameters) {
-        setStatus(juspayWebhookOrderModel, paymentEntity,juspayCustomParameters);
-        paymentRepo.save(paymentEntity);
-        paymentRepo.flush();
-        PaymentSuccessOrderStatusUpdate postOrderUpdateResp =  postPaymentUpdateHelper.updateOrderForPaymentSuccessThroughCallback(paymentEntity);
-        if(postOrderUpdateResp == null){
-            log.error("Payment success callback did not update order status for cartId : {}", paymentEntity.getCartId());
-            return;
-        }
-        log.error("{} - sending event for payment success callback for cart id : {}, orderIds : {}", PAYMENT_SUCCESS_CALLBACK_MSG, paymentEntity.getCartId(),postOrderUpdateResp.getUpdatedOrderEntities().stream()
-                .map(OrderEntity::getId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList()));
-        postPaymentUpdateHelper.raiseOrderStatusSuccessEvent(postOrderUpdateResp.getUpdatedOrderEntities(), paymentEntity.getCartId(), juspayCustomParameters);
-        log.info("{} - initiating notification after successful update for cart id : {}.", PAYMENT_SUCCESS_CALLBACK_MSG, paymentEntity.getCartId());
-        notificationHelper.paymentJourneyUpdate(ORDER_COMPLETE_POST_PAYMENT, postOrderUpdateResp.getDealIds(), postOrderUpdateResp.getFirstValidOrder().getUserId());
-        paymentServiceV5.updatePaymentMethodsCache(juspayWebhookOrderModel, juspayCustomParameters, paymentEntity);
-
-
-📄 FILE: PaymentServiceV5Impl.java
-
---- PaymentServiceV5Impl | getPaymentMethodListOrder | CODE | 1/1 ---
-    private List<String> getPaymentMethodListOrder(UserEntity user,CartDetailsModel cartDetailsModel) throws IOException {
-        // Get the payment method order from growthBook
-        PaymentMethodsOrderConfig fallbackValue = new PaymentMethodsOrderConfig();
-        fallbackValue.setAbEnabled(false);
-        PaymentMethodsOrderConfig config =  growthBookService.getGrowthBookConfig(user, AppConstants.PAYMENT_SERVICE_PAYMENT_METHODS_ORDER_EXP, PaymentMethodsOrderConfig.class,fallbackValue);
-
-        // If AB test is enabled, return the order from the config
-        if(config.getAbEnabled()){
-            if(Objects.nonNull(config.getPaymentMethodsOrder()) && config.getPaymentMethodsOrder().size() == AppConstants.defaultAbTestPaymentMethodOrders.size()
-                && new HashSet<>(config.getPaymentMethodsOrder()).containsAll(AppConstants.defaultAbTestPaymentMethodOrders)
-            ) {
-                // log.error("received default order from growthBook for userId {} as :{}",user.getId(),config.getPaymentMethodsOrder());
-                return config.getPaymentMethodsOrder();
-            }
-        }
-        // return order from the payment config according to userRank
-        return fetchPaymentConfigListInOrder(user.getUserRank(), cartDetailsModel.getTotalCartAmount().doubleValue());
-
-
-📄 FILE: RazorpayOrderServiceImpl.java
-
---- RazorpayOrderServiceImpl | fetchOrderDetails | CODE | 1/1 ---
-    @Override
-    public RazorpayOrderDetails fetchOrderDetails(String razorpayOrderId) throws RazorpayException {
-        RazorpayOrderDetails razorpayOrderDetails = new RazorpayOrderDetails();
-        RazorpayClient razorpayClient = new RazorpayClient(keyId, keySecret);
-
-        try {
-            Order orderData = razorpayClient.Orders.fetch(razorpayOrderId);
-            log.info("Fetching order details from Razorpay {}", orderData);
-
-            razorpayOrderDetails.setRazorpayOrderId(orderData.get("id"));
-            razorpayOrderDetails.setOrderStatus(orderData.get("status"));
-            razorpayOrderDetails.setAmount(orderData.get("amount"));
-        } catch (RazorpayException e) {
-            throw new RazorpayException(e.getMessage());
-        }
-
-        return razorpayOrderDetails;
-
-
-📄 FILE: CapturedPaymentProcessor.java
-
---- CapturedPaymentProcessor | process | CODE | 1/1 ---
-    @Override
-    public void process(RazorPayCallbackModel.EntityModel gatewayEntity, PaymentEntity payment, Boolean paidPaymentExists) {
-        if (payment.getStatus().equals(AppConstants.CAPTURED)) {
-            log.info("status is set to {} for order id : {} already.", AppConstants.CAPTURED, gatewayEntity.getOrderId());
-            return;
-        }
-
-        this.setStatus(event, gatewayEntity, payment);
-        paymentRepo.save(payment);
-
-
-📄 FILE: PaidOrderProcessor.java
-
---- PaidOrderProcessor | process | CODE | 1/1 ---
-    @Override
-    public void process(RazorPayCallbackModel.EntityModel gatewayEntity, PaymentEntity payment, Boolean paidPaymentExists) {
-        if (payment.isPaid()) {
-            log.info("cart payment status is set to {} for order id : {} already.", AppConstants.PAYMENT_PAID_STATUS, gatewayEntity.getOrderId());
-            return;
-        }
-        this.captureOrders(event, gatewayEntity, payment);
-        paymentServiceV4.updatePaymentMethod(gatewayEntity,payment);
-
---- PaidOrderProcessor | captureOrders | CODE | 1/1 ---
-    public void captureOrders(String event, RazorPayCallbackModel.EntityModel entityModel, PaymentEntity paymentEntity) {
-        setStatus(event, entityModel, paymentEntity);
-        paymentRepo.save(paymentEntity);
-        postPaymentUpdateHelper.updateOrderForPaymentSuccessThroughCallback(paymentEntity);
-
-
-📄 FILE: DefaultPaymentProcessor.java
-
---- DefaultPaymentProcessor | process | CODE | 1/1 ---
-    @Override
-    public void process(RazorPayCallbackModel.EntityModel gatewayEntity, PaymentEntity payment, Boolean paidPaymentExists) {
-        if (payment.getStatus().equals(FAILED)) {
-            log.info("status is set to {} for order id : {} already.", FAILED , gatewayEntity.getOrderId());
-            return;
-        }
-
-        this.setStatus(event, gatewayEntity, payment);
-        paymentRepo.save(payment);
-
-        if ( ! paidPaymentExists) {
-
-
-📄 FILE: OrderStatusUpdateHelper.java
-
---- OrderStatusUpdateHelper | updateOrders | CODE | 1/1 ---
-    public List<OrderEntity> updateOrders(List<OrderEntity> orderEntityList, List<String> dealIds, String addressVerifiedStatus) {
-        List<Long> orderIds = orderEntityList.stream().map(OrderEntity::getId).collect(Collectors.toList());
-        Date verifiedDate = (PaymentOrderStatus.VERIFIED.name().equalsIgnoreCase(addressVerifiedStatus)) ? new Date() : null;
-        orderRepo.bulkUpdateOrderPaymentStatus(addressVerifiedStatus,PaymentOrderStatus.PAYMENT_SUCCESSFUL.name(),verifiedDate,orderIds);
-        List<OrderEntity> orderEntities = orderEntityList.stream()
-                .peek(orderEntity -> {
-                    dealIds.add(orderEntity.getDealId());
-                })
-                .collect(Collectors.toList());
-        log.error("Callback Updated Orders for success callback : {}", orderEntities);
-        orderRepo.flush();
-        orderEntities = orderRepo.findByIdIn(orderIds);
-        return orderEntities;
-
-
-📄 FILE: PostPaymentUpdateHelper.java
-
---- PostPaymentUpdateHelper | getOrderHistoryEntity | CODE | 1/1 ---
-    private OrderHistoryEntity getOrderHistoryEntity(OrderEntity orderEntity, String updatedBy){
-        return new OrderHistoryEntity(orderEntity, updatedBy);
-
---- PostPaymentUpdateHelper | isValidOnlineToBePaidOrder | CODE | 1/1 ---
-    private OrderEntity isValidOnlineToBePaidOrder(List<Long> orderIds) {
-        Optional<OrderEntity> optFirstOrder = orderRepo.findById(orderIds.get(0));
-        if (optFirstOrder.isEmpty()) {
-            return null;
-        }
-
-        OrderEntity firstOrder = optFirstOrder.get();
-        if (firstOrder.getPaymentType().equals("COD") || firstOrder.getPaymentStatus().equals(PaymentOrderStatus.PAYMENT_SUCCESSFUL.name())) {
-            return null;
-        }
-
-        return firstOrder;
-
---- PostPaymentUpdateHelper | createPaymentCartEntity | CODE | 1/1 ---
-    private void createPaymentCartEntity(PaymentEntity paymentEntity, String orderStatus) {
-        List<LinkedHashMap<String, Object>> dealList;
-        List<PaymentCartEntity> persistPaymentCartEntity = new ArrayList<>();
-
-        try {
-            dealList = objectMapper.readValue(paymentEntity.getProductInformation(), List.class);
-        } catch (IOException e) {
-            throw new JsonParserException("Failed to parse ProductInformation!!");
-        }
-
-        List<Long> orderIds = cartOrderMappingRepository.findAllByCartId(paymentEntity.getCartId()).get().stream().map(CartOrdersMapping::getOrderId).collect(Collectors.toList());
-        List<OrderEntity> orderEntityList = orderRepo.findAllById(orderIds);
-
-        dealList.forEach(x -> {
-                PaymentCartEntity paymentCartEntity = new PaymentCartEntity();
-                OrderEntity order = orderEntityList.stream().filter(y -> y.getDealId().equals(x.get("dealId"))).findAny().get();
-                paymentCartEntity.setOrderPkId(order.getId());
-                paymentCartEntity.setOrderStatus(orderStatus);
-                paymentCartEntity.setProductInformation(paymentEntity.getProductInformation());
-                paymentCartEntity.setAmount(new BigDecimal((int) x.get("dealPrice")));
-                paymentCartEntity.setRefundAmount(new BigDecimal((int) x.get("dealPrice")));
-                paymentCartEntity.setPaymentId(paymentEntity.getPaymentId());
-                paymentCartEntity.setDealId(order.getDealId());
-                paymentCartEntity.setOrderId(order.getOrderId());
-                persistPaymentCartEntity.add(paymentCartEntity);
-        });
-        paymentCartRepo.saveAll(persistPaymentCartEntity);
-
---- PostPaymentUpdateHelper | checkOfflineToOnlineConversion | CODE | 1/1 ---
-    Boolean checkOfflineToOnlineConversion(List<OrderEntity> updatedOrderEntities, List<Long> excludedIds) {
-        Long userId = updatedOrderEntities.get(0).getUserId();
-        String source = updatedOrderEntities.get(0).getSource();
-        if (userId == null || !Source.APP.matches(source)) {
-            return false;
-        }
-
-        Optional<OrderEntity> minimartOrder = orderRepo.findFirstByUserIdAndSource(
-            userId,
-            Source.MINIMART.getValue()
-        );
-
-        if(minimartOrder.isEmpty()) {
-            return false;
-        }
-
-        return isFirstPurchase(excludedIds, updatedOrderEntities);
-
---- PostPaymentUpdateHelper | updateOrderForPaymentSuccessThroughCallback | CODE | 1/2 ---
-    @Transactional
-    public PaymentSuccessOrderStatusUpdate updateOrderForPaymentSuccessThroughCallback(PaymentEntity paymentEntity) {
-        Long cartId = paymentEntity.getCartId();
-//        log.error("updating for payment success through callback for Cart : {}, payment id : {}", cartId,paymentEntity.getTransactionId());
-
-        updateCartStatus(paymentEntity);
-        Optional<List<CartOrdersMapping>> cartOrdersMappingsOptional = cartOrderMappingRepository.findAllByCartId(cartId);
-
-        if (cartOrdersMappingsOptional.isEmpty()) {
-            log.error("{} - Invalid cart while payment successCallback, could not find orders in cart orders mapping table - cart id : {}", PAYMENT_SUCCESS_CALLBACK_MSG, cartId);
-            return null;
-        }
-
-        List<Long> orderIds = cartOrdersMappingsOptional.get().stream()
-                .map(CartOrdersMapping::getOrderId)
-                .collect(Collectors.toList());
-
-        OrderEntity firstValidOrder = isValidOnlineToBePaidOrder(orderIds);
-        if (firstValidOrder == null) {
-            log.error("{} - Invalid/COD/Already Paid Orders : {} in cart id : {}", PAYMENT_SUCCESS_CALLBACK_MSG, orderIds, cartId);
-            return null;
-        }
-
-        Optional<PaymentRefundInfoEntity> paymentRefundInfoEntity = paymentRefundInfoRepo.findByPaymentIdAndStatus(paymentEntity.getTransactionId(), RefundTypes.LATE_PAYMENT.name());
-        if (paymentRefundInfoEntity.isPresent()) {
-            log.warn("Payment refund entity already exists for RP Payment ID : {}", paymentEntity.getTransactionId());
-            return null;
-        }
-
-        List<OrderEntity> orderEntityList = orderRepo.findAllByIdWithLock(orderIds);
-        String addressVerifiedStatus = getAddressVerifyStatus(firstValidOrder);
-
-        log.info("{} - updating payment cart initiate for cart id : {}.", PAYMENT_SUCCESS_CALLBACK_MSG, cartId);
-        updatePaymentCartInitiate(paymentEntity, orderEntityList, addressVerifiedStatus);
-
-        if (isAllItemsDiscarded(orderEntityList)) {
-            refundHelper.createPaymentRefundForPayment(paymentEntity);
-            log.error("{} - All Items are discarded for cart id : {}", PAYMENT_SUCCESS_CALLBACK_MSG, cartId);
-            return null;
-        }
-
-        List<String> dealIds = new ArrayList<>();
-        log.info("{} - updating orders for cart id : {}.", PAYMENT_SUCCESS_CALLBACK_MSG, cartId);
-        List<OrderEntity> updatedOrderEntities = orderStatusUpdateHelper.updateOrders(orderEntityList, dealIds, addressVerifiedStatus);
-
-        log.info("{} - updating orders history for cart id : {}.", PAYMENT_SUCCESS_CALLBACK_MSG, cartId);
-        updateOrdersHistory(updatedOrderEntities, PAYMENT_SUCCESS_CALLBACK);
-
-        PaymentSuccessOrderStatusUpdate  paymentSuccessOrderStatusUpdate = new PaymentSuccessOrderStatusUpdate();
-        paymentSuccessOrderStatusUpdate.setUpdatedOrderEntities(updatedOrderEntities);
-
---- PostPaymentUpdateHelper | raiseOrderStatusSuccessEvent | CODE | 1/2 ---
-    public void raiseOrderStatusSuccessEvent(List<OrderEntity> updatedOrderEntities, Long cartId,JuspayCustomParameters juspayCustomParameters) {
-        OrdersStatusUpdateEvent event = new OrdersStatusUpdateEvent();
-        event.setOrderIds(updatedOrderEntities.stream()
-                .map(OrderEntity::getId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList()));
-        event.setEvent(PaymentOrderStatus.ORDER_ONLINE_PAYMENT_COMPLETED.name());
-        kafkaService.sendOrdersStatusUpdateTopic(event);
-
-        List<Long> excludedIds = new ArrayList<>();
-        if(!updatedOrderEntities.isEmpty()){
-            excludedIds = updatedOrderEntities.stream()
-                    .map(OrderEntity::getId)
-                    .collect(Collectors.toList());
-        }
-
-        try {
-            ThirdPartyDataPushEventModel eventModel = new ThirdPartyDataPushEventModel();
-            eventModel.setEventType(PURCHASE);
-            eventModel.setPlatform(juspayCustomParameters.getPlatform());
-            eventModel.setEventTime(ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toString());
-            ThirdPartyEventsParams modelParams = new ThirdPartyEventsParams();
-            modelParams.setCartId(cartId.toString());
-            modelParams.setUserId(updatedOrderEntities.get(0).getUserId().toString());
-            modelParams.setDeviceId(juspayCustomParameters.getDeviceId());
-            modelParams.setAppsFlyerId(juspayCustomParameters.getAppsFlyerId());
-            modelParams.setInstanceId(juspayCustomParameters.getInstanceId());
-            modelParams.setAdvertisingId(juspayCustomParameters.getAdvertisingId());
-            eventModel.setThirdPartyEventsParams(modelParams);
-            eventModel.setGetCartDetails(true);
-
-            if (Objects.nonNull(juspayCustomParameters.getAppsFlyerId()) && !juspayCustomParameters.getAppsFlyerId().isEmpty()) {
-                eventModel.setThirdPartyName(APPSFLYER);
-                kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-            }
-            eventModel.setThirdPartyName(ThirdPartyName.CLEVERTAP);
-            kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-
-            if (Objects.nonNull(juspayCustomParameters.getInstanceId()) && !juspayCustomParameters.getInstanceId().isEmpty()) {
-                eventModel.setThirdPartyName(ThirdPartyName.FIREBASE);
-                kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-            }
-
-            CommonUtils.noticeError("S2S PURCHASE", null, false);
-
-            if (Objects.isNull(juspayCustomParameters.getAdvertisingId()) || juspayCustomParameters.getAdvertisingId().isEmpty()) {
-                CommonUtils.noticeError("S2S PURCHASE NULL OR EMPTY ADVERTISING ID", null, false);
-            }
-
-            try {
-
---- PostPaymentUpdateHelper | updateOrderForPaymentSuccessThroughCallback | CODE | 2/2 ---
-        log.info("{} - updating orders history for cart id : {}.", PAYMENT_SUCCESS_CALLBACK_MSG, cartId);
-        updateOrdersHistory(updatedOrderEntities, PAYMENT_SUCCESS_CALLBACK);
-
-        PaymentSuccessOrderStatusUpdate  paymentSuccessOrderStatusUpdate = new PaymentSuccessOrderStatusUpdate();
-        paymentSuccessOrderStatusUpdate.setUpdatedOrderEntities(updatedOrderEntities);
-        paymentSuccessOrderStatusUpdate.setFirstValidOrder(firstValidOrder);
-        paymentSuccessOrderStatusUpdate.setDealIds(dealIds);
-        return paymentSuccessOrderStatusUpdate;
-
---- PostPaymentUpdateHelper | raiseOrderStatusSuccessEvent | CODE | 2/2 ---
-            if (Objects.isNull(juspayCustomParameters.getAdvertisingId()) || juspayCustomParameters.getAdvertisingId().isEmpty()) {
-                CommonUtils.noticeError("S2S PURCHASE NULL OR EMPTY ADVERTISING ID", null, false);
-            }
-
-            try {
-                boolean firstPurchase = isFirstPurchase(excludedIds, updatedOrderEntities);
-                if (firstPurchase) {
-                    eventModel.setEventType(FIRST_PURCHASE);
-                    if (Objects.nonNull(juspayCustomParameters.getAppsFlyerId()) && !juspayCustomParameters.getAppsFlyerId().isEmpty()) {
-                        eventModel.setThirdPartyName(APPSFLYER);
-                        kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-                    }
-                    eventModel.setThirdPartyName(ThirdPartyName.CLEVERTAP);
-                    kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-
-                    if (Objects.nonNull(juspayCustomParameters.getInstanceId()) && !juspayCustomParameters.getInstanceId().isEmpty()) {
-                        eventModel.setThirdPartyName(ThirdPartyName.FIREBASE);
-                        kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-                    }
-                }
-
-                boolean isOfflineToOnlineConversion = checkOfflineToOnlineConversion(updatedOrderEntities, excludedIds);
-                if (isOfflineToOnlineConversion) {
-                    eventModel.setEventType(OFFLINE_TO_ONLINE_CONVERSION);
-                    if (Objects.nonNull(juspayCustomParameters.getAppsFlyerId()) && !juspayCustomParameters.getAppsFlyerId().isEmpty()) {
-                        eventModel.setThirdPartyName(APPSFLYER);
-                        kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-                    }
-                    eventModel.setThirdPartyName(ThirdPartyName.CLEVERTAP);
-                    kafkaService.sendKafkaEvent(eventModel, cartUpdateEventsTopic);
-                }
-            } catch (Exception e) {
-                log.error("Error while sending AppsFlyer event for cartId: {} - {}", cartId, e.getMessage(), e);
-            }
-        }catch (Exception e){
-            log.error("error while raising order status success event: {}", e.getMessage(),e);
-        }
-
-        schedulerService.getScheduler().schedule(() -> {
-
-
-📄 FILE: RefundHelper.java
-
---- RefundHelper | getOrderUpdateEventDetail | CODE | 1/1 ---
-    private OrderUpdateEventDetail getOrderUpdateEventDetail(PaymentEntity paymentEntity, UserAndUserPreferencesCacheModel userAndUserPreferenceCacheModel) {
-        OrderUpdateEventDetail orderUpdateEventDetail = new OrderUpdateEventDetail();
-        orderUpdateEventDetail.setEventType(REFUND_INITIATED_TRANSITION);
-        orderUpdateEventDetail.setUserId(paymentEntity.getUserId().toString());
-        orderUpdateEventDetail.setCartId(paymentEntity.getCartId());
-        orderUpdateEventDetail.setPhone(userAndUserPreferenceCacheModel.getUserData().getPhone());
-        orderUpdateEventDetail.setRefundAmount(paymentEntity.getTotalAmount().toString());
-
-        Long cartId = paymentEntity.getCartId();
-        Optional<List<CartOrdersMapping>> cartOrdersMapping = cartOrderMappingRepository.findAllByCartId(cartId);
-        List<OrderUpdateEventDetail.OrderUpdateDetails> orderUpdateDetailsList = new ArrayList<>();
-        if (cartOrdersMapping.isPresent()) {
-            OrderUpdateEventDetail.OrderUpdateDetails orderUpdateDetails = new OrderUpdateEventDetail.OrderUpdateDetails();
-            orderUpdateDetails.setOrderId(cartOrdersMapping.get().get(0).getOrderId());
-            orderUpdateDetails.setEventType(REFUND_INITIATED_TRANSITION);
-            orderUpdateDetailsList.add(orderUpdateDetails);
-        }
-        orderUpdateEventDetail.setOrderUpdateDetails(orderUpdateDetailsList);
-        return orderUpdateEventDetail;
-
-
-📄 FILE: Task.java
-
---- Task | fetchLatePaymentRecords | CODE | 1/1 ---
-    @Async
-    public void fetchLatePaymentRecords(String orderDate, String toDate) {
-        log.info("Cron fetchLatePaymentRecords fetchCancelledOrders Processing at: {} ",  LocalDateTime.now(TimeZone.getTimeZone("Asia/Kolkata").toZoneId()));
-        refundService.getFailedPaymentFromPaymentInitiate(orderDate, toDate);
-        log.info("Cron fetchLatePaymentRecords Finished Processing at:  {}",  LocalDateTime.now(TimeZone.getTimeZone("Asia/Kolkata").toZoneId()));
