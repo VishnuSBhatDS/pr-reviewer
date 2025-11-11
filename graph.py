@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+import os
 import re
+import json
+import tempfile
+import shutil
+from git import Repo
 
-# --- Spring stereotypes for detection ---
+# --- Spring stereotypes ---
 SPRING_ANNOTATIONS = {
     "Controller": "controller",
     "RestController": "controller",
@@ -11,47 +16,53 @@ SPRING_ANNOTATIONS = {
     "Configuration": "configuration"
 }
 
+# --- Regex patterns ---
 PACKAGE_RE = re.compile(r'^\s*package\s+([\w.]+)\s*;', re.MULTILINE)
 CLASS_RE = re.compile(
     r'(?:@\w+(?:\([^)]*\))?\s*)*'
     r'(?:public|protected|private)?\s*'
     r'(?:abstract|final|static)?\s*'
     r'(class|interface|enum|record)\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)',
-    re.MULTILINE
+    r'([A-Za-z_][A-Za-z0-9_]*)', re.MULTILINE
 )
 AUTOWIRED_FIELD_RE = re.compile(
     r'@Autowired\b(?:\s*\([^)]*\))?\s*'
     r'(?:@Qualifier\([^\)]*\)\s*)*'
     r'(?:private|protected|public)?\s*'
     r'([\w\<\>\.\,\s\?\[\]]+?)\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)\s*;',
-    re.MULTILINE
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*;', re.MULTILINE
 )
 METHOD_HEADER_RE = re.compile(
     r'(?:@\w+(?:\([^)]*\))?\s*)*'
     r'(?:public|protected|private)?\s*'
     r'(?:static|final|synchronized|abstract|default)?\s*'
-    r'([\w\<\>\.\[\],\s\?]+)\s+'   # return type
-    r'([A-Za-z_][A-Za-z0-9_]*)\s*' # method name
+    r'([\w\<\>\.\[\],\s\?]+)\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*'
     r'\([^)]*\)\s*'
-    r'(?:throws\s+[^{]+)?\s*'
-    r'\{',
-    re.MULTILINE
+    r'(?:throws\s+[^{]+)?\s*\{', re.MULTILINE
 )
 CONSTRUCTOR_RE_TEMPLATE = (
     r'(?:@\w+(?:\([^)]*\))?\s*)*(?:public|protected|private)?\s*{cls}\s*\([^)]*\)\s*\{{'
 )
-
-# detect simple method calls within body
 CALL_RE = re.compile(
     r'(?:\bthis\.|\bsuper\.|[A-Za-z_][A-Za-z0-9_]*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\('
 )
-
 CONTROL_KEYWORDS = {"if", "for", "while", "switch", "catch", "return", "throw", "new"}
 
+ALL_DEFINED_METHODS = set()
 
-def regex_parse_java(file_path, code):
+
+# --------------------------- Repo Utils ---------------------------
+def clone_repo(repo_url, branch="master"):
+    temp_dir = tempfile.mkdtemp(prefix="spring_repo_")
+    print(f"📥 Cloning {repo_url} (branch: {branch}) → {temp_dir}")
+    repo = Repo.clone_from(repo_url, temp_dir)
+    repo.git.checkout(branch)
+    return temp_dir
+
+
+# --------------------------- Parser Core ---------------------------
+def regex_parse_java(file_path, code, collect_methods_only=False):
     relations = []
     package = "default"
     pm = PACKAGE_RE.search(code)
@@ -59,10 +70,8 @@ def regex_parse_java(file_path, code):
         package = pm.group(1)
 
     for cm in CLASS_RE.finditer(code):
-        cls_kind = cm.group(1)
-        cls_name = cm.group(2)
+        cls_kind, cls_name = cm.group(1), cm.group(2)
         fqn_class = f"{package}.{cls_name}"
-
         prefix_start = max(0, cm.start() - 400)
         prefix = code[prefix_start:cm.start()]
         role = "class"
@@ -75,24 +84,13 @@ def regex_parse_java(file_path, code):
             if role != "class":
                 break
 
-        relations.append({"from": fqn_class, "to": None, "type": "declares", "role": role})
-
-        tail_region = code[cm.end():cm.end() + 400]
-        ext_m = re.search(r'\bextends\s+([A-Za-z0-9_\.<>]+)', tail_region)
-        if ext_m:
-            relations.append({"from": fqn_class, "to": ext_m.group(1), "type": "extends", "role": role})
-        impl_m = re.search(r'\bimplements\s+([A-Za-z0-9_\<\>\.,\s]+)', tail_region)
-        if impl_m:
-            impls = [s.strip() for s in impl_m.group(1).split(",")]
-            for impl in impls:
-                relations.append({"from": fqn_class, "to": impl, "type": "implements", "role": "interface"})
+        if not collect_methods_only:
+            relations.append({"from": fqn_class, "to": None, "type": "declares", "role": role})
 
         body_start = code.find('{', cm.end())
         if body_start == -1:
             continue
-        i = body_start
-        depth = 0
-        end_idx = len(code)
+        i, depth, end_idx = body_start, 0, len(code)
         while i < len(code):
             if code[i] == '{':
                 depth += 1
@@ -104,7 +102,20 @@ def regex_parse_java(file_path, code):
             i += 1
         class_body = code[body_start:end_idx + 1]
 
-        # autowired fields
+        for mm in METHOD_HEADER_RE.finditer(class_body):
+            method_name = mm.group(2)
+            if method_name in CONTROL_KEYWORDS:
+                continue
+            fqn_method = f"{fqn_class}.{method_name}"
+            ALL_DEFINED_METHODS.add(method_name)
+            ALL_DEFINED_METHODS.add(fqn_method)
+            if not collect_methods_only:
+                relations.append({"from": fqn_class, "to": fqn_method, "type": "has_method", "role": role})
+
+        if collect_methods_only:
+            continue
+
+        # autowired
         for am in AUTOWIRED_FIELD_RE.finditer(class_body):
             field_type = re.sub(r'\s+', ' ', am.group(1).strip())
             relations.append({"from": fqn_class, "to": field_type, "type": "autowired", "role": role})
@@ -115,19 +126,12 @@ def regex_parse_java(file_path, code):
             ctor_name = f"{fqn_class}.{cls_name}"
             relations.append({"from": fqn_class, "to": ctor_name, "type": "has_constructor", "role": role})
 
-        # methods
+        # method calls
         for mm in METHOD_HEADER_RE.finditer(class_body):
             method_name = mm.group(2)
-            if method_name in CONTROL_KEYWORDS:
-                continue
             fqn_method = f"{fqn_class}.{method_name}"
-            relations.append({"from": fqn_class, "to": fqn_method, "type": "has_method", "role": role})
-
-            # Extract method body
             start_pos = mm.end() - 1
-            j = start_pos
-            depth2 = 0
-            method_end = start_pos
+            j, depth2, method_end = start_pos, 0, start_pos
             while j < len(class_body):
                 if class_body[j] == '{':
                     depth2 += 1
@@ -138,25 +142,81 @@ def regex_parse_java(file_path, code):
                         break
                 j += 1
             method_text = class_body[start_pos:method_end + 1]
-
-            # find method calls inside body
             for call_m in CALL_RE.finditer(method_text):
                 call_name = call_m.group(1)
                 if call_name in CONTROL_KEYWORDS or call_name == method_name:
                     continue
-                relations.append({"from": fqn_method, "to": call_name, "type": "calls", "role": role})
-
+                if call_name in ALL_DEFINED_METHODS:
+                    relations.append({"from": fqn_method, "to": call_name, "type": "calls", "role": role})
     return relations
 
 
-# === test ===
+# --------------------------- Repo Graph ---------------------------
+def build_repo_graph(repo_path):
+    java_files = [
+        os.path.join(root, f)
+        for root, _, files in os.walk(repo_path)
+        for f in files if f.endswith(".java")
+    ]
+    print(f"📄 Found {len(java_files)} Java files")
+
+    # Pass 1: collect all method names
+    for path in java_files:
+        try:
+            code = open(path, "r", encoding="utf-8", errors="ignore").read()
+            regex_parse_java(path, code, collect_methods_only=True)
+        except Exception as e:
+            print(f"⚠️ Error scanning {path}: {e}")
+
+    # Pass 2: full parse
+    all_relations = []
+    for path in java_files:
+        try:
+            code = open(path, "r", encoding="utf-8", errors="ignore").read()
+            rels = regex_parse_java(path, code)
+            all_relations.extend(rels)
+        except Exception as e:
+            print(f"⚠️ Error parsing {path}: {e}")
+
+    return all_relations
+
+
+# --------------------------- Export ---------------------------
+def export_json(relations, output_prefix="repo_graph"):
+    json_path = f"{output_prefix}.json"
+    data = {"relations": relations}
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    print(f"✅ Exported JSON: {json_path}")
+
+
+# --------------------------- Main ---------------------------
 if __name__ == "__main__":
-    file_path = "/Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/impl/CartConfigV2ServiceImpl.java"
+    import argparse
+    parser = argparse.ArgumentParser(description="Build Java repo dependency graph (JSON only)")
+    parser.add_argument("--repo-url", help="Git repo URL")
+    parser.add_argument("--branch", default="master")
+    parser.add_argument("--repo", help="Local repo path")
+    parser.add_argument("--output", default="repo_graph")
+    parser.add_argument("--cleanup", action="store_true")
+    args = parser.parse_args()
 
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-        code = f.read()
+    repo_path = args.repo
+    temp_repo = None
+    if args.repo_url:
+        repo_path = clone_repo(args.repo_url, args.branch)
+        temp_repo = repo_path
 
-    rels = regex_parse_java(file_path, code)
-    print(f"✅ Parsed {len(rels)} relations:")
-    for r in rels:
-        print(f"{r['type']:>12} | {r['from']} -> {r.get('to','')} ({r['role']})")
+    if not repo_path or not os.path.exists(repo_path):
+        raise ValueError("❌ Provide --repo (local path) or --repo-url (remote Git URL)")
+
+    print(f"📦 Building dependency graph for repo: {repo_path}")
+    relations = build_repo_graph(repo_path)
+    print(f"🧩 Found {len(relations)} relations")
+    export_json(relations, args.output)
+
+    if args.cleanup and temp_repo:
+        print(f"🧹 Cleaning up {temp_repo}")
+        shutil.rmtree(temp_repo)
+
+    print("✅ Done!")

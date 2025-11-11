@@ -1,0 +1,893 @@
+# Context for src/main/java/com/dealshare/service/cartservice/services/impl/CartConfigV2ServiceImpl.java
+# Repo: /Users/dealshare/Downloads/cart-service
+
+=== IMPORT com.dealshare.service.cartservice.constants.CartConfigConstant (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/constants/CartConfigConstant.java
+
+public interface CartConfigConstant {
+    String ORD_CONFIG = "ORD_CONFIG";
+    String DELIVERY_FEE_CONFIG = "DELIVERY_FEE_CONFIG";
+    String MAX_PRODUCTS_ALLOWED_IN_CART = "MAX_PRODUCTS_ALLOWED_IN_CART";
+    Integer MAX_PRODUCTS_ALLOWED = 50;
+
+    String L2_CATEGORY_IDS = "L2_CATEGORY_IDS";
+    String DEAL_IDS = "DEAL_IDS";
+    String DELIVERY_FEE = "delivery_fee";
+    String ONE_RUPEE_DEAL_VALUE = "ONE_RUPEE_DEAL_VALUE";
+    String NEW_USER_CART_CONFIG_KEY_FORMAT = "CART_CONFIG:%s:CLUSTER:%d:MINIMUM_BAG_VALUE_NEW:%s";
+    String NEW_USER_CART_LEVEL_DELFEE_CONFIG_KEY_FORMAT = "CART_CONFIG:%s:WAREHOUSE:%d:MINIMUM_CART_VALUE:%s";
+    String ORD_CART_CONFIG_KEY_FORMAT = "CART_CONFIG:%s:CLUSTER:%d:ONE_RUPEE_DEAL_VALUE:%s";
+
+
+}
+
+=== IMPORT com.dealshare.service.cartservice.dtos.CartParamsTransferModelDTO (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/dtos/CartParamsTransferModelDTO.java
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class CartParamsTransferModelDTO {
+    private String appsFlyerId;
+    private String deviceId;
+    private String platform;
+    private Boolean isFirstPurchase;
+    private String advertisingId;
+    private Boolean isOfflineToOnlineFirstPurchase;
+    private Long addressId;
+    private Long palId;
+    private String instanceId;
+}
+
+=== IMPORT com.dealshare.service.cartservice.entities.CartConfig (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/entities/CartConfig.java
+
+@Entity
+@Data
+@Table(name = "cart_config")
+public class CartConfig {
+
+    @Id
+    @Column(name = "id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long amount;
+
+    @Column(name = "consumer_type")
+    private String consumerType;
+
+    @Column(name = "location_type")
+    private String locationType;
+
+    @Column(name = "user_segment")
+    private String userSegment;
+
+    @Column(name = "locale")
+    private String locale;
+
+    @Column(name = "location_id")
+    private Integer locationId;
+
+    private String title;
+
+    private String message;
+
+    @Column(name = "is_active")
+    private Integer isActive;
+
+    @Column(name = "config_name")
+    private String configName;
+
+    @Column(name = "config_meta")
+    private String configMeta;
+
+    @Column(name = "start_date")
+    private Date startDate;
+
+    @Column(name = "end_date")
+    private Date endDate;
+
+    @Column(name = "created_date")
+    private Date createDate;
+
+    @Column(name = "modified_date",updatable = false,insertable = false)
+    @LastModifiedDate
+    private Date modifiedDate;
+
+}
+
+=== IMPORT com.dealshare.service.cartservice.entities.User (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/entities/User.java
+
+@Entity
+@Data
+@Table(name = "user")
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class User implements Serializable {
+
+    @Id
+    @GeneratedValue
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "phone")
+    private String phoneNumber;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "username")
+    private String username;
+
+    @Column(name = "lang")
+    private String lang;
+
+    @Column(name = "share_token")
+    private String shareToken;
+
+    @Column(name = "auth_key")
+    private String authKey;
+
+    @Column(name = "pincode")
+    private Long pincode;
+
+    @Column(name = "user_rank")
+    private String userRank;
+
+    @Column(name = "city")
+    private Integer city;
+
+    @Column(name = "state")
+    private Integer state;
+
+    @Column(name = "last_name")
+    private String lastName;
+}
+
+=== IMPORT com.dealshare.service.cartservice.entities.UsersAddressEntity (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/entities/UsersAddressEntity.java
+
+@Data
+@Entity
+@Table(name = "user_address")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class UsersAddressEntity {
+
+    @Id
+    @GeneratedValue
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "address")
+    private String address;
+
+    @Column(name = "user_id")
+    private Long userId;
+
+    @Column(name = "pal_id")
+    private Integer palId;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "state")
+    private String state;
+
+    @Column(name = "pincode")
+    private String pincode;
+
+
+    @Transient
+    private String aName;
+    @Transient
+    private String stateName;
+    @Transient
+    private String cityName;
+
+    @Column(name = "varified_address")
+    private Boolean verifiedAddress;
+
+    @Column(name = "lat_long_type")
+    private String latLongType;
+
+    @Column(name= "pal_area")
+    private String palArea;
+
+    @Column(name = "pal_pincode")
+    private String palPincode;
+
+    @Column(name= "pal_warehouse")
+    private String palWarehouse;
+
+    @Column(name = "`long`")
+    private String longitude;
+
+    @Column(name = "lat")
+    private String latitude;
+
+    @Column(name = "pal_warehouse_id")
+    private Long palWarehouseId;
+}
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.DealType (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+
+    DealType(String value){
+        this.value= value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.DealType (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+
+    DealType(String value){
+        this.value= value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.toString (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+@Override
+    public String toString(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.toString (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+@Override
+    public String toString(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.getValue (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+
+
+    public String getValue(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.toString (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+@Override
+    public String toString(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.Language.Language (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/Language.java
+
+
+
+    Language(String value) {
+        this.value = value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.Language.getValue (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/enums/Language.java
+
+
+
+    public String getValue() {
+        return this.value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.exceptions.ValidationException.ValidationException (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/exceptions/ValidationException.java
+
+
+
+    public ValidationException(String message) {
+        super(message);
+    }
+
+=== IMPORT com.dealshare.service.cartservice.exceptions.ValidationException.ValidationException (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/exceptions/ValidationException.java
+
+
+
+    public ValidationException(String message) {
+        super(message);
+    }
+
+=== IMPORT com.dealshare.service.cartservice.feemodule.enums.FeesType (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/feemodule/enums/FeesType.java
+
+public enum FeesType {
+    DELIVERY_FEES,
+}
+
+=== IMPORT com.dealshare.service.cartservice.feemodule.models.DeliveryFeeDataModel (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/feemodule/models/DeliveryFeeDataModel.java
+
+@Data
+public class DeliveryFeeDataModel {
+    private Long mov;
+    private Long deliveryFee;
+    private Long collectedFees;
+    private Long allowedBenefits;
+    private String locationType;
+    private Integer locationId;
+    private Double cartValue;
+    private DeliveryFeeMessages deliveryFeeMessages;
+    private String reasonForFees;
+    private ConfigSnapshot configSnapshot;
+    private Boolean lastOrderOfCart;
+}
+
+=== IMPORT com.dealshare.service.cartservice.feemodule.models.PlatformFeeDataModel (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/feemodule/models/PlatformFeeDataModel.java
+
+@Data
+public class PlatformFeeDataModel {
+    private Double fees = 0.0;
+    private Double collectedFees = 0.0;
+    private Double strikeOffValue;
+
+    private String feesType;
+    private String feesName;
+    private Integer priority = 0;
+    private ConfigSnapshot configSnapshot;
+}
+
+=== IMPORT com.dealshare.service.cartservice.feignclients.ChatServiceClient (FULL CLASS) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/feignclients/ChatServiceClient.java
+
+@FeignClient(name = "chat-service", url = "${server.chat-service.url}")
+public interface ChatServiceClient {
+
+    @PostMapping("/v1/email/send")
+    void sendEmail(@RequestBody Map<String, String> sendEmailMap);
+
+    @PostMapping(value = "/v1/send-gupshup-sms", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<?> sendCancelSMS(@RequestBody CancelOrderModel cancelOrderModel);
+
+    @Async
+    @PostMapping("/v1/email/send")
+    void sendEmailToMultiple(@RequestBody Map<String, Object> sendEmailMap);
+
+    @Async
+    @GetMapping(value = "/v1/send-message")
+    JsonNode sendWhatsappMessage(@RequestBody WhatsappMessageRequestModel whatsappMessageRequestModel);
+
+    @Async
+    @PostMapping(value = "/v1/send-gupshup-sms", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<?> sendSMS(@RequestBody SmsRequestBody SmsRequestBody);
+
+    @PostMapping(value = "/v1/email/send-attachment-new", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    void sendEmailWithAttachment(
+            @RequestParam("to") String to,
+            @RequestParam("subject") String subject,
+            @RequestParam("content") String content,
+            @RequestPart("file") Resource file
+    );
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::UserCartV2Model ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/models/UserCartV2Model.java
+
+@Data
+public class UserCartV2Model {
+
+    private Long cartId;
+    private List<CartItemV2Model> cartItems;
+    private CartPricingSummaryModel cartPricingSummaryModel;
+    private BigDecimal totalExcludeDealsPrice = BigDecimal.ZERO;
+
+    private Integer totalOrdsInCart; // count+quantity
+    private Integer totalExpiredDealsInCart;
+
+    private CartDiscountResponseV2Model cartDiscountResponseV2Model;
+
+    private List<DiscountSummaryItem> discountSummaryItems;
+
+    private CartMessage cartMessage;
+
+    private Boolean isCheckOutAllow;
+    private String checkoutMessage;
+    private DeliveryFeeConfigModel deliveryFeeConfigModel;
+    private Map<String, Object> feesMap;
+    private ExpiredDealSectionConfigModel expiredDealSectionConfigModel;
+    private UserCacheModel user;
+
+    private String cartStatus;
+    private CartConfig ordCartConfig;
+
+    @JsonIgnore
+    private Map<String, DealInventoryStatusModel> inventoryMap;
+    private DiscountPreference promotionPreference;
+    private CartPromotionsResponse cartPromotionsResponse;
+    private OfferCommFcResponse offerCommFcResponse;
+    private List<SavedPaymentMethods> savedPaymentMethodsList;
+
+    private Boolean isPalServedByStore = false;
+    private Boolean isStoreClosed = false;
+    private Integer spokeWarehouse;
+    private Map<String, Object> userConfirmationData;
+    private CartConfirmationMetaData cartConfirmationMetaData;
+    private CartUpdateRequestModel cartUpdateRequestModel;
+    private String savingsCheckoutMessage;
+    private String savingsCheckoutTitle;
+    private String savingsCheckoutSubtitle;
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::UserCart ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/models/UserCart.java
+
+@Data
+public class UserCart {
+    private Long userId;
+    @JsonIgnore
+    private String userRank;
+    private String phone;
+    private Long cartId;
+    private List<CartItem> cartItems;
+    private Map<String,String> cartUpdateResponse;
+    private String cartStatus;
+    private BigDecimal totalPromotionDiscount;
+    private BigDecimal totalCartPromotionDiscount;
+    private CartApplicablePromotion cartPromotion;
+    private BigDecimal totalPrice;
+    private BigDecimal totalExcludeDealsPrice;
+    @JsonIgnore
+    private BigDecimal totalMpPrice = BigDecimal.ZERO;
+    @JsonIgnore
+    private BigDecimal totalRNM = BigDecimal.ZERO;
+    private BigDecimal rtgsHandlingFee;
+    private BigDecimal rtgsDiscountFee;
+    private BigDecimal totalDiscount;
+    private BigDecimal totalMrp;
+    private BigDecimal freeShipping;
+    private Boolean expressApplied = false;
+    private BigDecimal expressShipping = BigDecimal.ZERO;
+    private Boolean expressAvailable = false;
+    private Boolean isCheckOutAllow;
+    private Map<String, String> homePageMessageToast;
+    private Map<String, String> expressMessageToast;
+    private Boolean isOrdAddedToCart = false;
+    private Map<String, String> checkoutMessage;
+    private Map<String, String> checkoutTitle;
+    private Boolean isAddToBagAllowed;
+    private Map<String, String> isAddToBagAllowedMessage;
+    private String greyOutButtonMessage;
+    private BigDecimal minOrderValue;
+    private String messageTextColor;
+    private String messageBgColor;
+    private Map<String, Object> feesMap;
+    private String deliveryIcon;
+    private String deliveryFeeMessage;
+    private String deliveryFeeCancellationMessage ;
+    private Boolean expressDeliveryOptButton = false;
+    private Boolean oldCheckOutFlow = Boolean.FALSE;
+    @JsonIgnore
+    private Integer ordCartMov;
+    @JsonIgnore
+    private Boolean newUser;
+    @JsonIgnore
+    private Integer totalOrdsInCart;
+    private Long cartConfigId=0l;
+    private CartMessage cartMessage;
+    private Map<String,Long> config;
+    private Long ordGlobalMov;
+    private Boolean applyWalletCashback;
+    private Boolean applyRefund;
+    private Integer totalAvailableWalletCashback;
+    private Integer totalAppliedWalletCashback;
+    private Integer totalAvailableRefund;
+    private Integer totalAppliedRefund;
+    private Integer totalUserSpecificDiscount;
+    private Integer totalUsableCashback;
+    private Integer totalUsableRefund;
+    private String cartDiscountLabel;
+    @JsonIgnore
+    private Map<String, DealInventoryStatusModel> inventoryMap;
+    private DiscountPreference promotionPreference;
+    @JsonIgnore
+    private List<DiscountSummaryItem> discountSummaryItems = new ArrayList<>();
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::LocationV3Model ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/models/LocationV3Model.java
+
+@Data
+public class LocationV3Model {
+
+    private String pincode;
+
+    private List<Integer> clusterIds;
+
+    private Integer b2bWarehouse;
+
+    private Integer spokeWarehouse;
+
+    private List<Integer> spoke;
+
+    private Integer hub;
+
+    private List<Integer> hubs;
+
+    private Boolean allowParentWarehouseOrder;
+
+    private Boolean isServicable;
+
+    private Long cityId;
+
+    private Long stateId;
+
+    private String cityName;
+
+    private String stateName;
+
+    private List<WarehouseDetails> warehouseDetails;
+
+    private Boolean isMarketPlacePincode = false;
+
+    Map<WarehouseType,List<WarehouseDetails>> warehouseTypeMap;
+
+    boolean isServeByO2O;
+
+    private long palId;
+
+    private Boolean palServiceabilityEnabled = false;
+
+    private Boolean isPalServedByStore = false;
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::DeliveryConfig ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/models/DeliveryConfig.java
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class DeliveryConfig {
+    private String deliveryFeeCancellationMessage ;
+    private String deliveryFeeMessage;
+    private Boolean isCheckOutAllow = Boolean.TRUE;
+    private BigDecimal cartValue = BigDecimal.ZERO;
+    private BigDecimal freeShipping = BigDecimal.ZERO;
+    private Boolean oldCheckOutFlow = Boolean.FALSE;
+    private BigDecimal minOrderValue;
+    private Map<String, String> checkoutMessage;
+    private Map<String, String> checkoutTitle;
+    private Boolean isAddToBagAllowed = Boolean.TRUE;
+    private Long orderValue;
+    private Boolean isRefundApplied = Boolean.FALSE;
+    private BigDecimal movComputeAmount = BigDecimal.ZERO;
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::DeliveryFeeConfigModel ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/models/DeliveryFeeConfigModel.java
+
+@Data
+@Builder
+public class DeliveryFeeConfigModel {
+    private String deliveryIcon;
+    private String deliveryFeeCancellationMessage;
+    private BigDecimal deliveryFee = new BigDecimal("0");
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::UserCacheModel ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/models/UserCacheModel.java
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class UserCacheModel {
+    private Long id;
+    @JsonAlias("phoneNumber")
+    private String phoneNumber;
+    private String userRank;
+    private String userType;
+    @JsonAlias("username")
+    private String username;
+    private String name;
+    private String lang;
+
+    @JsonFormat(lenient = OptBoolean.TRUE)
+    private Long pincode;
+    private Long palId;
+    private Integer city;
+    private Integer state;
+    private String authKey;
+    private String shareToken;
+    private String source;
+    private Boolean isNewUser = false;
+    private String address;
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::PricingService ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/PricingService.java
+
+public interface PricingService {
+    PriceDataResponseModel getDealPrice(ProductOffer productOffer, String source, String pincode, User user, String dealType);
+    JsonNode getPricingData(List<CartDetails> cartDetailsList,Map<Long, OfferResponseModel> offerResponseModels,Long pincode, Long palId, String source,Long userId) throws JsonProcessingException;
+    JsonNode getPriceData(Map<String, CartItemCacheEntity> cartItems, String source, String pincode, Long userId) throws Exception;
+    void setCartPricingData(UserCart userCart);
+    CartPricingSummaryModel calculateCartPricingDataV2(List<CartItemV2Model> cartItemV2Models);
+    BigDecimal calculateTotalExcludeDealsPrice(List<CartItemV2Model> cartItemV2Models, CartConfig ordCartConfig);
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::CacheService ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/CacheService.java
+
+public interface CacheService {
+
+    default void set(String key, Object value, Long ttl) {
+        set(key, value, ttl, false);
+    }
+
+
+    void set(String key, Object value, Long ttl, boolean silentFailure);
+
+    default Object get(String key) {
+        return get(key, false);
+    }
+
+    void set(String key, Object value);
+
+    Object get(String key, boolean silentFailure);
+
+    /** This get function written because some services redis config use with serialize the value & some not to handle this it creates */
+    Object get(String key, boolean silentFailure,boolean objectMapper);
+
+    void evict(String key);
+
+    Boolean setnx(String key, Object value, Long ttl, boolean silentFailure);
+
+    Boolean setnx(String key, Object value, Long ttl, boolean silentFailure, TimeUnit timeUnit);
+
+    void evictMultiple(List<String> keys);
+
+    List<Object> mget(List<String> keys, boolean silentFailure);
+
+    void multiSet(Map<String, Object> cacheDataMap, Long ttl, boolean silentFailure);
+
+    void addValueInSet(String key, Object value);
+
+    void deleteValueFromSet(String key, Object value);
+
+    Object getMembersOfSet(String key);
+
+    void expire(String key, Long expiryTime, TimeUnit unit);
+    void hSet(String hName, String key, Object value);
+
+    Object hGet(String hName, String key) throws Exception;
+
+    Object hGetAllKeys(String hName) throws Exception;
+
+    Object hMGet(String hName, List<Object> keys) throws Exception;
+
+    public Object hGetAll(String name) throws Exception;
+
+    public void hDel(String hName, String key) throws Exception;
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::MovComputationService ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/MovComputationService.java
+
+public interface MovComputationService {
+
+    BigDecimal getMovComputeAmount(UserCartV2Model userCartV2Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow);
+
+    BigDecimal getMovComputeAmount(UserCart userCart, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow);
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::CartConfigService ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/CartConfigService.java
+
+public interface CartConfigService {
+
+    UserCart getCartConfig(String pinCode, UserCart userCart, String source, LocationV3Model locationV3Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId, UsersAddressEntity usersAddressEntity, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+
+    CartConfigModel createConfig(CartConfigModel cartConfigModel) throws IOException;
+
+    CartConfig getCartConfig(Long configId);
+
+    CartConfigModel getCartConfigData(Long configId) throws IOException;
+
+    List<CartConfigModel> getAllCartConfig(String source) throws Exception;
+
+    Boolean addClusterOrdMov(ClusterMovRequestModel clusterMovRequestModel) throws Exception;
+
+    CartConfigModel updateConfig(CartConfigModel cartConfigModel,Boolean userMeta) throws IOException;
+
+    UserCart appendCartTitleAndDesc(UserCart userCart, CartConfig cartConfig, Integer locationId, String source, String pinCode,UsersAddressEntity usersAddressEntity,CartParamsTransferModelDTO cartParamsTransferModelDTO)
+            throws IOException;
+
+    void cacheAllConfigInRedis();
+
+    Map<String, String> fetchOrdCartMov(Integer activeOrdsInCart, CartConfig cartConfig) throws IOException;
+
+    List<ActiveClusterUserMovModel> getActiveClusterOrdMov();
+
+    Boolean deleteClusterOrdMov(ActiveClusterUserMovModel activeClusterUserMovModel);
+
+    OrdConfigModel fetchOrdConfig(String userRank, String source,  List<Integer> clusterIds, String lang);
+
+    Map<String, Object> getCartConfig(Long userId,
+                              String phone,
+                              String pinCode,
+                              List<Integer> clusterIds,
+                              String userRank,
+                              String source,
+                                      String lang
+                                  );
+
+    CartConfig getCartConfigForCluster(List<Integer> clusterIds);
+
+    Page<CartConfigModel> getPagedCartConfigs(CartConfigFilter filter, Pageable pageable);
+
+    WarehouseResponseDto getAllActiveWarehouses();
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::DeliveryFeeService ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/DeliveryFeeService.java
+
+@Validated
+public interface DeliveryFeeService {
+
+   void applyDeliveryFees(DeliveryConfig deliveryConfig, CartConfig cartConfig, Float cartValue, Long orderValue, BigDecimal deliveryFee);
+
+   String getDeliveryMessage(String lang);
+
+    OrderValueModel getOrderValue(Long userId,String phone, String pinCode,Long userAddressId)throws IOException;
+
+    Float getCartValue(UserCart userCart) ;
+
+    Map<String, Object> appendCartTitleAndDesc(DeliveryConfig deliveryConfig, CartConfig cartConfig, Integer clusterId, String source,
+                                                 Long userId, String phone, String pinCode, Boolean cartLevelDeliveryFee,
+                                                 Boolean deliveryFeeCentralisationFlow, Long cartId , List<DiscountSummaryItem> discountSummaryItemList,
+                                                 Integer warehouseId, String userRank, UsersAddressEntity usersAddressEntity, UserCacheModel user, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+
+    void excludeLocationsFromOnlinePayment(Integer clusterId, DeliveryConfig deliveryConfig) ;
+
+    void transferValuesFromDeliveryConfigToUserCart(Map<String, Object> feesMap, DeliveryConfig deliveryConfig , UserCart userCart);
+
+    CartConfig fetchCartConfigForDeliveryFee(Integer clusterId,String source,List<Integer> clusterIds);
+
+    DeliveryConfig deliveryFeeConfig(@UserIdValidation Long userId, String phone, String pinCode, String cartType, List<Integer> clusterIds)throws IOException;
+
+    boolean isRefundApplied(UserCart userCart);
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::CartConfigV2Service ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/services/CartConfigV2Service.java
+
+public interface CartConfigV2Service {
+
+    UserCart getCartConfig(String pinCode, UserCart userCart, String source, User user, LocationV3Model locationV3Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId, UsersAddressEntity usersAddressEntity,CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+
+    void computeCartConfigV2(UserCartV2Model userCart, List<Integer> clusters, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+}
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /Users/dealshare/Downloads/cart-service/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
