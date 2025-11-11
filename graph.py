@@ -11,7 +11,6 @@ SPRING_ANNOTATIONS = {
     "Configuration": "configuration"
 }
 
-# === Regex patterns (as from your improved version) ===
 PACKAGE_RE = re.compile(r'^\s*package\s+([\w.]+)\s*;', re.MULTILINE)
 CLASS_RE = re.compile(
     r'(?:@\w+(?:\([^)]*\))?\s*)*'
@@ -33,15 +32,23 @@ METHOD_HEADER_RE = re.compile(
     r'(?:@\w+(?:\([^)]*\))?\s*)*'
     r'(?:public|protected|private)?\s*'
     r'(?:static|final|synchronized|abstract|default)?\s*'
-    r'([\w\<\>\.\[\],\s\?]+)\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)\s*'
+    r'([\w\<\>\.\[\],\s\?]+)\s+'   # return type
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*' # method name
     r'\([^)]*\)\s*'
     r'(?:throws\s+[^{]+)?\s*'
     r'\{',
     re.MULTILINE
 )
-CONSTRUCTOR_RE_TEMPLATE = r'(?:@\w+(?:\([^)]*\))?\s*)*(?:public|protected|private)?\s*{cls}\s*\([^)]*\)\s*\{{'
+CONSTRUCTOR_RE_TEMPLATE = (
+    r'(?:@\w+(?:\([^)]*\))?\s*)*(?:public|protected|private)?\s*{cls}\s*\([^)]*\)\s*\{{'
+)
 
+# detect simple method calls within body
+CALL_RE = re.compile(
+    r'(?:\bthis\.|\bsuper\.|[A-Za-z_][A-Za-z0-9_]*\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\('
+)
+
+CONTROL_KEYWORDS = {"if", "for", "while", "switch", "catch", "return", "throw", "new"}
 
 
 def regex_parse_java(file_path, code):
@@ -78,7 +85,7 @@ def regex_parse_java(file_path, code):
         if impl_m:
             impls = [s.strip() for s in impl_m.group(1).split(",")]
             for impl in impls:
-                relations.append({"from": fqn_class, "to": impl, "type": "implements", "role": role})
+                relations.append({"from": fqn_class, "to": impl, "type": "implements", "role": "interface"})
 
         body_start = code.find('{', cm.end())
         if body_start == -1:
@@ -97,24 +104,47 @@ def regex_parse_java(file_path, code):
             i += 1
         class_body = code[body_start:end_idx + 1]
 
+        # autowired fields
         for am in AUTOWIRED_FIELD_RE.finditer(class_body):
-            field_type = am.group(1).strip()
-            field_name = am.group(2)
-            field_type = re.sub(r'\s+', ' ', field_type)
+            field_type = re.sub(r'\s+', ' ', am.group(1).strip())
             relations.append({"from": fqn_class, "to": field_type, "type": "autowired", "role": role})
 
+        # constructors
         constructor_re = re.compile(CONSTRUCTOR_RE_TEMPLATE.format(cls=re.escape(cls_name)), re.MULTILINE)
         for _ in constructor_re.finditer(class_body):
             ctor_name = f"{fqn_class}.{cls_name}"
             relations.append({"from": fqn_class, "to": ctor_name, "type": "has_constructor", "role": role})
 
+        # methods
         for mm in METHOD_HEADER_RE.finditer(class_body):
-            ret_type = mm.group(1).strip()
             method_name = mm.group(2)
-            if method_name in {"if", "while", "for", "switch", "catch", "return", "throw"}:
+            if method_name in CONTROL_KEYWORDS:
                 continue
             fqn_method = f"{fqn_class}.{method_name}"
             relations.append({"from": fqn_class, "to": fqn_method, "type": "has_method", "role": role})
+
+            # Extract method body
+            start_pos = mm.end() - 1
+            j = start_pos
+            depth2 = 0
+            method_end = start_pos
+            while j < len(class_body):
+                if class_body[j] == '{':
+                    depth2 += 1
+                elif class_body[j] == '}':
+                    depth2 -= 1
+                    if depth2 == 0:
+                        method_end = j
+                        break
+                j += 1
+            method_text = class_body[start_pos:method_end + 1]
+
+            # find method calls inside body
+            for call_m in CALL_RE.finditer(method_text):
+                call_name = call_m.group(1)
+                if call_name in CONTROL_KEYWORDS or call_name == method_name:
+                    continue
+                relations.append({"from": fqn_method, "to": call_name, "type": "calls", "role": role})
 
     return relations
 
