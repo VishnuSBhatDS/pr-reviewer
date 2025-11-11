@@ -1,0 +1,2388 @@
+# Context for src/main/java/com/dealshare/service/cartservice/services/impl/CartConfigV2ServiceImpl.java
+# Repo: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn
+
+=== IMPORT com.dealshare.service.cartservice.constants.CartConfigConstant (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/constants/CartConfigConstant.java
+
+public interface CartConfigConstant {
+    String ORD_CONFIG = "ORD_CONFIG";
+    String DELIVERY_FEE_CONFIG = "DELIVERY_FEE_CONFIG";
+    String MAX_PRODUCTS_ALLOWED_IN_CART = "MAX_PRODUCTS_ALLOWED_IN_CART";
+    Integer MAX_PRODUCTS_ALLOWED = 50;
+
+    String L2_CATEGORY_IDS = "L2_CATEGORY_IDS";
+    String DEAL_IDS = "DEAL_IDS";
+    String DELIVERY_FEE = "delivery_fee";
+    String ONE_RUPEE_DEAL_VALUE = "ONE_RUPEE_DEAL_VALUE";
+    String NEW_USER_CART_CONFIG_KEY_FORMAT = "CART_CONFIG:%s:CLUSTER:%d:MINIMUM_BAG_VALUE_NEW:%s";
+    String NEW_USER_CART_LEVEL_DELFEE_CONFIG_KEY_FORMAT = "CART_CONFIG:%s:WAREHOUSE:%d:MINIMUM_CART_VALUE:%s";
+    String ORD_CART_CONFIG_KEY_FORMAT = "CART_CONFIG:%s:CLUSTER:%d:ONE_RUPEE_DEAL_VALUE:%s";
+
+
+}
+
+=== IMPORT com.dealshare.service.cartservice.dtos.CartParamsTransferModelDTO (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/dtos/CartParamsTransferModelDTO.java
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class CartParamsTransferModelDTO {
+    private String appsFlyerId;
+    private String deviceId;
+    private String platform;
+    private Boolean isFirstPurchase;
+    private String advertisingId;
+    private Boolean isOfflineToOnlineFirstPurchase;
+    private Long addressId;
+    private Long palId;
+    private String instanceId;
+}
+
+=== IMPORT com.dealshare.service.cartservice.entities.CartConfig (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/entities/CartConfig.java
+
+@Entity
+@Data
+@Table(name = "cart_config")
+public class CartConfig {
+
+    @Id
+    @Column(name = "id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long amount;
+
+    @Column(name = "consumer_type")
+    private String consumerType;
+
+    @Column(name = "location_type")
+    private String locationType;
+
+    @Column(name = "user_segment")
+    private String userSegment;
+
+    @Column(name = "locale")
+    private String locale;
+
+    @Column(name = "location_id")
+    private Integer locationId;
+
+    private String title;
+
+    private String message;
+
+    @Column(name = "is_active")
+    private Integer isActive;
+
+    @Column(name = "config_name")
+    private String configName;
+
+    @Column(name = "config_meta")
+    private String configMeta;
+
+    @Column(name = "start_date")
+    private Date startDate;
+
+    @Column(name = "end_date")
+    private Date endDate;
+
+    @Column(name = "created_date")
+    private Date createDate;
+
+    @Column(name = "modified_date",updatable = false,insertable = false)
+    @LastModifiedDate
+    private Date modifiedDate;
+
+}
+
+=== IMPORT com.dealshare.service.cartservice.entities.User (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/entities/User.java
+
+@Entity
+@Data
+@Table(name = "user")
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class User implements Serializable {
+
+    @Id
+    @GeneratedValue
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "phone")
+    private String phoneNumber;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "username")
+    private String username;
+
+    @Column(name = "lang")
+    private String lang;
+
+    @Column(name = "share_token")
+    private String shareToken;
+
+    @Column(name = "auth_key")
+    private String authKey;
+
+    @Column(name = "pincode")
+    private Long pincode;
+
+    @Column(name = "user_rank")
+    private String userRank;
+
+    @Column(name = "city")
+    private Integer city;
+
+    @Column(name = "state")
+    private Integer state;
+
+    @Column(name = "last_name")
+    private String lastName;
+}
+
+=== IMPORT com.dealshare.service.cartservice.entities.UsersAddressEntity (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/entities/UsersAddressEntity.java
+
+@Data
+@Entity
+@Table(name = "user_address")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class UsersAddressEntity {
+
+    @Id
+    @GeneratedValue
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "address")
+    private String address;
+
+    @Column(name = "user_id")
+    private Long userId;
+
+    @Column(name = "pal_id")
+    private Integer palId;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "state")
+    private String state;
+
+    @Column(name = "pincode")
+    private String pincode;
+
+
+    @Transient
+    private String aName;
+    @Transient
+    private String stateName;
+    @Transient
+    private String cityName;
+
+    @Column(name = "varified_address")
+    private Boolean verifiedAddress;
+
+    @Column(name = "lat_long_type")
+    private String latLongType;
+
+    @Column(name= "pal_area")
+    private String palArea;
+
+    @Column(name = "pal_pincode")
+    private String palPincode;
+
+    @Column(name= "pal_warehouse")
+    private String palWarehouse;
+
+    @Column(name = "`long`")
+    private String longitude;
+
+    @Column(name = "lat")
+    private String latitude;
+
+    @Column(name = "pal_warehouse_id")
+    private Long palWarehouseId;
+}
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.DealType (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+
+    DealType(String value){
+        this.value= value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.DealType (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+
+    DealType(String value){
+        this.value= value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.toString (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+@Override
+    public String toString(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.toString (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+@Override
+    public String toString(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.getValue (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+
+
+    public String getValue(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.DealType.toString (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/DealType.java
+
+@Override
+    public String toString(){
+        return this.value!= null? this.value: super.toString();
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.Language.Language (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/Language.java
+
+
+
+    Language(String value) {
+        this.value = value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.enums.Language.getValue (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/enums/Language.java
+
+
+
+    public String getValue() {
+        return this.value;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.exceptions.ValidationException.ValidationException (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/exceptions/ValidationException.java
+
+
+
+    public ValidationException(String message) {
+        super(message);
+    }
+
+=== IMPORT com.dealshare.service.cartservice.exceptions.ValidationException.ValidationException (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/exceptions/ValidationException.java
+
+
+
+    public ValidationException(String message) {
+        super(message);
+    }
+
+=== IMPORT com.dealshare.service.cartservice.feemodule.enums.FeesType (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/feemodule/enums/FeesType.java
+
+public enum FeesType {
+    DELIVERY_FEES,
+}
+
+=== IMPORT com.dealshare.service.cartservice.feemodule.models.DeliveryFeeDataModel (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/feemodule/models/DeliveryFeeDataModel.java
+
+@Data
+public class DeliveryFeeDataModel {
+    private Long mov;
+    private Long deliveryFee;
+    private Long collectedFees;
+    private Long allowedBenefits;
+    private String locationType;
+    private Integer locationId;
+    private Double cartValue;
+    private DeliveryFeeMessages deliveryFeeMessages;
+    private String reasonForFees;
+    private ConfigSnapshot configSnapshot;
+    private Boolean lastOrderOfCart;
+}
+
+=== IMPORT com.dealshare.service.cartservice.feemodule.models.PlatformFeeDataModel (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/feemodule/models/PlatformFeeDataModel.java
+
+@Data
+public class PlatformFeeDataModel {
+    private Double fees = 0.0;
+    private Double collectedFees = 0.0;
+    private Double strikeOffValue;
+
+    private String feesType;
+    private String feesName;
+    private Integer priority = 0;
+    private ConfigSnapshot configSnapshot;
+}
+
+=== IMPORT com.dealshare.service.cartservice.feignclients.ChatServiceClient (FULL CLASS) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/feignclients/ChatServiceClient.java
+
+@FeignClient(name = "chat-service", url = "${server.chat-service.url}")
+public interface ChatServiceClient {
+
+    @PostMapping("/v1/email/send")
+    void sendEmail(@RequestBody Map<String, String> sendEmailMap);
+
+    @PostMapping(value = "/v1/send-gupshup-sms", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<?> sendCancelSMS(@RequestBody CancelOrderModel cancelOrderModel);
+
+    @Async
+    @PostMapping("/v1/email/send")
+    void sendEmailToMultiple(@RequestBody Map<String, Object> sendEmailMap);
+
+    @Async
+    @GetMapping(value = "/v1/send-message")
+    JsonNode sendWhatsappMessage(@RequestBody WhatsappMessageRequestModel whatsappMessageRequestModel);
+
+    @Async
+    @PostMapping(value = "/v1/send-gupshup-sms", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<?> sendSMS(@RequestBody SmsRequestBody SmsRequestBody);
+
+    @PostMapping(value = "/v1/email/send-attachment-new", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    void sendEmailWithAttachment(
+            @RequestParam("to") String to,
+            @RequestParam("subject") String subject,
+            @RequestParam("content") String content,
+            @RequestPart("file") Resource file
+    );
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::UserCartV2Model ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/models/UserCartV2Model.java
+
+@Data
+public class UserCartV2Model {
+
+    private Long cartId;
+    private List<CartItemV2Model> cartItems;
+    private CartPricingSummaryModel cartPricingSummaryModel;
+    private BigDecimal totalExcludeDealsPrice = BigDecimal.ZERO;
+
+    private Integer totalOrdsInCart; // count+quantity
+    private Integer totalExpiredDealsInCart;
+
+    private CartDiscountResponseV2Model cartDiscountResponseV2Model;
+
+    private List<DiscountSummaryItem> discountSummaryItems;
+
+    private CartMessage cartMessage;
+
+    private Boolean isCheckOutAllow;
+    private String checkoutMessage;
+    private DeliveryFeeConfigModel deliveryFeeConfigModel;
+    private Map<String, Object> feesMap;
+    private ExpiredDealSectionConfigModel expiredDealSectionConfigModel;
+    private UserCacheModel user;
+
+    private String cartStatus;
+    private CartConfig ordCartConfig;
+
+    @JsonIgnore
+    private Map<String, DealInventoryStatusModel> inventoryMap;
+    private DiscountPreference promotionPreference;
+    private CartPromotionsResponse cartPromotionsResponse;
+    private OfferCommFcResponse offerCommFcResponse;
+    private List<SavedPaymentMethods> savedPaymentMethodsList;
+
+    private Boolean isPalServedByStore = false;
+    private Boolean isStoreClosed = false;
+    private Integer spokeWarehouse;
+    private Map<String, Object> userConfirmationData;
+    private CartConfirmationMetaData cartConfirmationMetaData;
+    private CartUpdateRequestModel cartUpdateRequestModel;
+    private String savingsCheckoutMessage;
+    private String savingsCheckoutTitle;
+    private String savingsCheckoutSubtitle;
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::UserCart ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/models/UserCart.java
+
+@Data
+public class UserCart {
+    private Long userId;
+    @JsonIgnore
+    private String userRank;
+    private String phone;
+    private Long cartId;
+    private List<CartItem> cartItems;
+    private Map<String,String> cartUpdateResponse;
+    private String cartStatus;
+    private BigDecimal totalPromotionDiscount;
+    private BigDecimal totalCartPromotionDiscount;
+    private CartApplicablePromotion cartPromotion;
+    private BigDecimal totalPrice;
+    private BigDecimal totalExcludeDealsPrice;
+    @JsonIgnore
+    private BigDecimal totalMpPrice = BigDecimal.ZERO;
+    @JsonIgnore
+    private BigDecimal totalRNM = BigDecimal.ZERO;
+    private BigDecimal rtgsHandlingFee;
+    private BigDecimal rtgsDiscountFee;
+    private BigDecimal totalDiscount;
+    private BigDecimal totalMrp;
+    private BigDecimal freeShipping;
+    private Boolean expressApplied = false;
+    private BigDecimal expressShipping = BigDecimal.ZERO;
+    private Boolean expressAvailable = false;
+    private Boolean isCheckOutAllow;
+    private Map<String, String> homePageMessageToast;
+    private Map<String, String> expressMessageToast;
+    private Boolean isOrdAddedToCart = false;
+    private Map<String, String> checkoutMessage;
+    private Map<String, String> checkoutTitle;
+    private Boolean isAddToBagAllowed;
+    private Map<String, String> isAddToBagAllowedMessage;
+    private String greyOutButtonMessage;
+    private BigDecimal minOrderValue;
+    private String messageTextColor;
+    private String messageBgColor;
+    private Map<String, Object> feesMap;
+    private String deliveryIcon;
+    private String deliveryFeeMessage;
+    private String deliveryFeeCancellationMessage ;
+    private Boolean expressDeliveryOptButton = false;
+    private Boolean oldCheckOutFlow = Boolean.FALSE;
+    @JsonIgnore
+    private Integer ordCartMov;
+    @JsonIgnore
+    private Boolean newUser;
+    @JsonIgnore
+    private Integer totalOrdsInCart;
+    private Long cartConfigId=0l;
+    private CartMessage cartMessage;
+    private Map<String,Long> config;
+    private Long ordGlobalMov;
+    private Boolean applyWalletCashback;
+    private Boolean applyRefund;
+    private Integer totalAvailableWalletCashback;
+    private Integer totalAppliedWalletCashback;
+    private Integer totalAvailableRefund;
+    private Integer totalAppliedRefund;
+    private Integer totalUserSpecificDiscount;
+    private Integer totalUsableCashback;
+    private Integer totalUsableRefund;
+    private String cartDiscountLabel;
+    @JsonIgnore
+    private Map<String, DealInventoryStatusModel> inventoryMap;
+    private DiscountPreference promotionPreference;
+    @JsonIgnore
+    private List<DiscountSummaryItem> discountSummaryItems = new ArrayList<>();
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::LocationV3Model ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/models/LocationV3Model.java
+
+@Data
+public class LocationV3Model {
+
+    private String pincode;
+
+    private List<Integer> clusterIds;
+
+    private Integer b2bWarehouse;
+
+    private Integer spokeWarehouse;
+
+    private List<Integer> spoke;
+
+    private Integer hub;
+
+    private List<Integer> hubs;
+
+    private Boolean allowParentWarehouseOrder;
+
+    private Boolean isServicable;
+
+    private Long cityId;
+
+    private Long stateId;
+
+    private String cityName;
+
+    private String stateName;
+
+    private List<WarehouseDetails> warehouseDetails;
+
+    private Boolean isMarketPlacePincode = false;
+
+    Map<WarehouseType,List<WarehouseDetails>> warehouseTypeMap;
+
+    boolean isServeByO2O;
+
+    private long palId;
+
+    private Boolean palServiceabilityEnabled = false;
+
+    private Boolean isPalServedByStore = false;
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::DeliveryConfig ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/models/DeliveryConfig.java
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class DeliveryConfig {
+    private String deliveryFeeCancellationMessage ;
+    private String deliveryFeeMessage;
+    private Boolean isCheckOutAllow = Boolean.TRUE;
+    private BigDecimal cartValue = BigDecimal.ZERO;
+    private BigDecimal freeShipping = BigDecimal.ZERO;
+    private Boolean oldCheckOutFlow = Boolean.FALSE;
+    private BigDecimal minOrderValue;
+    private Map<String, String> checkoutMessage;
+    private Map<String, String> checkoutTitle;
+    private Boolean isAddToBagAllowed = Boolean.TRUE;
+    private Long orderValue;
+    private Boolean isRefundApplied = Boolean.FALSE;
+    private BigDecimal movComputeAmount = BigDecimal.ZERO;
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::DeliveryFeeConfigModel ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/models/DeliveryFeeConfigModel.java
+
+@Data
+@Builder
+public class DeliveryFeeConfigModel {
+    private String deliveryIcon;
+    private String deliveryFeeCancellationMessage;
+    private BigDecimal deliveryFee = new BigDecimal("0");
+}
+
+=== IMPORT com.dealshare.service.cartservice.models.*::UserCacheModel ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/models/UserCacheModel.java
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class UserCacheModel {
+    private Long id;
+    @JsonAlias("phoneNumber")
+    private String phoneNumber;
+    private String userRank;
+    private String userType;
+    @JsonAlias("username")
+    private String username;
+    private String name;
+    private String lang;
+
+    @JsonFormat(lenient = OptBoolean.TRUE)
+    private Long pincode;
+    private Long palId;
+    private Integer city;
+    private Integer state;
+    private String authKey;
+    private String shareToken;
+    private String source;
+    private Boolean isNewUser = false;
+    private String address;
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::PricingService ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/PricingService.java
+
+public interface PricingService {
+    PriceDataResponseModel getDealPrice(ProductOffer productOffer, String source, String pincode, User user, String dealType);
+    JsonNode getPricingData(List<CartDetails> cartDetailsList,Map<Long, OfferResponseModel> offerResponseModels,Long pincode, Long palId, String source,Long userId) throws JsonProcessingException;
+    JsonNode getPriceData(Map<String, CartItemCacheEntity> cartItems, String source, String pincode, Long userId) throws Exception;
+    void setCartPricingData(UserCart userCart);
+    CartPricingSummaryModel calculateCartPricingDataV2(List<CartItemV2Model> cartItemV2Models);
+    BigDecimal calculateTotalExcludeDealsPrice(List<CartItemV2Model> cartItemV2Models, CartConfig ordCartConfig);
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::CacheService ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/CacheService.java
+
+public interface CacheService {
+
+    default void set(String key, Object value, Long ttl) {
+        set(key, value, ttl, false);
+    }
+
+
+    void set(String key, Object value, Long ttl, boolean silentFailure);
+
+    default Object get(String key) {
+        return get(key, false);
+    }
+
+    void set(String key, Object value);
+
+    Object get(String key, boolean silentFailure);
+
+    /** This get function written because some services redis config use with serialize the value & some not to handle this it creates */
+    Object get(String key, boolean silentFailure,boolean objectMapper);
+
+    void evict(String key);
+
+    Boolean setnx(String key, Object value, Long ttl, boolean silentFailure);
+
+    Boolean setnx(String key, Object value, Long ttl, boolean silentFailure, TimeUnit timeUnit);
+
+    void evictMultiple(List<String> keys);
+
+    List<Object> mget(List<String> keys, boolean silentFailure);
+
+    void multiSet(Map<String, Object> cacheDataMap, Long ttl, boolean silentFailure);
+
+    void addValueInSet(String key, Object value);
+
+    void deleteValueFromSet(String key, Object value);
+
+    Object getMembersOfSet(String key);
+
+    void expire(String key, Long expiryTime, TimeUnit unit);
+    void hSet(String hName, String key, Object value);
+
+    Object hGet(String hName, String key) throws Exception;
+
+    Object hGetAllKeys(String hName) throws Exception;
+
+    Object hMGet(String hName, List<Object> keys) throws Exception;
+
+    public Object hGetAll(String name) throws Exception;
+
+    public void hDel(String hName, String key) throws Exception;
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::MovComputationService ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/MovComputationService.java
+
+public interface MovComputationService {
+
+    BigDecimal getMovComputeAmount(UserCartV2Model userCartV2Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow);
+
+    BigDecimal getMovComputeAmount(UserCart userCart, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow);
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::CartConfigService ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/CartConfigService.java
+
+public interface CartConfigService {
+
+    UserCart getCartConfig(String pinCode, UserCart userCart, String source, LocationV3Model locationV3Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId, UsersAddressEntity usersAddressEntity, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+
+    CartConfigModel createConfig(CartConfigModel cartConfigModel) throws IOException;
+
+    CartConfig getCartConfig(Long configId);
+
+    CartConfigModel getCartConfigData(Long configId) throws IOException;
+
+    List<CartConfigModel> getAllCartConfig(String source) throws Exception;
+
+    Boolean addClusterOrdMov(ClusterMovRequestModel clusterMovRequestModel) throws Exception;
+
+    CartConfigModel updateConfig(CartConfigModel cartConfigModel,Boolean userMeta) throws IOException;
+
+    UserCart appendCartTitleAndDesc(UserCart userCart, CartConfig cartConfig, Integer locationId, String source, String pinCode,UsersAddressEntity usersAddressEntity,CartParamsTransferModelDTO cartParamsTransferModelDTO)
+            throws IOException;
+
+    void cacheAllConfigInRedis();
+
+    Map<String, String> fetchOrdCartMov(Integer activeOrdsInCart, CartConfig cartConfig) throws IOException;
+
+    List<ActiveClusterUserMovModel> getActiveClusterOrdMov();
+
+    Boolean deleteClusterOrdMov(ActiveClusterUserMovModel activeClusterUserMovModel);
+
+    OrdConfigModel fetchOrdConfig(String userRank, String source,  List<Integer> clusterIds, String lang);
+
+    Map<String, Object> getCartConfig(Long userId,
+                              String phone,
+                              String pinCode,
+                              List<Integer> clusterIds,
+                              String userRank,
+                              String source,
+                                      String lang
+                                  );
+
+    CartConfig getCartConfigForCluster(List<Integer> clusterIds);
+
+    Page<CartConfigModel> getPagedCartConfigs(CartConfigFilter filter, Pageable pageable);
+
+    WarehouseResponseDto getAllActiveWarehouses();
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::DeliveryFeeService ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/DeliveryFeeService.java
+
+@Validated
+public interface DeliveryFeeService {
+
+   void applyDeliveryFees(DeliveryConfig deliveryConfig, CartConfig cartConfig, Float cartValue, Long orderValue, BigDecimal deliveryFee);
+
+   String getDeliveryMessage(String lang);
+
+    OrderValueModel getOrderValue(Long userId,String phone, String pinCode,Long userAddressId)throws IOException;
+
+    Float getCartValue(UserCart userCart) ;
+
+    Map<String, Object> appendCartTitleAndDesc(DeliveryConfig deliveryConfig, CartConfig cartConfig, Integer clusterId, String source,
+                                                 Long userId, String phone, String pinCode, Boolean cartLevelDeliveryFee,
+                                                 Boolean deliveryFeeCentralisationFlow, Long cartId , List<DiscountSummaryItem> discountSummaryItemList,
+                                                 Integer warehouseId, String userRank, UsersAddressEntity usersAddressEntity, UserCacheModel user, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+
+    void excludeLocationsFromOnlinePayment(Integer clusterId, DeliveryConfig deliveryConfig) ;
+
+    void transferValuesFromDeliveryConfigToUserCart(Map<String, Object> feesMap, DeliveryConfig deliveryConfig , UserCart userCart);
+
+    CartConfig fetchCartConfigForDeliveryFee(Integer clusterId,String source,List<Integer> clusterIds);
+
+    DeliveryConfig deliveryFeeConfig(@UserIdValidation Long userId, String phone, String pinCode, String cartType, List<Integer> clusterIds)throws IOException;
+
+    boolean isRefundApplied(UserCart userCart);
+}
+
+=== IMPORT com.dealshare.service.cartservice.services.*::CartConfigV2Service ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/CartConfigV2Service.java
+
+public interface CartConfigV2Service {
+
+    UserCart getCartConfig(String pinCode, UserCart userCart, String source, User user, LocationV3Model locationV3Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId, UsersAddressEntity usersAddressEntity,CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+
+    void computeCartConfigV2(UserCartV2Model userCart, List<Integer> clusters, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException;
+}
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== IMPORT com.dealshare.service.cartservice.utils.CartConfigUtils.getCartConfigFromRedis (METHOD) ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/utils/CartConfigUtils.java
+
+
+
+    public CartConfig getCartConfigFromRedis(String cacheKey){
+        CartConfig cartConfig = null;
+        Object cacheObject = cacheService.get(cacheKey);
+        CartConfigCacheModel cartConfigCacheModel;
+        try {
+            cartConfigCacheModel = (CartConfigCacheModel) cacheObject;
+        } catch (Exception e){
+            log.error("Parsing error of cart Config for cacheKey : {} with exception : {}", cacheKey, e.getMessage());
+            cartConfigCacheModel = objectMapper.convertValue(cacheObject, CartConfigCacheModel.class);
+        }
+        if(!ObjectUtils.isEmpty(cartConfigCacheModel)){
+            cartConfig = cartConfigCacheMapper.mapCacheModelToEntity(cartConfigCacheModel);
+        }
+        return cartConfig;
+    }
+
+=== REVERSE DEPENDENCY ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/test/java/com/dealshare/service/cartservice/services/impl/CartConfigV2ServiceImplTest.java
+
+package com.dealshare.service.cartservice.services.impl;
+
+import com.dealshare.service.cartservice.adapters.CartConfigCacheMapper;
+import com.dealshare.service.cartservice.constants.AppConstant;
+import com.dealshare.service.cartservice.constants.CartConfigConstant;
+import com.dealshare.service.cartservice.entities.CartConfig;
+import com.dealshare.service.cartservice.entities.User;
+import com.dealshare.service.cartservice.enums.DealType;
+import com.dealshare.service.cartservice.enums.Language;
+import com.dealshare.service.cartservice.exceptions.ValidationException;
+import com.dealshare.service.cartservice.feemodule.enums.FeesType;
+import com.dealshare.service.cartservice.feemodule.models.DeliveryFeeDataModel;
+import com.dealshare.service.cartservice.feemodule.models.DeliveryFeeMessages;
+import com.dealshare.service.cartservice.feemodule.models.PlatformFeeDataModel;
+import com.dealshare.service.cartservice.feignclients.ChatServiceClient;
+import com.dealshare.service.cartservice.models.CartItemV2Model;
+import com.dealshare.service.cartservice.models.CartPricingSummaryModel;
+import com.dealshare.service.cartservice.models.DeliveryConfig;
+import com.dealshare.service.cartservice.models.DeliveryFeeConfigModel;
+import com.dealshare.service.cartservice.models.LocationV3Model;
+import com.dealshare.service.cartservice.models.UserCacheModel;
+import com.dealshare.service.cartservice.models.UserCart;
+import com.dealshare.service.cartservice.models.UserCartV2Model;
+import com.dealshare.service.cartservice.services.CacheService;
+import com.dealshare.service.cartservice.services.CartConfigService;
+import com.dealshare.service.cartservice.services.DeliveryFeeService;
+import com.dealshare.service.cartservice.services.MovComputationService;
+import com.dealshare.service.cartservice.services.PricingService;
+import com.dealshare.service.cartservice.utils.CartConfigUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+public class CartConfigV2ServiceImplTest {
+
+    @Mock
+    private CartConfigService cartConfigService;
+
+    @Mock
+    private CacheService rankingCacheService;
+
+    @Mock
+    private DeliveryFeeService deliveryFeeService;
+
+    @Mock
+    private CartLevelDeliveryFeeServiceImpl cartLevelDeliveryFeeService;
+
+    @Mock
+    private PricingService pricingService;
+
+    @Mock
+    private CartConfigUtils cartConfigUtils;
+
+    @Mock
+    private CartConfigCacheMapper cartConfigCacheMapper;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
+    private ChatServiceClient chatServiceClient;
+
+    @Mock
+    private MovComputationService movComputationService;
+
+    @InjectMocks
+    private CartConfigV2ServiceImpl cartConfigV2Service;
+
+    private UserCart userCart;
+    private User user;
+    private UserCartV2Model userCartV2Model;
+    private UserCacheModel userCacheModel;
+    private CartConfig cartConfig;
+    private LocationV3Model locationV3Model;
+    private final String pinCode = "123456";
+    private final String source = "android";
+    private final Integer warehouseId = 123;
+
+    @BeforeEach
+    public void setUp() {
+        ReflectionTestUtils.setField(cartConfigV2Service, "deliveryIcon", "https://example.com/delivery-icon.png");
+
+        // Initialize test data
+        userCart = new UserCart();
+        userCart.setUserId(1L);
+        userCart.setUserRank("normal");
+        userCart.setPhone("1234567890");
+        userCart.setCartId(1L);
+        userCart.setTotalPrice(new BigDecimal(100));
+        userCart.setFreeShipping(new BigDecimal(0));
+        userCart.setConfig(new HashMap<>());
+
+        user = new User();
+        user.setId(1L);
+        user.setPhoneNumber("1234567890");
+        user.setUserRank("normal");
+
+        locationV3Model = new LocationV3Model();
+        locationV3Model.setPincode(pinCode);
+        locationV3Model.setClusterIds(Arrays.asList(1, 2));
+        
+        // Setup UserCartV2Model
+        userCartV2Model = new UserCartV2Model();
+        userCartV2Model.setCartId(1L);
+        List<CartItemV2Model> cartItems = new ArrayList<>();
+        CartItemV2Model cartItem = new CartItemV2Model();
+        cartItems.add(cartItem);
+        userCartV2Model.setCartItems(cartItems);
+        userCartV2Model.setTotalOrdsInCart(0);
+        userCartV2Model.setTotalExpiredDealsInCart(0);
+        userCartV2Model.setIsCheckOutAllow(true);
+        userCartV2Model.setDiscountSummaryItems(new ArrayList<>());
+        
+        // CartPricingSummaryModel
+        CartPricingSummaryModel pricingSummaryModel = new CartPricingSummaryModel();
+        pricingSummaryModel.setTotalPrice(new BigDecimal(100));
+        pricingSummaryModel.setTotalPromotionDiscount(new BigDecimal(10));
+        pricingSummaryModel.setTotalCartPromotionDiscount(new BigDecimal(5));
+        pricingSummaryModel.setTotalMpPrice(new BigDecimal(0));
+        userCartV2Model.setCartPricingSummaryModel(pricingSummaryModel);
+        
+        // DeliveryFeeConfigModel
+        DeliveryFeeConfigModel deliveryFeeConfigModel = DeliveryFeeConfigModel.builder()
+                .deliveryFee(new BigDecimal(20))
+                .deliveryIcon("https://example.com/delivery-icon.png")
+                .build();
+        userCartV2Model.setDeliveryFeeConfigModel(deliveryFeeConfigModel);
+        
+        // UserCacheModel
+        userCacheModel = new UserCacheModel();
+        userCacheModel.setId(1L);
+        userCacheModel.setPhoneNumber("1234567890");
+        userCacheModel.setUserRank("normal");
+        userCacheModel.setLang("en");
+        userCacheModel.setPincode(123456L);
+        userCacheModel.setSource("android");
+        userCacheModel.setIsNewUser(false);
+        userCartV2Model.setUser(userCacheModel);
+        
+        // CartConfig
+        cartConfig = new CartConfig();
+        cartConfig.setId(1L);
+        cartConfig.setAmount(500L);
+        cartConfig.setConfigMeta("{\"" + CartConfigConstant.DELIVERY_FEE + "\":\"50\"}");
+        cartConfig.setTitle("{\"en\":\"Spend ${DELIVERY_FEE} more for free shipping\"}");
+        cartConfig.setMessage("{\"en\":\"Add ${ORDER_VALUE} more to get free shipping and save ${DELIVERY_FEE}\"}");
+    }
+
+    @Test
+    public void testGetCartConfig_StandardDeliveryFee() throws IOException {
+        // Setup
+        UserCart expectedUserCart = new UserCart();
+        expectedUserCart.setUserId(1L);
+        expectedUserCart.setUserRank("normal");
+        expectedUserCart.setPhone("1234567890");
+        expectedUserCart.setCartId(1L);
+        expectedUserCart.setTotalPrice(new BigDecimal(100));
+        expectedUserCart.setFreeShipping(new BigDecimal(0));
+        expectedUserCart.setConfig(new HashMap<>());
+        
+        when(cartConfigService.getCartConfig(
+                anyString(), any(UserCart.class), anyString(), 
+                any(LocationV3Model.class), anyBoolean(), anyBoolean(), anyInt(),any(),any())
+        ).thenReturn(expectedUserCart);
+
+        // Execute
+        UserCart result = cartConfigV2Service.getCartConfig(
+                pinCode, userCart, source, user, locationV3Model, false, false, warehouseId,null,null);
+
+        // Verify
+        assertNotNull(result);
+        assertEquals(expectedUserCart, result);
+        assertEquals("normal", result.getUserRank()); // Should use user's rank
+        
+        // Verify that cartConfigService.getCartConfig was called with the right parameters
+        verify(cartConfigService, times(1)).getCartConfig(
+                eq(pinCode), any(UserCart.class), eq(source), 
+                eq(locationV3Model), eq(false), eq(false), eq(warehouseId),any(),any()
+        );
+    }
+
+    @Test
+    public void testGetCartConfig_CartLevelDeliveryFee() throws IOException {
+        // Setup
+        UserCart expectedUserCart = new UserCart();
+        expectedUserCart.setUserId(1L);
+        expectedUserCart.setUserRank("normal");
+        expectedUserCart.setPhone("1234567890");
+        expectedUserCart.setCartId(1L);
+        expectedUserCart.setTotalPrice(new BigDecimal(120)); // Different total price
+        expectedUserCart.setFreeShipping(new BigDecimal(0));
+        expectedUserCart.setConfig(new HashMap<>());
+        
+        when(cartConfigService.getCartConfig(
+                anyString(), any(), anyString(),
+                any(),anyBoolean(), anyBoolean(), anyInt(),any(),any())
+        ).thenReturn(expectedUserCart);
+
+        // Execute
+        UserCart result = cartConfigV2Service.getCartConfig(
+                pinCode, userCart, source, user, locationV3Model, true, false, warehouseId,null,null);
+
+        // Verify
+        assertNotNull(result);
+        assertEquals(expectedUserCart, result);
+        assertEquals("normal", result.getUserRank()); // Should use user's rank
+        
+        // Verify that cartConfigService.getCartConfig was called with the right parameters
+        verify(cartConfigService, times(1)).getCartConfig(
+                eq(pinCode), any(UserCart.class), eq(source), 
+                eq(locationV3Model), eq(true), eq(false), eq(warehouseId),any(),any()
+        );
+    }
+
+    @Test
+    public void testGetCartConfig_DeliveryFeeCentralizationFlow() throws IOException {
+        // Setup
+        UserCart expectedUserCart = new UserCart();
+        expectedUserCart.setUserId(1L);
+        expectedUserCart.setUserRank("normal");
+        expectedUserCart.setPhone("1234567890");
+        expectedUserCart.setCartId(1L);
+        expectedUserCart.setTotalPrice(new BigDecimal(150)); // Different total price
+        expectedUserCart.setFreeShipping(new BigDecimal(20)); // Delivery fee
+        expectedUserCart.setConfig(new HashMap<>());
+        
+        when(cartConfigService.getCartConfig(
+                anyString(), any(UserCart.class), anyString(), 
+                any(LocationV3Model.class), eq(false), eq(true), anyInt(),any(),any())
+        ).thenReturn(expectedUserCart);
+
+        // Execute
+        UserCart result = cartConfigV2Service.getCartConfig(
+                pinCode, userCart, source, user, locationV3Model, false, true, warehouseId,null,null);
+
+        // Verify
+        assertNotNull(result);
+        assertEquals(expectedUserCart, result);
+        assertEquals("normal", result.getUserRank()); // Should use user's rank
+        
+        // Verify that cartConfigService.getCartConfig was called with the right parameters
+        verify(cartConfigService, times(1)).getCartConfig(
+                eq(pinCode), any(UserCart.class), eq(source), 
+                eq(locationV3Model), eq(false), eq(true), eq(warehouseId),any(),any()
+        );
+    }
+
+    @Test
+    public void testGetCartConfig_WithDifferentUserRank() throws IOException {
+        // Setup
+        user.setUserRank("premium"); // Different user rank
+        userCart.setUserRank("normal"); // Different from user object
+        
+        UserCart expectedUserCart = new UserCart();
+        expectedUserCart.setUserId(1L);
+        expectedUserCart.setUserRank("premium"); // Should use user's rank
+        expectedUserCart.setPhone("1234567890");
+        expectedUserCart.setCartId(1L);
+        expectedUserCart.setTotalPrice(new BigDecimal(100));
+        expectedUserCart.setFreeShipping(new BigDecimal(0));
+        expectedUserCart.setConfig(new HashMap<>());
+        
+        when(cartConfigService.getCartConfig(
+                anyString(), any(UserCart.class), anyString(), 
+                any(LocationV3Model.class), anyBoolean(), anyBoolean(), anyInt(),any(),any())
+        ).thenReturn(expectedUserCart);
+
+        // Execute
+        UserCart result = cartConfigV2Service.getCartConfig(
+                pinCode, userCart, source, user, locationV3Model, false, false, warehouseId,null,null);
+
+        // Verify
+        assertNotNull(result);
+        assertEquals(expectedUserCart, result);
+        assertEquals("premium", result.getUserRank()); // Should use user's rank
+        
+        // Verify that userCart was updated with user's rank before being passed to cartConfigService
+        verify(cartConfigService, times(1)).getCartConfig(
+                eq(pinCode), any(UserCart.class), eq(source), 
+                eq(locationV3Model), eq(false), eq(false), eq(warehouseId),any(),any()
+        );
+    }
+    
+    // Tests for computeCartConfigV2 method
+    
+    @Test
+    public void testComputeCartConfigV2_EmptyCartItems() throws IOException {
+        // Setup
+        userCartV2Model.setCartItems(new ArrayList<>());
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        // Should not process any further if cart items are empty
+        verify(movComputationService, never()).getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean());
+        verify(deliveryFeeService, never()).fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList());
+        verify(cartLevelDeliveryFeeService, never()).fetchCartLevelConfigForDeliveryFee(
+                anyInt(), anyString(), anyLong(), anyString(), anyBoolean(), anyBoolean());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_EmptyClusters() throws IOException {
+        // Setup - mocks for standard flow
+        setupStandardDeliveryFeeConfigMocks();
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Collections.emptyList(), false, false, warehouseId,null);
+        
+        // Verify
+        // Should use cluster ID 0 when clusters list is empty
+        ArgumentCaptor<Integer> clusterIdCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(deliveryFeeService).fetchCartConfigForDeliveryFee(clusterIdCaptor.capture(), anyString(),anyList());
+        assertEquals(0, clusterIdCaptor.getValue());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_StandardDeliveryFee() throws IOException {
+        // Setup
+        setupStandardDeliveryFeeConfigMocks();
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        verify(movComputationService).getMovComputeAmount(any(UserCartV2Model.class), eq(false), eq(false));
+        verify(deliveryFeeService).fetchCartConfigForDeliveryFee(eq(1), eq("android"),anyList());
+        verify(deliveryFeeService).appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                eq(cartConfig),
+                eq(1),
+                eq("android"),
+                eq(1L),
+                eq(null),
+                eq("123456"),
+                eq(false),
+                eq(false),
+                eq(1L),
+                any(),
+                eq(warehouseId),
+                eq("normal"),any(),any(),any()
+        );
+        
+        // Verify DeliveryFeeConfigModel was set with the right values
+        assertNotNull(userCartV2Model.getDeliveryFeeConfigModel());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_CartLevelDeliveryFee() throws IOException {
+        // Setup
+        setupCartLevelDeliveryFeeConfigMocks();
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), true, false, warehouseId,null);
+        
+        // Verify
+        verify(movComputationService).getMovComputeAmount(any(UserCartV2Model.class), eq(true), eq(false));
+        verify(cartLevelDeliveryFeeService).fetchCartLevelConfigForDeliveryFee(
+                eq(warehouseId), eq("android"), eq(1L), eq("normal"), eq(true), eq(false));
+        verify(deliveryFeeService).appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                eq(cartConfig),
+                eq(1),
+                eq("android"),
+                eq(1L),
+                eq(null),
+                eq("123456"),
+                eq(true),
+                eq(false),
+                eq(1L),
+                any(),
+                eq(warehouseId),
+                eq("normal"),any(),any(),any()
+        );
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_DeliveryFeeCentralisationFlow() throws IOException {
+        // Setup
+        setupCentralisedDeliveryFeeConfigMocks();
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, true, warehouseId,null);
+        
+        // Verify
+        verify(movComputationService).getMovComputeAmount(any(UserCartV2Model.class), eq(false), eq(true));
+        verify(cartLevelDeliveryFeeService).fetchCartLevelConfigForDeliveryFee(
+                eq(warehouseId), eq("android"), eq(1L), eq("normal"), eq(false), eq(true));
+                
+        verify(deliveryFeeService).appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                eq(cartConfig),
+                eq(1),
+                eq("android"),
+                eq(1L),
+                eq(null),
+                eq("123456"),
+                eq(false),
+                eq(true),
+                eq(1L),
+                any(),
+                eq(warehouseId),
+                eq("normal"),any(),any(),any()
+        );
+        
+        // Should have feesMap set
+        assertNotNull(userCartV2Model.getFeesMap());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_WhenCartConfigNotFound() throws IOException {
+        // Setup - null cart config
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(new BigDecimal(80));
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList())).thenReturn(null);
+        
+        // Execute and Verify
+        assertThrows(ValidationException.class, () -> {
+            cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        });
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_WithOrdDeals() throws IOException {
+        // Setup
+        setupStandardDeliveryFeeConfigMocks();
+        userCartV2Model.setTotalOrdsInCart(2); // Has ORD deals
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        verify(movComputationService).getMovComputeAmount(any(UserCartV2Model.class), eq(false), eq(false));
+        verify(deliveryFeeService).fetchCartConfigForDeliveryFee(eq(1), eq("android"),anyList());
+        
+        // Should not compute config for new user since special deal type is ORD
+        verify(cartConfigUtils, never()).getCartConfigFromRedis(anyList());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_WithNewUser() throws IOException {
+        // Setup
+        setupStandardDeliveryFeeConfigMocks();
+        userCacheModel.setIsNewUser(true);
+        
+        Map<String, String> configMeta = new HashMap<>();
+        configMeta.put(CartConfigConstant.DELIVERY_FEE, "30");
+        
+        Map<String, String> messageMap = new HashMap<>();
+        messageMap.put("en", "Free delivery on orders above ${ORDER_VALUE}");
+        
+        when(cartConfigUtils.getCartConfigFromRedis(anyList())).thenReturn(cartConfig);
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(configMeta)
+                .thenReturn(messageMap);
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        verify(movComputationService, times(2)).getMovComputeAmount(any(UserCartV2Model.class), eq(false), eq(false));
+        verify(deliveryFeeService).fetchCartConfigForDeliveryFee(eq(1), eq("android"),anyList());
+        
+        // Should compute config for new user
+        verify(cartConfigUtils).getCartConfigFromRedis(anyList());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_StandardDeliveryFee_WithCheckoutMessageHandling() throws IOException {
+        // Setup
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(150)); // Different value to verify it's set
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(false); // Set to false to test AND condition
+        
+        Map<String, String> checkoutMessage = new HashMap<>();
+        checkoutMessage.put("en", "Add 150 more for free shipping");
+        // Omit the default language to test fallback
+        deliveryConfig.setCheckoutMessage(checkoutMessage);
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenAnswer(invocation -> {
+            // Modify the DeliveryConfig passed as the first argument
+            DeliveryConfig config = invocation.getArgument(0);
+            config.setCartValue(deliveryConfig.getCartValue());
+            config.setIsCheckOutAllow(deliveryConfig.getIsCheckOutAllow());
+            config.setCheckoutMessage(deliveryConfig.getCheckoutMessage());
+            config.setFreeShipping(new BigDecimal(50));
+            return new HashMap<>(); // Return empty map for non-centralized flow
+        });
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        assertEquals(deliveryConfig.getCartValue(), userCartV2Model.getCartPricingSummaryModel().getTotalPrice());
+        assertEquals(false, userCartV2Model.getIsCheckOutAllow()); // Should be AND of both values
+        assertEquals("Add 150 more for free shipping", userCartV2Model.getCheckoutMessage());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_ExpiredDeals() throws IOException {
+        // Setup
+        setupStandardDeliveryFeeConfigMocks();
+        
+        // Set all cart items as expired
+        userCartV2Model.setTotalExpiredDealsInCart(userCartV2Model.getCartItems().size());
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        verify(movComputationService).getMovComputeAmount(any(UserCartV2Model.class), eq(false), eq(false));
+        verify(deliveryFeeService).fetchCartConfigForDeliveryFee(eq(1), eq("android"),anyList());
+        
+        // Should set delivery fee to zero when all deals are expired
+        assertEquals(new BigDecimal(0), userCartV2Model.getDeliveryFeeConfigModel().getDeliveryFee());
+    }
+
+    @Test
+    public void testComputeCartConfigV2_WithDefaultLanguageFallback() throws IOException {
+        // Setup
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(150));
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(true);
+        
+        Map<String, String> checkoutMessage = new HashMap<>();
+        checkoutMessage.put(Language.DEFAULT.getValue(), "Default language message");
+        // No message for user's language to test default fallback
+        deliveryConfig.setCheckoutMessage(checkoutMessage);
+        
+        // Change user's language to something not in the checkout message
+        userCacheModel.setLang("fr");
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenAnswer(invocation -> {
+            // Modify the DeliveryConfig passed as the first argument
+            DeliveryConfig config = invocation.getArgument(0);
+            config.setCartValue(deliveryConfig.getCartValue());
+            config.setIsCheckOutAllow(deliveryConfig.getIsCheckOutAllow());
+            config.setCheckoutMessage(deliveryConfig.getCheckoutMessage());
+            config.setFreeShipping(new BigDecimal(50));
+            return new HashMap<>(); // Return empty map for non-centralized flow
+        });
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        assertEquals("Default language message", userCartV2Model.getCheckoutMessage());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_CentralizedFlow_WithMessageDesc() throws IOException {
+        // Setup
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(cartLevelDeliveryFeeService.fetchCartLevelConfigForDeliveryFee(
+                anyInt(), anyString(), anyLong(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(100));
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(true);
+        
+        // Create fees map response for centralized flow
+        Map<String, Object> feesMap = new HashMap<>();
+        
+        // Add delivery fee entry with language-specific message
+        DeliveryFeeDataModel deliveryFeeDataModel = new DeliveryFeeDataModel();
+        deliveryFeeDataModel.setDeliveryFee(20L);
+        DeliveryFeeMessages messages = new DeliveryFeeMessages();
+        
+        Map<String, String> cartTitle = new HashMap<>();
+        cartTitle.put("en", "Delivery Fee");
+        messages.setCartTitle(cartTitle);
+        
+        Map<String, String> cartDesc = new HashMap<>();
+        cartDesc.put("en", "Standard delivery fee");
+        cartDesc.put(Language.DEFAULT.getValue(), "Default language delivery fee");
+        messages.setCartDesc(cartDesc);
+        
+        deliveryFeeDataModel.setDeliveryFeeMessages(messages);
+        feesMap.put(FeesType.DELIVERY_FEES.name(), deliveryFeeDataModel);
+        
+        // Add platform fee entry
+        PlatformFeeDataModel platformFeeDataModel = new PlatformFeeDataModel();
+        platformFeeDataModel.setFees(10D);
+        feesMap.put("PLATFORM_FEES", platformFeeDataModel);
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(feesMap);
+        
+        BigDecimal initialTotalPrice = userCartV2Model.getCartPricingSummaryModel().getTotalPrice();
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, true, warehouseId,null);
+        
+        // Verify
+        // Total price should include both delivery fee and platform fee
+        BigDecimal expectedTotalPrice = initialTotalPrice.add(BigDecimal.valueOf(20L + 10L));
+//        assertEquals(expectedTotalPrice, userCartV2Model.getCartPricingSummaryModel().getTotalPrice());
+        
+        // Checkout message should be set from delivery fee message description
+//        assertEquals("Default language delivery fee", userCartV2Model.getCheckoutMessage());
+        
+        // FeesMap should be set
+//        assertNotNull(userCartV2Model.getFeesMap());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_CentralizedFlow_WithFallbackLanguage() throws IOException {
+        // Setup
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(cartLevelDeliveryFeeService.fetchCartLevelConfigForDeliveryFee(
+                anyInt(), anyString(), anyLong(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(100));
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(true);
+        
+        // Change user language to something not in the messages
+        userCacheModel.setLang("fr");
+        
+        // Create fees map response for centralized flow
+        Map<String, Object> feesMap = new HashMap<>();
+        
+        // Add delivery fee entry with only default language message
+        DeliveryFeeDataModel deliveryFeeDataModel = new DeliveryFeeDataModel();
+        deliveryFeeDataModel.setDeliveryFee(20L);
+        DeliveryFeeMessages messages = new DeliveryFeeMessages();
+        
+        Map<String, String> cartTitle = new HashMap<>();
+        cartTitle.put(Language.DEFAULT.getValue(), "Default Delivery Fee Title");
+        messages.setCartTitle(cartTitle);
+        
+        Map<String, String> cartDesc = new HashMap<>();
+        // No entry for "fr", should fall back to default
+        cartDesc.put(Language.DEFAULT.getValue(), "Default language delivery fee");
+        messages.setCartDesc(cartDesc);
+        
+        deliveryFeeDataModel.setDeliveryFeeMessages(messages);
+        feesMap.put(FeesType.DELIVERY_FEES.name(), deliveryFeeDataModel);
+        
+        // Add platform fee entry
+        PlatformFeeDataModel platformFeeDataModel = new PlatformFeeDataModel();
+        platformFeeDataModel.setFees(10D);
+        feesMap.put("PLATFORM_FEES", platformFeeDataModel);
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                eq(true),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(feesMap);
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, true, warehouseId,null);
+        
+        // Verify
+        // Checkout message should use the default language since "fr" is not available
+        assertEquals("Default language delivery fee", userCartV2Model.getCheckoutMessage());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_NewUser_WithMessageFormatting() throws IOException {
+        // Setup
+        userCacheModel.setIsNewUser(true);
+        
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+        
+        // Setup CartConfig for new user
+        CartConfig newUserCartConfig = new CartConfig();
+        newUserCartConfig.setId(2L);
+        newUserCartConfig.setAmount(500L); // Higher than movAmount (80)
+        newUserCartConfig.setConfigMeta("{\"" + CartConfigConstant.DELIVERY_FEE + "\":\"30\"}");
+        // Message with placeholder for ORDER_VALUE and DELIVERY_FEE
+        newUserCartConfig.setMessage("{\"en\":\"Add ${ORDER_VALUE} more to get free shipping and save ${DELIVERY_FEE}/nExtra text that should be removed\"}");
+        
+        when(cartConfigUtils.getCartConfigFromRedis(anyList())).thenReturn(newUserCartConfig);
+        
+        // Setup objectMapper for parsing configMeta and message
+        HashMap<String, String> configMeta = new HashMap<>();
+        configMeta.put(CartConfigConstant.DELIVERY_FEE, "30");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getConfigMeta()), any(TypeReference.class)))
+                .thenReturn(configMeta);
+                
+        HashMap<String, String> messageMap = new HashMap<>();
+        messageMap.put("en", "Add ${ORDER_VALUE} more to get free shipping and save ${DELIVERY_FEE}/nExtra text that should be removed");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getMessage()), any(TypeReference.class)))
+                .thenReturn(messageMap);
+        
+        BigDecimal initialDeliveryFee = userCartV2Model.getDeliveryFeeConfigModel().getDeliveryFee();
+        BigDecimal initialTotalPrice = userCartV2Model.getCartPricingSummaryModel().getTotalPrice();
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        // Delivery fee should be set from configMeta
+        assertEquals(new BigDecimal("30"), userCartV2Model.getDeliveryFeeConfigModel().getDeliveryFee());
+        
+        // Total price should include the new delivery fee
+        // Initially the price has delivery fee of 20, we subtract it and add 30
+        assertEquals(new BigDecimal("130"), userCartV2Model.getCartPricingSummaryModel().getTotalPrice());
+        
+        // Checkout message should be formatted with replaced placeholders and truncated at /n
+        String expectedMessage = "Add " + (newUserCartConfig.getAmount() - movAmount.longValue()) + " more to get free shipping and save 30";
+        assertEquals(expectedMessage, userCartV2Model.getCheckoutMessage());
+        
+        // Verify that the CartConfig was fetched with the correct keys
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        verify(cartConfigUtils).getCartConfigFromRedis(keysCaptor.capture());
+        List<String> keys = keysCaptor.getValue();
+        assertTrue(keys.contains(String.format(CartConfigConstant.NEW_USER_CART_CONFIG_KEY_FORMAT, AppConstant.NEW_USER_SEGMENT, 1, "android")));
+        assertTrue(keys.contains(String.format(CartConfigConstant.NEW_USER_CART_CONFIG_KEY_FORMAT, AppConstant.NEW_USER_SEGMENT, 0, "android")));
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_NewUser_WithLanguageFallback() throws IOException {
+        // Setup
+        userCacheModel.setIsNewUser(true);
+        userCacheModel.setLang("fr"); // Set language to one not in the message map
+        
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+        
+        // Setup CartConfig for new user
+        CartConfig newUserCartConfig = new CartConfig();
+        newUserCartConfig.setId(2L);
+        newUserCartConfig.setAmount(500L);
+        newUserCartConfig.setConfigMeta("{\"" + CartConfigConstant.DELIVERY_FEE + "\":\"30\"}");
+        // Message with default language but not French
+        newUserCartConfig.setMessage("{\"" + Language.DEFAULT.getValue() + "\":\"Default language message/nExtra text\"}");
+        
+        when(cartConfigUtils.getCartConfigFromRedis(anyList())).thenReturn(newUserCartConfig);
+        
+        // Setup objectMapper for parsing configMeta and message
+        HashMap<String, String> configMeta = new HashMap<>();
+        configMeta.put(CartConfigConstant.DELIVERY_FEE, "30");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getConfigMeta()), any(TypeReference.class)))
+                .thenReturn(configMeta);
+                
+        HashMap<String, String> messageMap = new HashMap<>();
+        messageMap.put(Language.DEFAULT.getValue(), "Default language message/nExtra text");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getMessage()), any(TypeReference.class)))
+                .thenReturn(messageMap);
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        // Should use default language for checkout message
+        assertEquals("Default language message", userCartV2Model.getCheckoutMessage());
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_NewUser_WithCartLevelDeliveryFee() throws IOException {
+        // Setup
+        userCacheModel.setIsNewUser(true);
+        
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), eq(true), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(cartLevelDeliveryFeeService.fetchCartLevelConfigForDeliveryFee(
+                anyInt(), anyString(), anyLong(), anyString(), eq(true), anyBoolean()))
+                .thenReturn(cartConfig);
+                
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                eq(true),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+        
+        // Setup CartConfig for new user
+        CartConfig newUserCartConfig = new CartConfig();
+        newUserCartConfig.setId(2L);
+        newUserCartConfig.setAmount(500L);
+        newUserCartConfig.setConfigMeta("{\"" + CartConfigConstant.DELIVERY_FEE + "\":\"40\"}");
+        newUserCartConfig.setMessage("{\"en\":\"Cart level delivery fee message\"}");
+        
+        when(cartConfigUtils.getCartConfigFromRedis(anyList())).thenReturn(newUserCartConfig);
+        
+        // Setup objectMapper for parsing configMeta and message
+        HashMap<String, String> configMeta = new HashMap<>();
+        configMeta.put(CartConfigConstant.DELIVERY_FEE, "40");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getConfigMeta()), any(TypeReference.class)))
+                .thenReturn(configMeta);
+                
+        HashMap<String, String> messageMap = new HashMap<>();
+        messageMap.put("en", "Cart level delivery fee message");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getMessage()), any(TypeReference.class)))
+                .thenReturn(messageMap);
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), true, false, warehouseId,null);
+        
+        // Verify
+        // Verify that the CartConfig was fetched with the correct keys for cart level delivery fee
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        verify(cartConfigUtils).getCartConfigFromRedis(keysCaptor.capture());
+        List<String> keys = keysCaptor.getValue();
+        assertTrue(keys.contains(String.format(CartConfigConstant.NEW_USER_CART_LEVEL_DELFEE_CONFIG_KEY_FORMAT, AppConstant.NEW_USER_SEGMENT, warehouseId, "android")));
+        assertTrue(keys.contains(String.format(CartConfigConstant.NEW_USER_CART_LEVEL_DELFEE_CONFIG_KEY_FORMAT, AppConstant.NEW_USER_SEGMENT, 0, "android")));
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_NewUser_MovAmountExceedsThreshold() throws IOException {
+        // Setup
+        userCacheModel.setIsNewUser(true);
+        
+        BigDecimal movAmount = new BigDecimal(600); // Greater than cartConfig.getAmount() (500)
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+        
+        // Setup CartConfig for new user
+        CartConfig newUserCartConfig = new CartConfig();
+        newUserCartConfig.setId(2L);
+        newUserCartConfig.setAmount(500L);
+        newUserCartConfig.setConfigMeta("{\"" + CartConfigConstant.DELIVERY_FEE + "\":\"30\"}");
+        newUserCartConfig.setMessage("{\"en\":\"This message should not be set\"}");
+        
+        when(cartConfigUtils.getCartConfigFromRedis(anyList())).thenReturn(newUserCartConfig);
+        
+        // Setup objectMapper for parsing configMeta
+        HashMap<String, String> configMeta = new HashMap<>();
+        configMeta.put(CartConfigConstant.DELIVERY_FEE, "30");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getConfigMeta()), any(TypeReference.class)))
+                .thenReturn(configMeta);
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        // When movComputeAmount exceeds threshold, the checkout message should be set to null
+        assertNull(userCartV2Model.getCheckoutMessage());
+        
+        // objectMapper.readValue should be called for configMeta but not for message
+        verify(objectMapper, times(1)).readValue(eq(newUserCartConfig.getConfigMeta()), any(TypeReference.class));
+        verify(objectMapper, never()).readValue(eq(newUserCartConfig.getMessage()), any(TypeReference.class));
+    }
+    
+    @Test
+    public void testComputeCartConfigV2_NewUser_ExceptionInMessageFormatting() throws IOException {
+        // Setup
+        userCacheModel.setIsNewUser(true);
+        
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+        
+        // Setup CartConfig for new user
+        CartConfig newUserCartConfig = new CartConfig();
+        newUserCartConfig.setId(2L);
+        newUserCartConfig.setAmount(500L);
+        newUserCartConfig.setConfigMeta("{\"" + CartConfigConstant.DELIVERY_FEE + "\":\"30\"}");
+        newUserCartConfig.setMessage("{\"en\":\"Add ${ORDER_VALUE} more to get free shipping\"}");
+        
+        when(cartConfigUtils.getCartConfigFromRedis(anyList())).thenReturn(newUserCartConfig);
+        
+        // Setup objectMapper for parsing configMeta but throw exception for message
+        HashMap<String, String> configMeta = new HashMap<>();
+        configMeta.put(CartConfigConstant.DELIVERY_FEE, "30");
+        
+        when(objectMapper.readValue(eq(newUserCartConfig.getConfigMeta()), any(TypeReference.class)))
+                .thenReturn(configMeta);
+        
+        // Use doThrow() for void methods or thenAnswer() with throwing an exception
+        when(objectMapper.readValue(eq(newUserCartConfig.getMessage()), any(TypeReference.class)))
+                .thenAnswer(invocation -> {
+                    throw new RuntimeException("Error parsing message");
+                });
+        
+        // Execute
+        cartConfigV2Service.computeCartConfigV2(userCartV2Model, Arrays.asList(1), false, false, warehouseId,null);
+        
+        // Verify
+        // Should set delivery fee from configMeta
+        assertEquals(new BigDecimal("30"), userCartV2Model.getDeliveryFeeConfigModel().getDeliveryFee());
+        
+        // When exception occurs in message formatting, checkout message should be set to null
+        assertNull(userCartV2Model.getCheckoutMessage());
+    }
+
+    // Helper methods for setting up mocks
+    
+    private void setupStandardDeliveryFeeConfigMocks() throws IOException {
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(deliveryFeeService.fetchCartConfigForDeliveryFee(anyInt(), anyString(),anyList()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(100));
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(true);
+        deliveryConfig.setFreeShipping(new BigDecimal(50));
+        
+        Map<String, String> checkoutMessage = new HashMap<>();
+        checkoutMessage.put("en", "Add 150 more for free shipping");
+        deliveryConfig.setCheckoutMessage(checkoutMessage);
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+    }
+    
+    private void setupCartLevelDeliveryFeeConfigMocks() throws IOException {
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(cartLevelDeliveryFeeService.fetchCartLevelConfigForDeliveryFee(
+                anyInt(), anyString(), anyLong(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(100));
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(true);
+        deliveryConfig.setFreeShipping(new BigDecimal(50));
+        
+        Map<String, String> checkoutMessage = new HashMap<>();
+        checkoutMessage.put("en", "Add 150 more for free shipping");
+        deliveryConfig.setCheckoutMessage(checkoutMessage);
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                anyBoolean(),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(new HashMap<>());
+    }
+    
+    private void setupCentralisedDeliveryFeeConfigMocks() throws IOException {
+        BigDecimal movAmount = new BigDecimal(80);
+        when(movComputationService.getMovComputeAmount(any(UserCartV2Model.class), anyBoolean(), anyBoolean()))
+                .thenReturn(movAmount);
+                
+        when(cartLevelDeliveryFeeService.fetchCartLevelConfigForDeliveryFee(
+                anyInt(), anyString(), anyLong(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(cartConfig);
+                
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+        deliveryConfig.setCartValue(new BigDecimal(100));
+        deliveryConfig.setMovComputeAmount(movAmount);
+        deliveryConfig.setIsCheckOutAllow(true);
+        deliveryConfig.setFreeShipping(new BigDecimal(50));
+        
+        Map<String, String> checkoutMessage = new HashMap<>();
+        checkoutMessage.put("en", "Add 150 more for free shipping");
+        deliveryConfig.setCheckoutMessage(checkoutMessage);
+        
+        // Create fees map response for centralized flow
+        Map<String, Object> feesMap = new HashMap<>();
+        
+        // Add delivery fee entry
+        DeliveryFeeDataModel deliveryFeeDataModel = new DeliveryFeeDataModel();
+        deliveryFeeDataModel.setDeliveryFee(20L);
+        DeliveryFeeMessages messages = new DeliveryFeeMessages();
+        Map<String, String> cartTitle = new HashMap<>();
+        cartTitle.put("en", "Delivery Fee");
+        messages.setCartTitle(cartTitle);
+        Map<String, String> cartDesc = new HashMap<>();
+        cartDesc.put("en", "Standard delivery fee");
+        messages.setCartDesc(cartDesc);
+        deliveryFeeDataModel.setDeliveryFeeMessages(messages);
+        feesMap.put(FeesType.DELIVERY_FEES.name(), deliveryFeeDataModel);
+        
+        // Add platform fee entry
+        PlatformFeeDataModel platformFeeDataModel = new PlatformFeeDataModel();
+        platformFeeDataModel.setFees(10D);
+        feesMap.put("PLATFORM_FEES", platformFeeDataModel);
+        
+        when(deliveryFeeService.appendCartTitleAndDesc(
+                any(DeliveryConfig.class),
+                any(CartConfig.class),
+                anyInt(),
+                anyString(),
+                anyLong(),
+                any(),
+                anyString(),
+                anyBoolean(),
+                eq(true),
+                anyLong(),
+                any(),
+                anyInt(),
+                anyString(),any(),any(),any()
+        )).thenReturn(feesMap);
+    }
+}
+
+=== REVERSE DEPENDENCY ===
+# File: /var/folders/cx/sv1l5gdd08d666j4mmc6ddv80000gp/T/context_repo_orc0ghnn/src/main/java/com/dealshare/service/cartservice/services/impl/CartConfigV2ServiceImpl.java
+
+package com.dealshare.service.cartservice.services.impl;
+
+import com.dealshare.service.cartservice.adapters.CartConfigCacheMapper;
+import com.dealshare.service.cartservice.constants.AppConstant;
+import com.dealshare.service.cartservice.constants.CartConfigConstant;
+import com.dealshare.service.cartservice.dtos.CartParamsTransferModelDTO;
+import com.dealshare.service.cartservice.entities.CartConfig;
+import com.dealshare.service.cartservice.entities.User;
+import com.dealshare.service.cartservice.entities.UsersAddressEntity;
+import com.dealshare.service.cartservice.enums.DealType;
+import com.dealshare.service.cartservice.enums.Language;
+import com.dealshare.service.cartservice.exceptions.ValidationException;
+import com.dealshare.service.cartservice.feemodule.enums.FeesType;
+import com.dealshare.service.cartservice.feemodule.models.DeliveryFeeDataModel;
+import com.dealshare.service.cartservice.feemodule.models.PlatformFeeDataModel;
+import com.dealshare.service.cartservice.feignclients.ChatServiceClient;
+import com.dealshare.service.cartservice.models.*;
+import com.dealshare.service.cartservice.services.*;
+import com.dealshare.service.cartservice.utils.CartConfigUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@Slf4j
+@Service
+public class CartConfigV2ServiceImpl implements CartConfigV2Service {
+
+    private static final String MAX_ALLOWED_ORD_IN_CART = "maxOrdAllowed";
+    private static final String CONFIGURED_ORD_MOV = "configuredMov";
+    private static final String NEXT_ORD_ALLOWED_IN_CART = "nextOrdAllowedInCart";
+
+
+    @Autowired
+    CartConfigService cartConfigService;
+
+    @Autowired
+    @Qualifier("RankingCacheServiceImpl")
+    CacheService rankingCacheService;
+
+    @Autowired
+    DeliveryFeeService deliveryFeeService;
+
+    @Autowired
+    CartLevelDeliveryFeeServiceImpl cartLevelDeliveryFeeService;
+
+    @Autowired
+    PricingService pricingService;
+
+    @Autowired
+    CartConfigUtils cartConfigUtils;
+
+    @Autowired
+    CartConfigCacheMapper cartConfigCacheMapper;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Value(("${delivery.icon}"))
+    String deliveryIcon;
+
+    @Autowired
+    ChatServiceClient chatServiceClient;
+
+    @Autowired
+    private MovComputationService movComputationService;
+
+
+    @Override
+    public UserCart getCartConfig(String pinCode, UserCart userCart, String source,
+                                  User user, LocationV3Model locationV3Model, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow,
+                                  Integer warehouseId, UsersAddressEntity usersAddressEntity,CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException {
+           userCart.setUserRank(user.getUserRank());
+          return cartConfigService.getCartConfig(pinCode, userCart, source, locationV3Model, cartLevelDeliveryFee, deliveryFeeCentralisationFlow, warehouseId,usersAddressEntity,cartParamsTransferModelDTO);
+    }
+
+    @Override
+    public void computeCartConfigV2(UserCartV2Model userCart, List<Integer> clusters, Boolean cartLevelDeliveryFee,
+                                    Boolean deliveryFeeCentralisationFlow, Integer warehouseId, CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException {
+        if (CollectionUtils.isEmpty(userCart.getCartItems()))  return;
+
+        String specialDealType = userCart.getTotalOrdsInCart() > 0 ? DealType.ORD.name() : "";
+        if (CollectionUtils.isEmpty(clusters)) {
+            /** if cluster not available then using 0 as a cluster Id*/
+            clusters = new ArrayList<>(Arrays.asList(0));
+        }
+
+        computeDeliveryFeeConfig(userCart, clusters, cartLevelDeliveryFee, deliveryFeeCentralisationFlow, warehouseId,cartParamsTransferModelDTO);
+
+        if (userCart.getUser().getIsNewUser() && ObjectUtils.isEmpty(specialDealType)) {
+
+            /** same functionality as fetchCorrectUserSegmentForNewUser function in CartConfigServiceImpl */
+            String userRank = userCart.getTotalOrdsInCart() > 0
+                    ? userCart.getUser().getUserRank() : AppConstant.NEW_USER_SEGMENT;
+
+            /** Compute Delivery Fee Config for New User */
+            computeConfigForNewUser(userCart, clusters, userRank, cartLevelDeliveryFee, deliveryFeeCentralisationFlow, warehouseId);
+        }
+    }
+
+    private void computeDeliveryFeeConfig(UserCartV2Model userCart, List<Integer> clusters, Boolean cartLevelDeliveryFee, Boolean deliveryFeeCentralisationFlow, Integer warehouseId,CartParamsTransferModelDTO cartParamsTransferModelDTO) throws IOException {
+        UserCacheModel user = userCart.getUser();
+        DeliveryConfig deliveryConfig = new DeliveryConfig();
+
+        deliveryConfig.setCartValue(userCart.getCartPricingSummaryModel().getTotalPrice());
+        BigDecimal movComputeAmount = movComputationService.getMovComputeAmount(userCart, cartLevelDeliveryFee, deliveryFeeCentralisationFlow);
+        deliveryConfig.setMovComputeAmount(movComputeAmount);
+
+        // refactor required for delivery and ord config - next phase
+        CartConfig cartConfig = null;
+        // get cart level delivery config here based on what location param we decide, either pincode or warehouse
+        if(cartLevelDeliveryFee || deliveryFeeCentralisationFlow){
+            cartConfig = cartLevelDeliveryFeeService.fetchCartLevelConfigForDeliveryFee(warehouseId, user.getSource(), user.getId(), user.getUserRank(),
+                    cartLevelDeliveryFee, deliveryFeeCentralisationFlow);
+        } else {
+            cartConfig = deliveryFeeService.fetchCartConfigForDeliveryFee(clusters.get(0), user.getSource(),clusters);
+        }
+
+        if(ObjectUtils.isEmpty(cartConfig)){
+            log.error("computeDeliveryFeeConfig : cartConfig Empty for user : {}, clusters : {}, " +
+                    "received cartConfig from fetchCartConfigForDeliveryFee function", user, clusters);
+            throw new ValidationException("Cart Config for Delivery fee not present");
+        }
+        deliveryConfig.setIsRefundApplied(false);
+
+        // refactor required for delivery and ord config - next phase
+        Map<String, Object> feesModelMap = deliveryFeeService.appendCartTitleAndDesc(
+                    deliveryConfig,
+                    cartConfig,
+                    clusters.get(0),
+                    user.getSource(),
+                    user.getId(),
+                    null, // not required
+                    user.getPincode().toString(),
+                cartLevelDeliveryFee,
+                deliveryFeeCentralisationFlow, userCart.getCartId(),userCart.getDiscountSummaryItems(),warehouseId,user.getUserRank(),null,user,cartParamsTransferModelDTO);
+        if(deliveryFeeCentralisationFlow){
+            mapFeesToUserCart(feesModelMap, userCart, user);
+            userCart.setFeesMap(feesModelMap);
+        } else {
+            userCart.getCartPricingSummaryModel().setTotalPrice(deliveryConfig.getCartValue());
+            userCart.setIsCheckOutAllow(deliveryConfig.getIsCheckOutAllow() && userCart.getIsCheckOutAllow());
+
+            if(!ObjectUtils.isEmpty(deliveryConfig.getCheckoutMessage())){
+                userCart.setCheckoutMessage(deliveryConfig.getCheckoutMessage().containsKey(user.getLang())
+                                ? deliveryConfig.getCheckoutMessage().get(user.getLang())
+                                : deliveryConfig.getCheckoutMessage().get(Language.DEFAULT.getValue()));
+            }
+
+            userCart.setDeliveryFeeConfigModel(DeliveryFeeConfigModel.builder()
+                    .deliveryFee(deliveryConfig.getFreeShipping())
+                    .deliveryFeeCancellationMessage(deliveryConfig.getDeliveryFeeCancellationMessage())
+                    .deliveryIcon(deliveryIcon)
+                    .build());
+
+            if (userCart.getTotalExpiredDealsInCart() == userCart.getCartItems().size()) {
+                userCart.getDeliveryFeeConfigModel().setDeliveryFee(new BigDecimal(0));
+            }
+        }
+
+    }
+
+    private void mapFeesToUserCart(Map<String, Object> feesModelMap, UserCartV2Model userCart, UserCacheModel user){
+        for(Map.Entry<String, Object> entry:feesModelMap.entrySet()){
+            if(entry.getKey().equals(FeesType.DELIVERY_FEES.name())){
+                DeliveryFeeDataModel deliveryFeeDataModel = (DeliveryFeeDataModel) entry.getValue();
+                BigDecimal totalValue = userCart.getCartPricingSummaryModel().getTotalPrice().add(BigDecimal.valueOf(deliveryFeeDataModel.getDeliveryFee()));
+                userCart.getCartPricingSummaryModel().setTotalPrice(totalValue);
+                Map<String, String> messageTitle = deliveryFeeDataModel.getDeliveryFeeMessages().getCartTitle();
+                Map<String, String> messageDesc = deliveryFeeDataModel.getDeliveryFeeMessages().getCartDesc();
+                if(!ObjectUtils.isEmpty(messageDesc)){
+                    userCart.setCheckoutMessage(
+                            messageDesc.containsKey(user.getLang())
+                                    ? messageDesc.get(user.getLang())
+                                    : messageDesc.get(Language.DEFAULT.getValue()));
+                }
+            }
+            else {
+                PlatformFeeDataModel platformFeeDataModel = (PlatformFeeDataModel) entry.getValue();
+                BigDecimal totalValue = userCart.getCartPricingSummaryModel().getTotalPrice().add(BigDecimal.valueOf(platformFeeDataModel.getFees()));
+                userCart.getCartPricingSummaryModel().setTotalPrice(totalValue);
+            }
+        }
+    }
+
+    // refactor required for delivery and ord config - next phase
+    private void computeConfigForNewUser(UserCartV2Model userCart,
+                                         List<Integer> clusters,
+                                         String newUserRank,
+                                         Boolean cartLevelDeliveryFee,
+                                         Boolean deliveryFeeCentralisationFlow,
+                                         Integer warehouseId){
+        String source = userCart.getUser().getSource();
+        String lang = userCart.getUser().getSource();
+
+        userCart.getCartPricingSummaryModel().setTotalPrice(userCart.getCartPricingSummaryModel().getTotalPrice().subtract(userCart.getDeliveryFeeConfigModel().getDeliveryFee()));
+        userCart.getDeliveryFeeConfigModel().setDeliveryFee(new BigDecimal(0));
+        userCart.setIsCheckOutAllow(Boolean.TRUE);
+        List<String> keys = new ArrayList<>();
+
+        if(cartLevelDeliveryFee){
+            // TODO add cart level delivery fee config
+            keys.add(String.format(CartConfigConstant.NEW_USER_CART_LEVEL_DELFEE_CONFIG_KEY_FORMAT, newUserRank, warehouseId, source));
+            // fallback key with zero warehouseId
+            keys.add(String.format(CartConfigConstant.NEW_USER_CART_LEVEL_DELFEE_CONFIG_KEY_FORMAT, newUserRank, 0, source));
+        }
+        else {
+            keys = clusters.stream()
+                    .map(clusterId -> String.format(CartConfigConstant.NEW_USER_CART_CONFIG_KEY_FORMAT, newUserRank, clusterId, source))
+                    .collect(Collectors.toList());
+            // fallback key with zero clusterId
+            keys.add(String.format(CartConfigConstant.NEW_USER_CART_CONFIG_KEY_FORMAT, newUserRank, 0, source));
+        }
+
+        CartConfig cartConfig = cartConfigUtils.getCartConfigFromRedis(keys);
+        if (ObjectUtils.isEmpty(cartConfig)) return;
+
+        try {
+            Map<String, String> deliveryFeeMap = new HashMap<>();
+            long movComputeAmount = movComputationService.getMovComputeAmount(userCart, cartLevelDeliveryFee, deliveryFeeCentralisationFlow).longValue();
+            try {
+                deliveryFeeMap = objectMapper.readValue(cartConfig.getConfigMeta(), new TypeReference<HashMap<String, String>>(){});
+            } catch (Exception e) {
+                log.error("Error fetching config meta for userCart : {}, Exception : {}", userCart, e.getMessage());
+            }
+            if (!ObjectUtils.isEmpty(deliveryFeeMap) && movComputeAmount < cartConfig.getAmount()) {
+
+                userCart.getDeliveryFeeConfigModel()
+                        .setDeliveryFee(new BigDecimal(deliveryFeeMap.get(CartConfigConstant.DELIVERY_FEE)));
+                try {
+                    Map<String, String> messageDesc = objectMapper.readValue(cartConfig.getMessage(), new TypeReference<HashMap<String, String>>(){});
+                    for (String key : messageDesc.keySet()) {
+                        messageDesc.put(key, messageDesc.get(key).split("/n")[0]
+                                .replace("${ORDER_VALUE}", cartConfig.getAmount() - movComputeAmount + "")
+                                .replace("${DELIVERY_FEE}", deliveryFeeMap.get(CartConfigConstant.DELIVERY_FEE)));
+                    }
+                    userCart.setCheckoutMessage(!ObjectUtils.isEmpty(messageDesc.get(lang)) ?
+                            messageDesc.get(lang) :
+                            messageDesc.get(Language.DEFAULT.getValue()));
+
+                } catch (Exception e) {
+                    log.error("error setting checkout message and checkout title for cart : {}", userCart);
+                    userCart.setCheckoutMessage(null);
+                }
+                userCart.getCartPricingSummaryModel().setTotalPrice(userCart.getCartPricingSummaryModel().getTotalPrice().add(userCart.getDeliveryFeeConfigModel().getDeliveryFee()));
+            } else {
+                userCart.setCheckoutMessage(null);
+            }
+        } catch (Exception e) {
+            log.error("computeConfigForNewUser : {}", e.getMessage());
+        }
+    }
+
+}
+
+
