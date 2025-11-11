@@ -76,7 +76,7 @@ def rerank_globally(search_results, question, embeddings, top_k_final=50):
     return top_docs
 
 
-def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs", top_k_final: int = 40) -> str:
+def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs", top_k_final: int = 50) -> str:
     """
     🔍 Multi-repo intelligent query with global reranking and method completion.
     Groups results by service → file → method.
@@ -260,5 +260,18 @@ def query_codebase_context(question: str, base_chroma_path: str = "./chroma_dbs"
 
 # === Example usage ===
 if __name__ == "__main__":
-    question = "how do we sync minimart orders ?"
+    # question = "how do we sync minimart orders ?"
+    # question = "will decimal delivery fee fail for this api order/cancellation/panel??"
+    question = '''public ResponseEntity<?> addUpdateCart(@RequestHeader(name = "Accept-Language", defaultValue = "en", required = false) String lang,
+                                           @RequestHeader(name = "appVersion") String appVersion,
+                                           @RequestHeader(name = "pincode", required = false) String pincode,
+                                           @RequestHeader(name = "palId", required = false) Integer palId,
+                                           @RequestParam(name = "source", defaultValue = "B2C", required = false) String source, /** for internal call*/
+                                           
+                                           @RequestHeader(name = "platform", required = false, defaultValue = ANDROID) String platform,
+                                           @RequestHeader(name = "deviceId", required = false, defaultValue = "") String deviceId,
+                                           @RequestHeader(name = "Appsflyer-Uid", required = false, defaultValue = "") String appsflyerUid,
+                                           @RequestHeader(name = "advertisingId", required = false, defaultValue = "") String advertisingId,
+                                           @RequestHeader(name = "addressId", required = false, defaultValue = "0") Long addressId) {
+        Lo'''
     query_codebase_context(question)
