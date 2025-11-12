@@ -79,7 +79,7 @@ def extract_full_type(code):
 
 
 # --- Level 2: Reverse dependencies ---
-def find_reverse_dependencies(repo_path, target_fqn):
+def find_reverse_dependencies(repo_path, target_fqn, include_tests=False):
     """
     Find all Java files that reference or implement/extend a given type.
     Includes direct imports, implements, extends, annotations, generics, etc.
@@ -108,6 +108,11 @@ def find_reverse_dependencies(repo_path, target_fqn):
         for f in files:
             if not f.endswith(".java"):
                 continue
+
+            # 🔒 Skip test files unless explicitly included
+            if not include_tests and re.search(r'(?i)test\.java$', f):
+                continue
+
             path = os.path.join(root, f)
             try:
                 with open(path, "r", encoding="utf-8", errors="ignore") as src:
@@ -165,7 +170,7 @@ def find_inheritance_dependencies(code, repo_path):
     return deps
 
 
-def recursive_reverse_dependencies(repo_path, target_fqn, depth, visited=None):
+def recursive_reverse_dependencies(repo_path, target_fqn, depth, include_tests=False, limit=None, visited=None):
     """Find reverse dependencies up to a given depth."""
     if depth <= 0:
         return []
@@ -176,7 +181,12 @@ def recursive_reverse_dependencies(repo_path, target_fqn, depth, visited=None):
     visited.add(target_fqn)
 
     results = []
-    files = find_reverse_dependencies(repo_path, target_fqn)
+    files = find_reverse_dependencies(repo_path, target_fqn, include_tests=include_tests)
+
+    # Apply reverse dependency limit per level
+    if limit:
+        files = files[:limit]
+
     for f in files:
         results.append(f)
         try:
@@ -185,14 +195,16 @@ def recursive_reverse_dependencies(repo_path, target_fqn, depth, visited=None):
             cls = TYPE_RE.search(code)
             if pkg and cls:
                 fqn = f"{pkg.group(1)}.{cls.group(2)}"
-                results.extend(recursive_reverse_dependencies(repo_path, fqn, depth - 1, visited))
+                results.extend(
+                    recursive_reverse_dependencies(repo_path, fqn, depth - 1, include_tests, limit, visited)
+                )
         except Exception:
             continue
     return list(set(results))
 
 
 # --- Main context builder ---
-def prepare_context_multi(repo_path, target_files, output_file="context_full.txt", depth=1):
+def prepare_context_multi(repo_path, target_files, output_file="context_full.txt", depth=1, include_tests=False, reverse_limit=None):
     seen_files = set()
     output_chunks = []
 
@@ -258,7 +270,9 @@ def prepare_context_multi(repo_path, target_files, output_file="context_full.txt
 
         # --- Level 2: Reverse dependencies ---
         if current_fqn:
-            reverse_files = recursive_reverse_dependencies(repo_path, current_fqn, depth)
+            reverse_files = recursive_reverse_dependencies(
+                repo_path, current_fqn, depth, include_tests, reverse_limit
+            )
             for fpath in reverse_files:
                 if fpath in seen_files:
                     continue
@@ -298,6 +312,8 @@ if __name__ == "__main__":
     parser.add_argument("--files", nargs="+", required=True, help="Target Java files (relative to repo root)")
     parser.add_argument("--output", default="context_full.txt")
     parser.add_argument("--depth", type=int, default=1)
+    parser.add_argument("--include-tests", action="store_true", help="Include test files (*Test.java) in reverse dependency search")
+    parser.add_argument("--reverse-limit", type=int, help="Limit number of reverse dependency files per target file")
     parser.add_argument("--cleanup", action="store_true")
     args = parser.parse_args()
 
@@ -307,7 +323,14 @@ if __name__ == "__main__":
         repo_path = clone_repo(args.repo_url, args.branch)
         temp_repo = repo_path
 
-    prepare_context_multi(repo_path, args.files, args.output, args.depth)
+    prepare_context_multi(
+        repo_path,
+        args.files,
+        args.output,
+        depth=args.depth,
+        include_tests=args.include_tests,
+        reverse_limit=args.reverse_limit,
+    )
 
     if args.cleanup and temp_repo:
         print(f"🧹 Cleaning up {temp_repo}")
